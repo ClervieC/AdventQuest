@@ -4,7 +4,7 @@ import { GameComponentProps } from '../../components/GameWrapper/types';
 import { calculateSudokuScore, Grid, isSolved, revealRandomCell, SudokuPuzzle } from './logic';
 import { generateSudokuPuzzle, SudokuDifficulty } from './puzzles';
 
-interface SudokuGameProps extends Omit<GameComponentProps, 'difficulty'> {
+interface SudokuGameProps extends GameComponentProps {
   difficulty?: SudokuDifficulty;
 }
 
