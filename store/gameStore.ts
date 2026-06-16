@@ -27,14 +27,14 @@ const FRAGMENT_THRESHOLD = 12;
 
 // Données simulées pour le développement — à remplacer par Supabase en Phase 5
 const initialDays: Record<number, DayState> = {
-  1: { fragmentWon: true, bestScore: 1250, attempts: 1 },
+  //1: { fragmentWon: true, bestScore: 1250, attempts: 1 },
   2: { fragmentWon: true, bestScore: 890, attempts: 2 },
   3: { fragmentWon: true, bestScore: 1440, attempts: 1 },
   4: { fragmentWon: true, bestScore: 1100, attempts: 1 },
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  currentDay: 5, // simulé pour le dev — viendra de la date serveur en Phase 5
+  currentDay: 3, // simulé pour le dev — viendra de la date serveur en Phase 5
   hints: 3,
   days: initialDays,
 

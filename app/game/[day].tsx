@@ -1,6 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { GameWrapper } from '../../components/GameWrapper';
 import { getDayConfig } from '../../constants/days';
+import { QuizGame } from '../../games/day01_quiz';
+import { SudokuGame } from '../../games/day03_sudoku';
+
+const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
+  quiz: QuizGame,
+  sudoku: SudokuGame,
+};
 
 export default function GameScreen() {
   const { day } = useLocalSearchParams<{ day: string }>();
@@ -10,22 +18,35 @@ export default function GameScreen() {
   if (!config) {
     return (
       <View style={styles.container}>
-        <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-        <Text style={styles.title}>Configuration manquante pour le jour {dayNumber}</Text>
+        <Text style={styles.text}>Configuration manquante pour le jour {dayNumber}</Text>
+      </View>
+    );
+  }
+
+  const GameComponent = GAME_COMPONENTS[config.game];
+
+  if (!GameComponent) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>🎮 Jeu "{config.game}" — pas encore implémenté</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.dayLabel}>Jour {config.day} / 24</Text>
-      <Text style={styles.title}>{config.fragmentIcon} {config.fragmentName}</Text>
-      <Text style={styles.story}>{config.storyIntro}</Text>
-      <Text style={styles.placeholder}>
-        🎮 Jeu "{config.game}" — à implémenter en Phase 2/3
-      </Text>
-    </View>
+    <GameWrapper
+      day={config.day}
+      fragmentName={config.fragmentName}
+      fragmentIcon={config.fragmentIcon}
+      storyIntro={config.storyIntro}
+    >
+      {(gameProps) => (
+    <GameComponent
+      {...gameProps}
+      difficulty={config.sudokuDifficulty}
+    />
+  )}
+    </GameWrapper>
   );
 }
 
@@ -37,35 +58,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logo: {
-    width: 60,
-    height: 60,
-    marginBottom: 16,
-  },
-  dayLabel: {
-    fontSize: 11,
-    letterSpacing: 2,
-    color: '#3a5a7a',
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  story: {
+  text: {
+    color: '#7a9ab8',
     fontSize: 13,
-    color: '#4a6a8a',
-    marginTop: 16,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  placeholder: {
-    fontSize: 13,
-    color: '#7c3aed',
-    marginTop: 32,
     textAlign: 'center',
   },
 });

@@ -1,6 +1,7 @@
 export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
+
 export interface DayConfig {
   day: number;
   game: GameType;
@@ -9,7 +10,9 @@ export interface DayConfig {
   fragmentIcon: string;
   storyIntro: string;
   zone: string;
+  sudokuDifficulty?: 'easy' | 'medium' | 'hard' | 'very_hard'; // ← nouveau, optionnel
 }
+
 
 export const DAYS_CONFIG: DayConfig[] = [
   {
