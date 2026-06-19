@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -59,6 +59,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '🌱',
     storyIntro: "À l'orée de la forêt, un mécanisme à pommes de pin enchantées tourne en boucle.",
     zone: '🎄 Le Village Englouti',
+  },
+  {
+    day: 10,
+    game: 'pipepuzzle',
+    difficulty: 'medium',
+    fragmentName: 'Éclat de cristal',
+    fragmentIcon: '🔹',
+    storyIntro: "Un puzzle magique bloque l'accès au fragment. Résous-le pour avancer.",
+    zone: '🌲 La Forêt de Grimnoir',
   },
   {
     day: 14,

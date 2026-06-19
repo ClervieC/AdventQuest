@@ -1,6 +1,7 @@
 import { StackGame } from '@/games/day02_stack';
 import { MemorySequenceGame } from '@/games/day04_memory_sequence';
 import { SnakeGame } from '@/games/day05_snake';
+import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
@@ -17,6 +18,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   snake: SnakeGame,
   stack: StackGame,
   labyrinthe: LabyrintheGame,
+  pipepuzzle: PipePuzzleGame,
   whackamole: WhackAMoleGame,
 };
 
