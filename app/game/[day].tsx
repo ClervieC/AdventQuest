@@ -1,3 +1,4 @@
+import { MemorySequenceGame } from '@/games/day04_memory_sequence';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
@@ -8,6 +9,7 @@ import { SudokuGame } from '../../games/day03_sudoku';
 const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   quiz: QuizGame,
   sudoku: SudokuGame,
+  memory_sequence: MemorySequenceGame,
 };
 
 export default function GameScreen() {
@@ -41,10 +43,7 @@ export default function GameScreen() {
       storyIntro={config.storyIntro}
     >
       {(gameProps) => (
-    <GameComponent
-      {...gameProps}
-      difficulty={config.sudokuDifficulty}
-    />
+        <GameComponent {...gameProps} difficulty={config.gameDifficulty} />
   )}
     </GameWrapper>
   );

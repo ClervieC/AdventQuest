@@ -10,7 +10,7 @@ export interface DayConfig {
   fragmentIcon: string;
   storyIntro: string;
   zone: string;
-  sudokuDifficulty?: 'easy' | 'medium' | 'hard' | 'very_hard'; // ← nouveau, optionnel
+  gameDifficulty?: 'easy' | 'medium' | 'hard' | 'very_hard';
 }
 
 

@@ -34,7 +34,7 @@ const initialDays: Record<number, DayState> = {
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  currentDay: 3, // simulé pour le dev — viendra de la date serveur en Phase 5
+  currentDay: 4, // simulé pour le dev — viendra de la date serveur en Phase 5
   hints: 3,
   days: initialDays,
 
