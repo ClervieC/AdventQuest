@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -124,6 +124,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     zone: '🌲 La Forêt de Grimnoir',
   },
   {
+    day: 15,
+    game: 'nonogram',
+    difficulty: 'medium',
+    fragmentName: 'Éclat de cristal',
+    fragmentIcon: '🔹',
+    storyIntro: "Un puzzle magique bloque l'accès au fragment. Résous-le pour avancer.",
+    zone: '🌲 La Forêt de Grimnoir',
+  },
+  {
     day: 16,
     game: 'whackamole',
     difficulty: 'medium',
@@ -131,9 +140,7 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '❤️',
     storyIntro: "Des créatures magiques surgissent des buissons. Tapote-les pour les calmer et récupérer le fragment.",
     zone: '🌲 La Forêt de Grimnoir',
-  }
-  // Jours 6-24 à compléter progressivement — on n'a pas besoin de tout remplir
-  // maintenant, seulement assez pour développer et tester le squelette
+  },
 ];
 
 export function getDayConfig(day: number): DayConfig | undefined {

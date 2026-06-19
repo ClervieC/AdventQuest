@@ -8,6 +8,7 @@ import { BubbleShooterGame } from '@/games/day09_bubbleshooter';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
 import { SolitaireGame } from '@/games/day11_solitaire';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
+import { NonogramGame } from '@/games/day15_nonogram';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
@@ -30,6 +31,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   fruitninja: FruitNinjaGame,
   bubbleshooter: BubbleShooterGame,
   solitaire: SolitaireGame,
+  nonogram: NonogramGame,
 };
 
 export default function GameScreen() {
