@@ -4,6 +4,7 @@ import { SnakeGame } from '@/games/day05_snake';
 import { DessinConnecteGame } from '@/games/day06_dessinconnecte';
 import { FruitNinjaGame } from '@/games/day07_fruitninja';
 import { MemorySequenceGame } from '@/games/day08_memory_sequence';
+import { BubbleShooterGame } from '@/games/day09_bubbleshooter';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
 import { useLocalSearchParams } from 'expo-router';
@@ -26,6 +27,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   whackamole: WhackAMoleGame,
   dessinconnecte: DessinConnecteGame,
   fruitninja: FruitNinjaGame,
+  bubbleshooter: BubbleShooterGame,
 };
 
 export default function GameScreen() {

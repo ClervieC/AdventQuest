@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -85,6 +85,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: 'Souffle hivernal',
     fragmentIcon: '〜',
     storyIntro: "Les premiers lutins de Grimnoir arrivent. Repousse-les en suivant le bon rythme.",
+    zone: '🎄 Le Village Englouti',
+  },
+  {
+    day: 9,
+    game: 'bubbleshooter',
+    difficulty: 'easy',
+    fragmentName: 'Éclat de bulle',
+    fragmentIcon: '泡泡',
+    storyIntro: "Un labyrinthe magique protège un précieux fragment. Trouve la sortie avant que le temps ne s'écoule !",
     zone: '🎄 Le Village Englouti',
   },
   {
