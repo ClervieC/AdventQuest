@@ -1,6 +1,6 @@
 import { StackGame } from '@/games/day02_stack';
-import { MemorySequenceGame } from '@/games/day04_memory_sequence';
 import { SnakeGame } from '@/games/day05_snake';
+import { MemorySequenceGame } from '@/games/day08_memory_sequence';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
 import { useLocalSearchParams } from 'expo-router';
