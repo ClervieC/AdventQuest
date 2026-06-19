@@ -55,6 +55,7 @@
     let settings = DIFFICULTY_SETTINGS.easy;
     function configureDifficulty(difficulty) {
       settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
     }
 
     const ENEMY_ROWS = 3;
@@ -97,12 +98,14 @@
         isPointerDown = false;
       });
 
-      spawnWave();
-
       this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
       this.waveText = this.add.text(width - 110, 20, 'Vague 1', { fontSize: '16px', color: '#f59e0b' });
 
       notifyReady();
+    }
+
+    function startGame() {
+      spawnWave();
     }
 
     function spawnWave() {

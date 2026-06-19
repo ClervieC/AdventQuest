@@ -56,6 +56,16 @@
 
     function configureDifficulty(difficulty) {
       settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
+    }
+
+    function startGame() {
+      const baseX = scene.scale.width / 2;
+      const baseY = scene.scale.height - 100;
+
+      blocks.push({ x: baseX, width: INITIAL_BLOCK_WIDTH, y: baseY });
+      drawBlock(baseX, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
+      spawnNextBlock();
     }
 
     const BLOCK_HEIGHT = 40;
@@ -76,15 +86,6 @@
     function create() {
       scene = this;
       this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
-
-      // Premier bloc fixe, centré
-      const baseX = this.scale.width / 2;
-      const baseY = this.scale.height - 100;
-
-      blocks.push({ x: baseX, width: INITIAL_BLOCK_WIDTH, y: baseY });
-      drawBlock(baseX, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
-
-      spawnNextBlock();
 
       progressText = this.add.text(this.scale.width / 2, 24, '', {
         fontSize: '18px',

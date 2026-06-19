@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -58,6 +58,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: 'Racine ancienne',
     fragmentIcon: '🌱',
     storyIntro: "À l'orée de la forêt, un mécanisme à pommes de pin enchantées tourne en boucle.",
+    zone: '🎄 Le Village Englouti',
+  },
+  {
+    day: 6,
+    game: 'dessinconnecte',
+    difficulty: 'easy',
+    fragmentName: 'Tracé magique',
+    fragmentIcon: '✏️',
+    storyIntro: "Un ancien grimoire contient un dessin magique. Reconstitue-le pour débloquer le fragment.",
     zone: '🎄 Le Village Englouti',
   },
   {

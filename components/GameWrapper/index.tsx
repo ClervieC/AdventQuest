@@ -10,7 +10,7 @@ interface GameWrapperProps {
   fragmentName: string;
   fragmentIcon: string;
   storyIntro: string;
-  children: (props: { onGameEnd: (result: GameResult) => void; hintsAvailable: number; onUseHint: () => void }) => React.ReactNode;
+  children: (props: { onGameEnd: (result: GameResult) => void; hintsAvailable: number; onUseHint: () => void; isStarted: boolean }) => React.ReactNode;
 }
 
 export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, children }: GameWrapperProps) {
@@ -76,11 +76,10 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
         </View>
       )}
 
-      {phase === 'playing' && (
-        <View style={styles.gameContainer}>
-          {children({ onGameEnd: handleGameEnd, hintsAvailable: hints, onUseHint: useHint })}
-        </View>
-      )}
+      {/* Toujours rendu pour pré-charger Phaser pendant l'intro, caché si pas encore joué */}
+      <View style={[styles.gameContainer, phase !== 'playing' && styles.hidden]}>
+        {children({ onGameEnd: handleGameEnd, hintsAvailable: hints, onUseHint: useHint, isStarted: phase === 'playing' })}
+      </View>
 
       {phase === 'result' && result && (
         <View style={styles.resultContainer}>
@@ -167,6 +166,13 @@ const styles = StyleSheet.create({
   },
   gameContainer: {
     flex: 1,
+  },
+  hidden: {
+    position: 'absolute',
+    opacity: 0,
+    pointerEvents: 'none',
+    width: '100%',
+    height: '100%',
   },
   resultContainer: {
     flex: 1,

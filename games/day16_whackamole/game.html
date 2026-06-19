@@ -56,6 +56,7 @@
 
     function configureDifficulty(difficulty) {
       settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
     }
 
     const GRID_COLS = 3;
@@ -108,15 +109,16 @@
 
       this.input.on('pointerdown', handlePointerDown);
 
-      scheduleNextSpawn();
+      notifyReady();
+    }
 
-      this.time.addEvent({
+    function startGame() {
+      scheduleNextSpawn();
+      scene.time.addEvent({
         delay: 1000,
         callback: tickCountdown,
         loop: true,
       });
-
-      notifyReady();
     }
 
     function update() {}

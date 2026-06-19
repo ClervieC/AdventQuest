@@ -1,15 +1,28 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { GameComponentProps } from '../GameWrapper/types';
 
 interface PhaserGameWrapperProps extends GameComponentProps {
   htmlSource: any; // résultat de require('../../games/dayXX_nom/game.html')
+  isStarted: boolean;
 }
 
-export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSource, difficulty }: PhaserGameWrapperProps) {
+export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSource, difficulty, isStarted }: PhaserGameWrapperProps) {
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isReadyRef = useRef(false);
+
+  const sendMessageToGame = (message: object) => {
+    webViewRef.current?.postMessage(JSON.stringify(message));
+  };
+
+  // Quand le jeu est prêt ET que l'utilisateur a appuyé sur Jouer → envoyer INIT
+  useEffect(() => {
+    if (isStarted && isReadyRef.current) {
+      sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy' });
+    }
+  }, [isStarted, difficulty]);
 
   const handleMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
@@ -21,28 +34,23 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
         }
 
         if (data.type === 'GAME_READY') {
+          isReadyRef.current = true;
           setIsLoading(false);
-          // on transmet la difficulté au jeu Phaser dès qu'il est prêt
-          sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy' });
+          // Envoyer INIT seulement si l'utilisateur a déjà appuyé sur Jouer
+          if (isStarted) {
+            sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy' });
+          }
         }
 
         if (data.type === 'REQUEST_HINT_USE') {
-          // le jeu Phaser demande confirmation qu'un hint peut être consommé
           onUseHint();
         }
       } catch (error) {
         console.warn('Message WebView invalide reçu:', event.nativeEvent.data);
       }
     },
-    [onGameEnd, onUseHint, difficulty]
+    [onGameEnd, onUseHint, difficulty, isStarted]
   );
-
-  const sendMessageToGame = (message: object) => {
-    webViewRef.current?.postMessage(JSON.stringify(message));
-  };
-
-  // Expose la possibilité d'envoyer un hint depuis l'extérieur si besoin plus tard
-  // (actuellement le hint est géré côté Phaser qui appelle REQUEST_HINT_USE lui-même)
 
   return (
     <View style={styles.container}>
