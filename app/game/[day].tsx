@@ -2,6 +2,7 @@ import { StackGame } from '@/games/day02_stack';
 import { SpaceInvadersGame } from '@/games/day04_spaceinvaders';
 import { SnakeGame } from '@/games/day05_snake';
 import { DessinConnecteGame } from '@/games/day06_dessinconnecte';
+import { FruitNinjaGame } from '@/games/day07_fruitninja';
 import { MemorySequenceGame } from '@/games/day08_memory_sequence';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
@@ -24,6 +25,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   spaceinvaders: SpaceInvadersGame,
   whackamole: WhackAMoleGame,
   dessinconnecte: DessinConnecteGame,
+  fruitninja: FruitNinjaGame,
 };
 
 export default function GameScreen() {

@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -68,6 +68,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '✏️',
     storyIntro: "Un ancien grimoire contient un dessin magique. Reconstitue-le pour débloquer le fragment.",
     zone: '🎄 Le Village Englouti',
+  },
+  {
+    day: 7,
+    game: 'fruitninja',
+    difficulty: 'easy',
+    fragmentName: 'Éclat de pomme',
+    fragmentIcon: '🍎',
+    storyIntro: "Un arbre magique est tombé dans la forêt. Coupe les fruits pour récupérer le fragment.",
+    zone: '🌲 La Forêt de Grimnoir',
   },
   {
     day: 8,

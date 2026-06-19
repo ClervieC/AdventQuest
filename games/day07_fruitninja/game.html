@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+
+    let currentDifficulty = 'easy';
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          currentDifficulty = data.difficulty;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE FRUIT NINJA
+    // ============================================
+
+    const DIFFICULTY_SETTINGS = {
+      easy:      { spawnIntervalMs: 1100, bombChance: 0.1, launchSpeedMin: 600, launchSpeedMax: 750 },
+      medium:    { spawnIntervalMs: 850,  bombChance: 0.18, launchSpeedMin: 700, launchSpeedMax: 850 },
+      hard:      { spawnIntervalMs: 650,  bombChance: 0.25, launchSpeedMin: 800, launchSpeedMax: 950 },
+      very_hard: { spawnIntervalMs: 500,  bombChance: 0.32, launchSpeedMin: 900, launchSpeedMax: 1050 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
+    }
+
+    function getSpeedRatio() {
+      const elapsed = GAME_DURATION_MS - timeRemaining;
+      return 1 + 0.6 * (elapsed / GAME_DURATION_MS); // 1.0 → 1.6 au fil du temps
+    }
+
+    function scheduleNextSpawn() {
+      if (gameEnded) return;
+      const delay = Math.round(settings.spawnIntervalMs / getSpeedRatio());
+      spawnTimer = scene.time.delayedCall(delay, () => {
+        spawnObject();
+        scheduleNextSpawn();
+      });
+    }
+
+    function startGame() {
+      scheduleNextSpawn();
+      scene.time.addEvent({ delay: 1000, callback: tickCountdown, loop: true });
+    }
+
+    const GAME_DURATION_MS = 45000;
+    const GRAVITY = 1100;
+    const OBJECT_RADIUS = 28;
+
+    let scene;
+    let objects = [];        // { sprite, x, y, vx, vy, isBomb, sliced }
+    let trailPoints = [];    // historique récent des positions du doigt pour le tracé visuel
+    let score = 0;
+    let gameEnded = false;
+    let spawnTimer = null;
+    let scoreText, timerText;
+    let timeRemaining = GAME_DURATION_MS;
+    let isPointerDown = false;
+    let lastPointerPos = null;
+    let trailGraphics;
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+      const width = this.scale.width;
+
+      trailGraphics = this.add.graphics();
+
+      scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' });
+      timerText = this.add.text(width - 90, 20, '45s', { fontSize: '20px', color: '#f59e0b', fontStyle: 'bold' });
+
+      this.input.on('pointerdown', (pointer) => {
+        isPointerDown = true;
+        lastPointerPos = { x: pointer.x, y: pointer.y };
+        trailPoints = [{ x: pointer.x, y: pointer.y }];
+      });
+
+      this.input.on('pointermove', (pointer) => {
+        if (!isPointerDown) return;
+        const newPos = { x: pointer.x, y: pointer.y };
+        checkSliceCollision(lastPointerPos, newPos);
+        trailPoints.push(newPos);
+        if (trailPoints.length > 10) trailPoints.shift();
+        lastPointerPos = newPos;
+      });
+
+      this.input.on('pointerup', () => {
+        isPointerDown = false;
+        trailPoints = [];
+      });
+
+      notifyReady();
+    }
+
+    function spawnObject() {
+      if (gameEnded) return;
+
+      const width = scene.scale.width;
+      const height = scene.scale.height;
+      const isBomb = Math.random() < settings.bombChance;
+
+      const x = width * 0.2 + Math.random() * width * 0.6;
+      const y = height + 40;
+      const ratio = getSpeedRatio();
+      const vx = (Math.random() - 0.5) * 200 * ratio;
+      const vy = -(settings.launchSpeedMin + Math.random() * (settings.launchSpeedMax - settings.launchSpeedMin)) * ratio;
+
+      const color = isBomb ? 0x1a1a1a : [0xef4444, 0x22c55e, 0xeab308, 0xa78bfa][Math.floor(Math.random() * 4)];
+      const sprite = scene.add.circle(x, y, OBJECT_RADIUS, color);
+      if (isBomb) {
+        sprite.setStrokeStyle(2, 0xef4444);
+      }
+
+      objects.push({ sprite, x, y, vx, vy, isBomb, sliced: false });
+    }
+
+    function checkSliceCollision(from, to) {
+      objects.forEach((obj) => {
+        if (obj.sliced) return;
+        const distance = distanceFromSegmentToPoint(from, to, { x: obj.x, y: obj.y });
+        if (distance <= OBJECT_RADIUS) {
+          sliceObject(obj);
+        }
+      });
+    }
+
+    /** Distance la plus courte entre un segment [from, to] et un point */
+    function distanceFromSegmentToPoint(from, to, point) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const lengthSquared = dx * dx + dy * dy;
+
+      if (lengthSquared === 0) {
+        return Phaser.Math.Distance.Between(from.x, from.y, point.x, point.y);
+      }
+
+      let t = ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared;
+      t = Phaser.Math.Clamp(t, 0, 1);
+
+      const closestX = from.x + t * dx;
+      const closestY = from.y + t * dy;
+
+      return Phaser.Math.Distance.Between(point.x, point.y, closestX, closestY);
+    }
+
+    function sliceObject(obj) {
+      obj.sliced = true;
+      obj.sprite.destroy();
+
+      if (obj.isBomb) {
+        finishGame(false);
+        return;
+      }
+
+      score += 30;
+      scoreText.setText('Score: ' + score);
+
+      // petit effet de feedback visuel
+      const feedback = scene.add.text(obj.x, obj.y, '+30', { fontSize: '18px', color: '#34d399', fontStyle: 'bold' }).setOrigin(0.5);
+      scene.tweens.add({ targets: feedback, y: obj.y - 40, alpha: 0, duration: 500, onComplete: () => feedback.destroy() });
+    }
+
+    function update(time, delta) {
+      if (gameEnded) return;
+
+      const dt = delta / 1000;
+
+      objects = objects.filter((obj) => {
+        if (obj.sliced) return false;
+
+        obj.vy += GRAVITY * dt;
+        obj.x += obj.vx * dt;
+        obj.y += obj.vy * dt;
+        obj.sprite.x = obj.x;
+        obj.sprite.y = obj.y;
+
+        if (obj.y > scene.scale.height + 60) {
+          obj.sprite.destroy();
+          return false;
+        }
+        return true;
+      });
+
+      // Dessine la traînée du doigt
+      trailGraphics.clear();
+      if (trailPoints.length > 1) {
+        trailGraphics.lineStyle(4, 0xffffff, 0.5);
+        trailGraphics.beginPath();
+        trailGraphics.moveTo(trailPoints[0].x, trailPoints[0].y);
+        for (let i = 1; i < trailPoints.length; i++) {
+          trailGraphics.lineTo(trailPoints[i].x, trailPoints[i].y);
+        }
+        trailGraphics.strokePath();
+      }
+    }
+
+    function tickCountdown() {
+      if (gameEnded) return;
+      timeRemaining -= 1000;
+      const secondsLeft = Math.max(0, Math.ceil(timeRemaining / 1000));
+      timerText.setText(secondsLeft + 's');
+
+      if (timeRemaining <= 0) {
+        finishGame(true);
+      }
+    }
+
+    function finishGame(success) {
+      if (gameEnded) return;
+      gameEnded = true;
+      if (spawnTimer) { spawnTimer.remove(); spawnTimer = null; }
+
+      scene.time.delayedCall(300, () => {
+        endGame(success && score > 0, score);
+      });
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>
