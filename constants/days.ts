@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -26,8 +26,8 @@ export const DAYS_CONFIG: DayConfig[] = [
   },
   {
     day: 2,
-    game: 'whackamole',
-    difficulty: 'hard',
+    game: 'stack',
+    difficulty: 'easy',
     fragmentName: 'Graine de givre',
     fragmentIcon: '❄',
     storyIntro: "La fontaine du village est gelée en plusieurs couches. Empile les blocs de glace pour atteindre le fragment.",
@@ -60,6 +60,24 @@ export const DAYS_CONFIG: DayConfig[] = [
     storyIntro: "À l'orée de la forêt, un mécanisme à pommes de pin enchantées tourne en boucle.",
     zone: '🎄 Le Village Englouti',
   },
+  {
+    day: 14,
+    game: 'labyrinthe',
+    difficulty: 'medium',
+    fragmentName: 'Âme de l\'explorateur',
+    fragmentIcon: '🧭',
+    storyIntro: "Un labyrinthe magique protège un précieux fragment. Trouve la sortie avant que le temps ne s'écoule !",
+    zone: '🌲 La Forêt de Grimnoir',
+  },
+  {
+    day: 16,
+    game: 'whackamole',
+    difficulty: 'medium',
+    fragmentName: 'Cœur de la forêt',
+    fragmentIcon: '❤️',
+    storyIntro: "Des créatures magiques surgissent des buissons. Tapote-les pour les calmer et récupérer le fragment.",
+    zone: '🌲 La Forêt de Grimnoir',
+  }
   // Jours 6-24 à compléter progressivement — on n'a pas besoin de tout remplir
   // maintenant, seulement assez pour développer et tester le squelette
 ];
