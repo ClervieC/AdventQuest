@@ -1,4 +1,5 @@
 import { MemorySequenceGame } from '@/games/day04_memory_sequence';
+import { SnakeGame } from '@/games/day05_snake';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
@@ -10,6 +11,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   quiz: QuizGame,
   sudoku: SudokuGame,
   memory_sequence: MemorySequenceGame,
+  snake: SnakeGame,
 };
 
 export default function GameScreen() {
