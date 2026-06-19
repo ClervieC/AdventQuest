@@ -6,6 +6,7 @@ import { FruitNinjaGame } from '@/games/day07_fruitninja';
 import { MemorySequenceGame } from '@/games/day08_memory_sequence';
 import { BubbleShooterGame } from '@/games/day09_bubbleshooter';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
+import { SolitaireGame } from '@/games/day11_solitaire';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
@@ -28,6 +29,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   dessinconnecte: DessinConnecteGame,
   fruitninja: FruitNinjaGame,
   bubbleshooter: BubbleShooterGame,
+  solitaire: SolitaireGame,
 };
 
 export default function GameScreen() {

@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -103,6 +103,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: 'Éclat de cristal',
     fragmentIcon: '🔹',
     storyIntro: "Un puzzle magique bloque l'accès au fragment. Résous-le pour avancer.",
+    zone: '🌲 La Forêt de Grimnoir',
+  },
+  {
+    day: 11,
+    game: 'solitaire',
+    difficulty: 'medium',
+    fragmentName: 'Carte de la forêt',
+    fragmentIcon: '🃏',
+    storyIntro: "Un jeu de cartes magiques bloque l'accès au fragment. Résous-le pour avancer.",
     zone: '🌲 La Forêt de Grimnoir',
   },
   {
