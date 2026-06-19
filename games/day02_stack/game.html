@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+
+    let currentDifficulty = 'easy';
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          currentDifficulty = data.difficulty;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE STACK
+    // ============================================
+
+    const DIFFICULTY_SETTINGS = {
+      easy:      { speed: 120, targetFloors: 15, perfectTolerance: 12 },
+      medium:    { speed: 160, targetFloors: 14, perfectTolerance: 9 },
+      hard:      { speed: 200, targetFloors: 18, perfectTolerance: 6 },
+      very_hard: { speed: 240, targetFloors: 20, perfectTolerance: 4 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+    }
+
+    const BLOCK_HEIGHT = 40;
+    const INITIAL_BLOCK_WIDTH = 200;
+    const COLORS = [0x7c3aed, 0xa78bfa, 0x6ee7b7, 0x34d399, 0xf5c842, 0xfb923c];
+
+    let scene;
+    let blocks = [];          // historique des blocs empilés {x, width, y}
+    let currentBlock = null;  // bloc en mouvement actuel
+    let movingDirection = 1;
+    let floorsBuilt = 0;
+    let cameraOffsetY = 0;
+    let gameEnded = false;
+    let progressText = null;
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+      this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+
+      // Premier bloc fixe, centré
+      const baseX = this.scale.width / 2;
+      const baseY = this.scale.height - 100;
+
+      blocks.push({ x: baseX, width: INITIAL_BLOCK_WIDTH, y: baseY });
+      drawBlock(baseX, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
+
+      spawnNextBlock();
+
+      progressText = this.add.text(this.scale.width / 2, 24, '', {
+        fontSize: '18px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        alpha: 0.75,
+      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(10);
+      updateProgressText();
+
+      this.input.on('pointerdown', handleTap);
+
+      notifyReady();
+    }
+
+    function update() {
+      if (gameEnded || !currentBlock) return;
+
+      currentBlock.x += movingDirection * (settings.speed / 60);
+
+      const margin = currentBlock.width / 2 + 10;
+      if (currentBlock.x > scene.scale.width - margin || currentBlock.x < margin) {
+        movingDirection *= -1;
+      }
+
+      currentBlock.sprite.x = currentBlock.x;
+    }
+
+    function updateProgressText() {
+      if (!progressText) return;
+      const remaining = settings.targetFloors - floorsBuilt;
+      progressText.setText(`${remaining} bloc${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}`);
+    }
+
+    function drawBlock(x, y, width, color) {
+      const rect = scene.add.rectangle(x, y, width, BLOCK_HEIGHT, color);
+      rect.setStrokeStyle(2, 0xffffff, 0.15);
+      return rect;
+    }
+
+    function spawnNextBlock() {
+      const lastBlock = blocks[blocks.length - 1];
+      const newY = lastBlock.y - BLOCK_HEIGHT;
+      const colorIndex = floorsBuilt % COLORS.length;
+
+      const margin = lastBlock.width / 2 + 10;
+      const startX = movingDirection > 0 ? margin : scene.scale.width - margin;
+      const sprite = drawBlock(startX, newY, lastBlock.width, COLORS[colorIndex]);
+
+      currentBlock = { x: startX, width: lastBlock.width, y: newY, sprite };
+
+      // Décale la caméra vers le haut si on approche du sommet de l'écran visible
+      if (newY < 150) {
+        cameraOffsetY += BLOCK_HEIGHT;
+        scene.cameras.main.scrollY = -cameraOffsetY;
+      }
+    }
+
+    function handleTap() {
+      if (gameEnded || !currentBlock) return;
+
+      const lastBlock = blocks[blocks.length - 1];
+      const diff = currentBlock.x - lastBlock.x;
+      const overlapWidth = lastBlock.width - Math.abs(diff);
+
+      if (overlapWidth <= 0) {
+        // Aucun chevauchement : game over
+        finishGame(false);
+        return;
+      }
+
+      // Alignement "parfait" si la différence est sous la tolérance configurée
+      const isPerfect = Math.abs(diff) <= settings.perfectTolerance;
+      const finalWidth = isPerfect ? lastBlock.width : overlapWidth;
+      const finalX = isPerfect ? lastBlock.x : lastBlock.x + diff / 2 + (diff > 0 ? overlapWidth / 2 - lastBlock.width/2 + lastBlock.width/2 : 0);
+
+      // Recalcul propre du centre du chevauchement
+      const newLeft = Math.max(currentBlock.x - currentBlock.width / 2, lastBlock.x - lastBlock.width / 2);
+      const newRight = Math.min(currentBlock.x + currentBlock.width / 2, lastBlock.x + lastBlock.width / 2);
+      const newCenterX = (newLeft + newRight) / 2;
+      const newWidth = isPerfect ? lastBlock.width : (newRight - newLeft);
+
+      currentBlock.sprite.destroy();
+      const colorIndex = floorsBuilt % COLORS.length;
+      const finalSprite = drawBlock(newCenterX, currentBlock.y, newWidth, COLORS[colorIndex]);
+
+      blocks.push({ x: newCenterX, width: newWidth, y: currentBlock.y, sprite: finalSprite });
+      floorsBuilt += 1;
+      updateProgressText();
+
+      if (floorsBuilt >= settings.targetFloors) {
+        finishGame(true);
+        return;
+      }
+
+      if (newWidth < 15) {
+        // Trop étroit pour continuer
+        finishGame(true); // on garde quand même la victoire si on a atteint un score correct
+        return;
+      }
+
+      spawnNextBlock();
+    }
+
+    function finishGame(success) {
+      gameEnded = true;
+      const score = floorsBuilt * 100;
+      // petite pause visuelle avant de transmettre le résultat
+      scene.time.delayedCall(400, () => {
+        endGame(success && floorsBuilt > 0, score);
+      });
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>

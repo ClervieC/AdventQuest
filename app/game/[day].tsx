@@ -1,3 +1,4 @@
+import { StackGame } from '@/games/day02_stack';
 import { MemorySequenceGame } from '@/games/day04_memory_sequence';
 import { SnakeGame } from '@/games/day05_snake';
 import { useLocalSearchParams } from 'expo-router';
@@ -12,6 +13,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   sudoku: SudokuGame,
   memory_sequence: MemorySequenceGame,
   snake: SnakeGame,
+  stack: StackGame,
 };
 
 export default function GameScreen() {
