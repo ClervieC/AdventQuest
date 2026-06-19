@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -26,8 +26,8 @@ export const DAYS_CONFIG: DayConfig[] = [
   },
   {
     day: 2,
-    game: 'stack',
-    difficulty: 'easy',
+    game: 'whackamole',
+    difficulty: 'hard',
     fragmentName: 'Graine de givre',
     fragmentIcon: '❄',
     storyIntro: "La fontaine du village est gelée en plusieurs couches. Empile les blocs de glace pour atteindre le fragment.",

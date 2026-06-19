@@ -7,6 +7,7 @@ import { GameWrapper } from '../../components/GameWrapper';
 import { getDayConfig } from '../../constants/days';
 import { QuizGame } from '../../games/day01_quiz';
 import { SudokuGame } from '../../games/day03_sudoku';
+import { WhackAMoleGame } from '../../games/day16_whackamole';
 
 const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   quiz: QuizGame,
@@ -14,6 +15,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   memory_sequence: MemorySequenceGame,
   snake: SnakeGame,
   stack: StackGame,
+  whackamole: WhackAMoleGame,
 };
 
 export default function GameScreen() {

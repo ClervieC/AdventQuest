@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+
+    let currentDifficulty = 'easy';
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          currentDifficulty = data.difficulty;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE WHACK-A-MOLE
+    // ============================================
+
+    const DIFFICULTY_SETTINGS = {
+      easy:      { spawnIntervalMs: 1100, moleVisibleMs: 1400, fakeFragmentChance: 0.0 },
+      medium:    { spawnIntervalMs: 900,  moleVisibleMs: 1100, fakeFragmentChance: 0.15 },
+      hard:      { spawnIntervalMs: 700,  moleVisibleMs: 850,  fakeFragmentChance: 0.25 },
+      very_hard: { spawnIntervalMs: 550,  moleVisibleMs: 650,  fakeFragmentChance: 0.35 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+    }
+
+    const GRID_COLS = 3;
+    const GRID_ROWS = 3;
+    const GAME_DURATION_MS = 45000;
+    const HOLE_RADIUS = 45;
+    const MAX_LIVES = 3;
+
+    let scene;
+    let holes = [];
+    let score = 0;
+    let lives = MAX_LIVES;
+    let gameEnded = false;
+    let spawnTimer = null;
+    let countdownText;
+    let scoreText;
+    let livesText;
+    let timeRemaining = GAME_DURATION_MS;
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+      const width = this.scale.width;
+      const height = this.scale.height;
+
+      const marginTop = 200;
+      const marginBottom = 40;
+      const marginX = 30;
+      const playAreaHeight = height - marginTop - marginBottom;
+      const cellWidth = (width - marginX * 2) / GRID_COLS;
+      const cellHeight = playAreaHeight / GRID_ROWS * 0.55;
+
+      for (let row = 0; row < GRID_ROWS; row++) {
+        for (let col = 0; col < GRID_COLS; col++) {
+          const x = marginX + cellWidth * col + cellWidth / 2;
+          const y = marginTop + cellHeight * row + cellHeight / 2;
+
+          const holeGraphic = this.add.circle(x, y, HOLE_RADIUS, 0x0a1420);
+          holeGraphic.setStrokeStyle(2, 0x1a3050);
+
+          holes.push({ x, y, occupied: false, isFake: false, sprite: null, hideTimer: null });
+        }
+      }
+
+      // UI
+      scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' });
+      countdownText = this.add.text(width - 100, 20, '45s', { fontSize: '20px', color: '#f59e0b', fontStyle: 'bold' });
+      livesText = this.add.text(width / 2, 20, getLivesString(), { fontSize: '22px' }).setOrigin(0.5, 0);
+
+      this.input.on('pointerdown', handlePointerDown);
+
+      scheduleNextSpawn();
+
+      this.time.addEvent({
+        delay: 1000,
+        callback: tickCountdown,
+        loop: true,
+      });
+
+      notifyReady();
+    }
+
+    function update() {}
+
+    function getLivesString() {
+      return '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+    }
+
+    function getSpeedRatio() {
+      const elapsed = GAME_DURATION_MS - timeRemaining;
+      return 1 - 0.70 * (elapsed / GAME_DURATION_MS);
+    }
+
+    function scheduleNextSpawn() {
+      if (gameEnded) return;
+      const delay = Math.round(settings.spawnIntervalMs * getSpeedRatio());
+      spawnTimer = scene.time.delayedCall(delay, () => {
+        spawnMole();
+        scheduleNextSpawn();
+      });
+    }
+
+    function spawnMole() {
+      if (gameEnded) return;
+
+      const freeHoles = holes.filter((h) => !h.occupied);
+      if (freeHoles.length === 0) return;
+
+      const hole = freeHoles[Math.floor(Math.random() * freeHoles.length)];
+      const isFake = Math.random() < settings.fakeFragmentChance;
+
+      hole.occupied = true;
+      hole.isFake = isFake;
+
+      const emoji = isFake ? '✨' : '👺';
+
+      const sprite = scene.add.text(hole.x, hole.y, emoji, { fontSize: '36px' }).setOrigin(0.5);
+      sprite.setScale(0);
+      scene.tweens.add({ targets: sprite, scale: 1, duration: 150, ease: 'Back.easeOut' });
+
+      hole.sprite = sprite;
+
+      hole.hideTimer = scene.time.delayedCall(Math.round(settings.moleVisibleMs * getSpeedRatio()), () => {
+        if (!hole.isFake) loseLife();
+        hideMole(hole);
+      });
+    }
+
+    function hideMole(hole) {
+      if (hole.sprite) {
+        hole.sprite.destroy();
+        hole.sprite = null;
+      }
+      hole.occupied = false;
+      hole.isFake = false;
+    }
+
+    function loseLife() {
+      if (gameEnded) return;
+      lives = Math.max(0, lives - 1);
+      livesText.setText(getLivesString());
+      if (lives <= 0) {
+        finishGame();
+      }
+    }
+
+    function handlePointerDown(pointer) {
+      if (gameEnded) return;
+
+      for (const hole of holes) {
+        if (!hole.occupied) continue;
+        const distance = Phaser.Math.Distance.Between(pointer.x, pointer.y, hole.x, hole.y);
+        if (distance <= HOLE_RADIUS) {
+          if (hole.isFake) {
+            score = Math.max(0, score - 50);
+            flashFeedback(hole.x, hole.y, '-50', 0xef4444);
+          } else {
+            score += 100;
+            flashFeedback(hole.x, hole.y, '+100', 0x34d399);
+          }
+          if (hole.hideTimer) hole.hideTimer.remove();
+          hideMole(hole);
+          scoreText.setText('Score: ' + score);
+          break;
+        }
+      }
+    }
+
+    function flashFeedback(x, y, text, color) {
+      const feedback = scene.add.text(x, y - 20, text, { fontSize: '18px', color: '#' + color.toString(16).padStart(6, '0'), fontStyle: 'bold' }).setOrigin(0.5);
+      scene.tweens.add({
+        targets: feedback,
+        y: y - 60,
+        alpha: 0,
+        duration: 600,
+        onComplete: () => feedback.destroy(),
+      });
+    }
+
+    function tickCountdown() {
+      if (gameEnded) return;
+      timeRemaining -= 1000;
+      const secondsLeft = Math.max(0, Math.ceil(timeRemaining / 1000));
+      countdownText.setText(secondsLeft + 's');
+
+      if (timeRemaining <= 0) {
+        finishGame();
+      }
+    }
+
+    function finishGame() {
+      if (gameEnded) return;
+      gameEnded = true;
+      if (spawnTimer) spawnTimer.remove();
+
+      const success = score > 0;
+      scene.time.delayedCall(300, () => {
+        endGame(success, score);
+      });
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>
