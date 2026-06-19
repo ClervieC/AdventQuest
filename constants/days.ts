@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -41,6 +41,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '◆',
     storyIntro: "L'horloge magique de la mairie est bloquée sur une grille de chiffres.",
     zone: '🎄 Le Village Englouti',
+  },
+  {
+    day: 4,
+    game: 'spaceinvaders',
+    difficulty: 'medium',
+    fragmentName: 'Fragments de vaisseau',
+    fragmentIcon: '🛸',
+    storyIntro: "Un vaisseau spatial est échoué dans la forêt. Récupère les fragments pour le réparer.",
+    zone: '🌲 La Forêt de Grimnoir',
   },
   {
     day: 5,

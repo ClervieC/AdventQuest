@@ -1,4 +1,5 @@
 import { StackGame } from '@/games/day02_stack';
+import { SpaceInvadersGame } from '@/games/day04_spaceinvaders';
 import { SnakeGame } from '@/games/day05_snake';
 import { MemorySequenceGame } from '@/games/day08_memory_sequence';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
@@ -19,6 +20,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   stack: StackGame,
   labyrinthe: LabyrintheGame,
   pipepuzzle: PipePuzzleGame,
+  spaceinvaders: SpaceInvadersGame,
   whackamole: WhackAMoleGame,
 };
 

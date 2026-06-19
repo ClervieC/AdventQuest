@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+
+    let currentDifficulty = 'easy';
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          currentDifficulty = data.difficulty;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE SPACE INVADERS
+    // ============================================
+
+    const DIFFICULTY_SETTINGS = {
+      easy:      { wavesCount: 2, enemySpeed: 25, enemyShootChance: 0.0015, descendStep: 18 },
+      medium:    { wavesCount: 3, enemySpeed: 35, enemyShootChance: 0.0025, descendStep: 22 },
+      hard:      { wavesCount: 4, enemySpeed: 45, enemyShootChance: 0.0035, descendStep: 26 },
+      very_hard: { wavesCount: 4, enemySpeed: 55, enemyShootChance: 0.0045, descendStep: 30 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+    }
+
+    const ENEMY_ROWS = 3;
+    const ENEMY_COLS = 5;
+    const PLAYER_SPEED = 280;
+
+    let scene;
+    let player;
+    let playerX;
+    let enemies = [];          // { sprite, alive }
+    let enemyDirection = 1;
+    let playerBullets = [];
+    let enemyBullets = [];
+    let score = 0;
+    let currentWave = 1;
+    let gameEnded = false;
+    let pointerTargetX = null;
+    let isPointerDown = false;
+    let lastShotTime = 0;
+    const SHOT_COOLDOWN_MS = 350;
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+      const width = this.scale.width;
+      const height = this.scale.height;
+
+      playerX = width / 2;
+      player = this.add.triangle(playerX, height - 60, 0, 30, 15, 0, 30, 30, 0x7c3aed);
+
+      this.input.on('pointermove', (pointer) => {
+        pointerTargetX = pointer.x;
+      });
+      this.input.on('pointerdown', (pointer) => {
+        pointerTargetX = pointer.x;
+        isPointerDown = true;
+      });
+      this.input.on('pointerup', () => {
+        isPointerDown = false;
+      });
+
+      spawnWave();
+
+      this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
+      this.waveText = this.add.text(width - 110, 20, 'Vague 1', { fontSize: '16px', color: '#f59e0b' });
+
+      notifyReady();
+    }
+
+    function spawnWave() {
+      enemies = [];
+      const width = scene.scale.width;
+      const startX = width * 0.15;
+      const spacingX = (width * 0.7) / (ENEMY_COLS - 1);
+      const startY = 80;
+      const spacingY = 50;
+
+      for (let row = 0; row < ENEMY_ROWS; row++) {
+        for (let col = 0; col < ENEMY_COLS; col++) {
+          const x = startX + col * spacingX;
+          const y = startY + row * spacingY;
+          const sprite = scene.add.circle(x, y, 16, 0xef4444);
+          enemies.push({ sprite, alive: true, x, y });
+        }
+      }
+    }
+
+    function tryShoot() {
+      const now = Date.now();
+      if (now - lastShotTime < SHOT_COOLDOWN_MS) return;
+      lastShotTime = now;
+
+      const bullet = scene.add.rectangle(player.x, player.y - 20, 4, 14, 0x6ee7b7);
+      playerBullets.push(bullet);
+    }
+
+    function update(time, delta) {
+      if (gameEnded) return;
+
+      // Tir automatique tant que le doigt est appuyé
+      if (isPointerDown) tryShoot();
+
+      // Mouvement du joueur vers la cible (souris/tap)
+      if (pointerTargetX !== null) {
+        const diff = pointerTargetX - player.x;
+        const moveStep = Math.sign(diff) * Math.min(Math.abs(diff), PLAYER_SPEED * (delta / 1000));
+        player.x += moveStep;
+        player.x = Phaser.Math.Clamp(player.x, 20, scene.scale.width - 20);
+      }
+
+      // Déplacement des ennemis (mouvement latéral collectif)
+      let hitEdge = false;
+      enemies.forEach((enemy) => {
+        if (!enemy.alive) return;
+        enemy.x += enemyDirection * settings.enemySpeed * (delta / 1000);
+        enemy.sprite.x = enemy.x;
+        if (enemy.x < 30 || enemy.x > scene.scale.width - 30) hitEdge = true;
+
+        // Tir ennemi aléatoire
+        if (Math.random() < settings.enemyShootChance) {
+          const eBullet = scene.add.rectangle(enemy.x, enemy.y + 16, 4, 14, 0xf87171);
+          enemyBullets.push(eBullet);
+        }
+      });
+
+      if (hitEdge) {
+        enemyDirection *= -1;
+        enemies.forEach((enemy) => {
+          if (enemy.alive) {
+            enemy.y += settings.descendStep;
+            enemy.sprite.y = enemy.y;
+          }
+        });
+      }
+
+      // Vérifie si un ennemi a atteint le joueur (game over)
+      const enemyReachedBottom = enemies.some((e) => e.alive && e.y > player.y - 40);
+      if (enemyReachedBottom) {
+        finishGame(false);
+        return;
+      }
+
+      // Déplace les projectiles du joueur
+      playerBullets = playerBullets.filter((bullet) => {
+        bullet.y -= 400 * (delta / 1000);
+        if (bullet.y < 0) {
+          bullet.destroy();
+          return false;
+        }
+        return true;
+      });
+
+      // Déplace les projectiles ennemis
+      enemyBullets = enemyBullets.filter((bullet) => {
+        bullet.y += 300 * (delta / 1000);
+        if (bullet.y > scene.scale.height) {
+          bullet.destroy();
+          return false;
+        }
+        // collision avec le joueur
+        const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y);
+        if (dist < 20) {
+          bullet.destroy();
+          finishGame(false);
+          return false;
+        }
+        return true;
+      });
+
+      // Collision projectiles joueur <-> ennemis
+      playerBullets.forEach((bullet, bIndex) => {
+        enemies.forEach((enemy) => {
+          if (!enemy.alive) return;
+          const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, enemy.x, enemy.y);
+          if (dist < 20) {
+            enemy.alive = false;
+            enemy.sprite.destroy();
+            bullet.destroy();
+            playerBullets.splice(bIndex, 1);
+            score += 50;
+            scene.scoreText.setText('Score: ' + score);
+          }
+        });
+      });
+
+      // Vague terminée : tous les ennemis détruits
+      const remainingEnemies = enemies.filter((e) => e.alive).length;
+      if (remainingEnemies === 0) {
+        if (currentWave >= settings.wavesCount) {
+          finishGame(true);
+        } else {
+          currentWave += 1;
+          scene.waveText.setText('Vague ' + currentWave);
+          enemyDirection = 1;
+          spawnWave();
+        }
+      }
+    }
+
+    function finishGame(success) {
+      if (gameEnded) return;
+      gameEnded = true;
+      scene.time.delayedCall(300, () => {
+        endGame(success, score);
+      });
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>
