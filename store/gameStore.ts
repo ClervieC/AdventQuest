@@ -44,10 +44,11 @@ const initialDays: Record<number, DayState> = {
   16: { fragmentWon: false, bestScore: 0, attempts: 0 },
   19: { fragmentWon: false, bestScore: 0, attempts: 0 },
   20: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  22: { fragmentWon: false, bestScore: 0, attempts: 0 },
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  currentDay: 20, // simulé pour le dev — viendra de la date serveur en Phase 5
+  currentDay: 22, // simulé pour le dev — viendra de la date serveur en Phase 5
   hints: 3,
   days: initialDays,
 

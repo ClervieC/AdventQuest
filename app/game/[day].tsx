@@ -19,6 +19,7 @@ import { SudokuGame } from '../../games/day03_sudoku';
 import { WhackAMoleGame } from '../../games/day16_whackamole';
 import { DodgeBallGame } from '../../games/day19_dodgeball';
 import { CasseBriquesGame } from '../../games/day20_cassebriques';
+import { Day22MarathonGame } from '../../games/day22_marathon';
 
 const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   quiz: QuizGame,
@@ -38,6 +39,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   runner: RunnerGame,
   dodgeball: DodgeBallGame,
   cassebriques: CasseBriquesGame,
+  marathon_22: Day22MarathonGame,
 };
 
 export default function GameScreen() {

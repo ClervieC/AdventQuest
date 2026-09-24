@@ -76,6 +76,8 @@
     let scoreText, timerText;
     let timeRemaining = GAME_DURATION_MS;
     let cannonX, cannonY;
+    let countdownEvent = null;
+    let descendEvent = null;
 
     function preload() {}
 
@@ -117,8 +119,28 @@
       if (cannonSprite) cannonSprite.rotation = cannonAngle + Math.PI / 2;
     }
 
+    // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
     function startGame() {
       const width = scene.scale.width;
+
+      // Remise à zéro (la taille finale de la WebView n'est connue qu'ici, pas dans create)
+      Object.values(grid).forEach((bubble) => bubble && bubble.sprite.destroy());
+      grid = {};
+      if (flyingBubble) flyingBubble.sprite.destroy();
+      flyingBubble = null;
+      [cannonSprite, currentBubbleSprite, nextBubbleSprite].forEach((sprite) => sprite && sprite.destroy());
+      if (countdownEvent) countdownEvent.remove();
+      if (descendEvent) descendEvent.remove();
+      countdownEvent = null;
+      descendEvent = null;
+      score = 0;
+      gameEnded = false;
+      timeRemaining = GAME_DURATION_MS;
+      cannonAngle = -Math.PI / 2;
+      cannonX = width / 2;
+      cannonY = scene.scale.height - 80;
+      scoreText.setText('Score: 0');
+      timerText.setText('').setX(width - 90);
 
       // Génère la grille initiale avec les bons settings de difficulté
       for (let row = 0; row < settings.initialRows; row++) {
@@ -135,10 +157,10 @@
       currentBubbleSprite = scene.add.circle(cannonX, cannonY, BUBBLE_RADIUS, currentBubbleColor);
       nextBubbleSprite = scene.add.circle(width - 40, cannonY, BUBBLE_RADIUS * 0.6, nextBubbleColor);
 
-      scene.time.addEvent({ delay: 1000, callback: tickCountdown, loop: true });
+      countdownEvent = scene.time.addEvent({ delay: 1000, callback: tickCountdown, loop: true });
 
       if (settings.descendIntervalMs) {
-        scene.time.addEvent({ delay: settings.descendIntervalMs, callback: descendGrid, loop: true });
+        descendEvent = scene.time.addEvent({ delay: settings.descendIntervalMs, callback: descendGrid, loop: true });
       }
     }
 

@@ -64,7 +64,8 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
       try {
         const data = JSON.parse(raw);
 
-        if (data.type === 'GAME_OVER') {
+        // Un jeu ne peut pas se terminer avant que le joueur ait appuyé sur Jouer
+        if (data.type === 'GAME_OVER' && isStarted) {
           onGameEnd({ success: data.success, score: data.score });
         }
 

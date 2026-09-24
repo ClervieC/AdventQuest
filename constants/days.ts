@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -167,6 +167,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '🧊',
     storyIntro: "Le dernier mur de la citadelle est fait de blocs de glace enchantée. Brise-les tous avant la fin du temps, mais méfie-toi des pièges de Grimnoir cachés dans la glace !",
     zone: '🏰 La Citadelle de Grimnoir',
+  },
+  {
+    day: 22,
+    game: 'marathon_22',
+    difficulty: 'very_hard',
+    fragmentName: 'Corde du pont',
+    fragmentIcon: '🪢',
+    storyIntro: "Le pont suspendu vers la Salle du Cœur est gardé par deux épreuves. Repousse les envahisseurs, puis fais éclater les bulles de givre, sans échouer une seule fois !",
+    zone: '🌉 Le Pont Suspendu',
   },
 ];
 

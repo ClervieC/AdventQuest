@@ -72,6 +72,7 @@
     let score = 0;
     let currentWave = 1;
     let gameEnded = false;
+    let started = false; // la boucle ne doit rien faire avant INIT (sinon le jeu se joue tout seul pendant l'intro)
     let pointerTargetX = null;
     let isPointerDown = false;
     let lastShotTime = 0;
@@ -104,8 +105,32 @@
       notifyReady();
     }
 
+    // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
     function startGame() {
+      enemies.forEach((e) => e.sprite.destroy());
+      playerBullets.forEach((b) => b.destroy());
+      enemyBullets.forEach((b) => b.destroy());
+      enemies = [];
+      playerBullets = [];
+      enemyBullets = [];
+      score = 0;
+      currentWave = 1;
+      enemyDirection = 1;
+      gameEnded = false;
+      started = true;
+      pointerTargetX = null;
+      isPointerDown = false;
+      scene.scoreText.setText('Score: 0');
+      scene.waveText.setText('Vague 1');
+      layoutPlayer();
+      player.x = scene.scale.width / 2;
       spawnWave();
+    }
+
+    // La WebView peut changer de taille après le chargement : le vaisseau reste toujours en bas
+    function layoutPlayer() {
+      player.y = scene.scale.height - 60;
+      scene.waveText.x = scene.scale.width - 110;
     }
 
     function spawnWave() {
@@ -136,7 +161,8 @@
     }
 
     function update(time, delta) {
-      if (gameEnded) return;
+      if (gameEnded || !started) return;
+      layoutPlayer();
 
       // Tir automatique tant que le doigt est appuyé
       if (isPointerDown) tryShoot();
@@ -155,7 +181,9 @@
         if (!enemy.alive) return;
         enemy.x += enemyDirection * settings.enemySpeed * (delta / 1000);
         enemy.sprite.x = enemy.x;
-        if (enemy.x < 30 || enemy.x > scene.scale.width - 30) hitEdge = true;
+        // On ne change de sens que si on va VERS le bord : après un redimensionnement, un ennemi
+        // déjà hors limite déclencherait sinon un demi-tour + une descente à chaque image
+        if ((enemy.x < 30 && enemyDirection < 0) || (enemy.x > scene.scale.width - 30 && enemyDirection > 0)) hitEdge = true;
 
         // Tir ennemi aléatoire
         if (Math.random() < settings.enemyShootChance) {
