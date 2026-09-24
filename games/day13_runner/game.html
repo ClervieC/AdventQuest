@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; touch-action: none; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+    function notifyHintUsed() {
+      sendToReactNative({ type: 'REQUEST_HINT_USE' });
+    }
+
+    let currentDifficulty = 'easy';
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          currentDifficulty = data.difficulty;
+          hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE RUNNER DE NOËL
+    // ============================================
+
+    // Vitesses en px/s, écarts entre obstacles en secondes de course
+    const DIFFICULTY_SETTINGS = {
+      easy:      { startSpeed: 280, maxSpeed: 460, gapMin: 1.3, gapMax: 2.2, stalactiteChance: 0.25 },
+      medium:    { startSpeed: 330, maxSpeed: 540, gapMin: 1.1, gapMax: 1.9, stalactiteChance: 0.35 },
+      hard:      { startSpeed: 380, maxSpeed: 620, gapMin: 0.95, gapMax: 1.6, stalactiteChance: 0.4 },
+      very_hard: { startSpeed: 430, maxSpeed: 700, gapMin: 0.85, gapMax: 1.4, stalactiteChance: 0.45 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
+    }
+
+    const GAME_DURATION_MS = 60000;
+    const MAX_LIVES = 3;
+    const GRAVITY = 2200;
+    const JUMP_VELOCITY = -820;
+    const DOUBLE_JUMP_VELOCITY = -700;
+    const SLIDE_DURATION_MS = 650;
+    const INVULNERABLE_MS = 1100;
+    const HINT_SLOW_MS = 5000;
+    const HINT_SLOW_FACTOR = 0.5;
+    const FRAGMENT_POINTS = 100;
+    const PX_PER_METER = 10;
+
+    const PLAYER_W = 30;
+    const PLAYER_H = 48;
+    const PLAYER_SLIDE_H = 22;
+    const STALACTITE_CLEARANCE = 32; // hauteur libre sous une stalactite : on passe en glissant, pas debout
+
+    let scene;
+    let width, height, groundY, ceilingY, playerX;
+
+    let player;
+    let playerSprite;
+    let obstacles = [];
+    let fragments = [];
+
+    let running = false;
+    let gameEnded = false;
+    let score = 0;
+    let distance = 0;
+    let fragmentsCollected = 0;
+    let lives = MAX_LIVES;
+    let elapsedMs = 0;
+    let nextSpawnIn = 0;
+    let invulnerableUntil = 0;
+    let slowUntil = 0;
+    let hintsLeft = 0;
+
+    let scoreText, timeText, livesText, hintButton, hintText, messageText;
+    let groundTiles = [];
+    let bgObjects = [];
+    let pointerStart = null;
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+
+      playerSprite = this.add.text(0, 0, '🧝', { fontSize: '44px' }).setOrigin(0.5, 1).setDepth(5);
+
+      // UI (positionnée dans layout)
+      scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setDepth(10);
+      timeText = this.add.text(0, 20, '60s', { fontSize: '20px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(10);
+      livesText = this.add.text(20, 44, getLivesString(), { fontSize: '16px' }).setDepth(10);
+      hintButton = this.add.rectangle(0, 0, 110, 40, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
+      hintText = this.add.text(0, 0, '', { fontSize: '14px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
+      messageText = this.add.text(0, 0, 'Tap : sauter (2× = double saut)\nSwipe ↓ : glisser', {
+        fontSize: '14px', color: '#7a9ab8', align: 'center',
+      }).setOrigin(0.5, 0).setDepth(10);
+
+      layout();
+      // La WebView change de taille entre l'écran d'intro et la partie : on recalcule tout
+      this.scale.on('resize', layout);
+
+      this.input.on('pointerdown', handlePointerDown);
+      this.input.on('pointermove', handlePointerMove);
+      this.input.on('pointerup', handlePointerUp);
+
+      // Clavier pour tester game.html dans un navigateur
+      this.input.keyboard.on('keydown-SPACE', jump);
+      this.input.keyboard.on('keydown-UP', jump);
+      this.input.keyboard.on('keydown-DOWN', slide);
+
+      resetState();
+      notifyReady();
+
+      // Hors de l'app (navigateur), on lance directement une partie
+      if (!window.ReactNativeWebView) {
+        hintsLeft = 3;
+        scene.time.delayedCall(300, () => configureDifficulty('easy'));
+      }
+    }
+
+    function layout() {
+      width = scene.scale.width;
+      height = scene.scale.height;
+      groundY = Math.round(height * 0.72);
+      ceilingY = 70;
+      playerX = Math.round(width * 0.22);
+
+      drawBackground();
+
+      timeText.setX(width - 20);
+      hintButton.setPosition(width - 20, groundY + 40);
+      hintText.setPosition(width - 75, groundY + 60);
+      messageText.setPosition(width / 2, groundY + 110);
+
+      // Les obstacles en cours dépendent de l'ancien sol : on les retire
+      obstacles.forEach((o) => o.sprite.destroy());
+      fragments.forEach((f) => f.sprite.destroy());
+      obstacles = [];
+      fragments = [];
+      if (player) player.y = player.onGround ? groundY : Math.min(player.y, groundY);
+      playerSprite.setPosition(playerX, player ? player.y : groundY);
+    }
+
+    function drawBackground() {
+      bgObjects.forEach((o) => o.destroy());
+      bgObjects = [];
+      groundTiles = [];
+      const add = (obj) => { bgObjects.push(obj); return obj; };
+      // Étoiles
+      for (let i = 0; i < 40; i++) {
+        add(scene.add.circle(Math.random() * width, ceilingY + Math.random() * (groundY - ceilingY - 60), Math.random() * 1.5 + 0.5, 0xffffff, Math.random() * 0.5 + 0.2));
+      }
+      // Plafond de la forêt (branches gelées)
+      add(scene.add.rectangle(0, 0, width, ceilingY, 0x0a1420).setOrigin(0, 0));
+      add(scene.add.rectangle(0, ceilingY - 4, width, 4, 0x1a3050).setOrigin(0, 0));
+      // Sol enneigé
+      add(scene.add.rectangle(0, groundY, width, height - groundY, 0x0a1420).setOrigin(0, 0));
+      add(scene.add.rectangle(0, groundY, width, 6, 0xdbeafe).setOrigin(0, 0));
+      // Sapins qui défilent au sol pour donner la sensation de vitesse
+      const spacing = 90;
+      for (let x = 0; x < width + spacing; x += spacing) {
+        groundTiles.push(add(scene.add.text(x, groundY + 10, '🌲', { fontSize: '18px' }).setAlpha(0.35)));
+      }
+    }
+
+    function resetState() {
+      obstacles.forEach((o) => o.sprite.destroy());
+      fragments.forEach((f) => f.sprite.destroy());
+      obstacles = [];
+      fragments = [];
+
+      player = { y: groundY, vy: 0, onGround: true, canDoubleJump: true, slideUntil: 0 };
+      score = 0;
+      distance = 0;
+      fragmentsCollected = 0;
+      lives = MAX_LIVES;
+      elapsedMs = 0;
+      nextSpawnIn = 1.2;
+      invulnerableUntil = 0;
+      slowUntil = 0;
+      running = false;
+      gameEnded = false;
+
+      playerSprite.setPosition(playerX, groundY).setScale(1).setAlpha(1).setAngle(0);
+      scoreText.setText('Score: 0');
+      timeText.setText('60s');
+      livesText.setText(getLivesString());
+      updateHintButton();
+    }
+
+    // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
+    function startGame() {
+      resetState();
+      running = true;
+      messageText.setAlpha(1);
+      scene.tweens.add({ targets: messageText, alpha: 0, delay: 2500, duration: 600 });
+    }
+
+    function getLivesString() {
+      return '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+    }
+
+    function updateHintButton() {
+      const slowActive = scene.time.now < slowUntil;
+      hintText.setText(slowActive ? '🐢 Ralenti' : '💡 Ralentir (' + hintsLeft + ')');
+      hintButton.setAlpha(hintsLeft > 0 || slowActive ? 1 : 0.4);
+    }
+
+    function currentSpeed() {
+      const progress = Math.min(1, elapsedMs / GAME_DURATION_MS);
+      return settings.startSpeed + (settings.maxSpeed - settings.startSpeed) * progress;
+    }
+
+    // ---------- Entrées ----------
+
+    function isOnHintButton(pointer) {
+      return hintButton.getBounds().contains(pointer.x, pointer.y);
+    }
+
+    function handlePointerDown(pointer) {
+      if (!running) return;
+      if (isOnHintButton(pointer)) {
+        useHint();
+        pointerStart = null;
+        return;
+      }
+      pointerStart = { x: pointer.x, y: pointer.y, consumed: false };
+    }
+
+    function handlePointerMove(pointer) {
+      if (!running || !pointerStart || pointerStart.consumed || !pointer.isDown) return;
+      const dx = pointer.x - pointerStart.x;
+      const dy = pointer.y - pointerStart.y;
+      if (dy > 35 && dy > Math.abs(dx)) {
+        pointerStart.consumed = true;
+        slide();
+      }
+    }
+
+    function handlePointerUp() {
+      if (!running || !pointerStart) return;
+      if (!pointerStart.consumed) jump();
+      pointerStart = null;
+    }
+
+    function jump() {
+      if (!running) return;
+      if (player.onGround) {
+        player.vy = JUMP_VELOCITY;
+        player.onGround = false;
+        player.canDoubleJump = true;
+        player.slideUntil = 0;
+      } else if (player.canDoubleJump) {
+        player.vy = DOUBLE_JUMP_VELOCITY;
+        player.canDoubleJump = false;
+        scene.tweens.add({ targets: playerSprite, angle: 360, duration: 350, onComplete: () => playerSprite.setAngle(0) });
+      }
+    }
+
+    function slide() {
+      if (!running) return;
+      if (!player.onGround) {
+        // En l'air : chute rapide, la glissade démarre à l'atterrissage
+        player.vy = Math.max(player.vy, 900);
+      }
+      player.slideUntil = scene.time.now + SLIDE_DURATION_MS;
+    }
+
+    function useHint() {
+      if (hintsLeft <= 0 || scene.time.now < slowUntil) return;
+      hintsLeft -= 1;
+      slowUntil = scene.time.now + HINT_SLOW_MS;
+      notifyHintUsed();
+      flashFeedback(width / 2, groundY - 160, '🐢 Ralenti 5s', '#a78bfa');
+      updateHintButton();
+      scene.time.delayedCall(HINT_SLOW_MS, updateHintButton);
+    }
+
+    // ---------- Génération ----------
+
+    function spawnObstacle() {
+      const isStalactite = Math.random() < settings.stalactiteChance;
+      const x = width + 40;
+
+      if (isStalactite) {
+        // Colonne de glace qui descend du plafond : impossible à sauter, il faut glisser dessous
+        const bottom = groundY - STALACTITE_CLEARANCE;
+        const w = 34;
+        const container = scene.add.container(x, 0).setDepth(4);
+        const column = scene.add.rectangle(0, ceilingY, w, bottom - ceilingY - 14, 0x7dd3fc, 0.55).setOrigin(0.5, 0);
+        const tip = scene.add.triangle(-w / 2, bottom - 14, 0, 0, w, 0, w / 2, 14, 0xbae6fd).setOrigin(0, 0);
+        container.add([column, tip]);
+        obstacles.push({ kind: 'stalactite', x, w, top: ceilingY, bottom, sprite: container });
+        // Parfois un fragment à ras du sol pour récompenser la glissade
+        if (Math.random() < 0.4) spawnFragment(x, groundY - 14);
+      } else {
+        // Racine au sol : on saute par-dessus
+        const tall = Math.random() < 0.35;
+        const h = tall ? 46 : 30;
+        const w = tall ? 30 : 42;
+        const sprite = scene.add.text(x, groundY + 4, tall ? '⛄' : '🪵', { fontSize: tall ? '40px' : '34px' }).setOrigin(0.5, 1).setDepth(4);
+        obstacles.push({ kind: 'root', x, w, top: groundY - h, bottom: groundY, sprite });
+        if (Math.random() < 0.45) spawnFragment(x, groundY - h - 90);
+      }
+    }
+
+    function spawnFragment(x, y) {
+      const sprite = scene.add.text(x, y, '✨', { fontSize: '26px' }).setOrigin(0.5).setDepth(3);
+      scene.tweens.add({ targets: sprite, y: y - 8, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      fragments.push({ x, y, sprite, r: 16 });
+    }
+
+    // ---------- Boucle ----------
+
+    function update(time, delta) {
+      if (!running) return;
+
+      const dtMs = Math.min(delta, 50); // évite les sauts énormes si la WebView a été en pause
+      const slowFactor = time < slowUntil ? HINT_SLOW_FACTOR : 1;
+      const dt = (dtMs / 1000) * slowFactor;
+
+      // Le chrono avance normalement même pendant le ralenti
+      elapsedMs += dtMs;
+      const speed = currentSpeed();
+      const dx = speed * dt;
+      distance += dx;
+
+      updatePlayer(time, dt);
+      scrollWorld(dx);
+
+      nextSpawnIn -= dt;
+      if (nextSpawnIn <= 0) {
+        spawnObstacle();
+        nextSpawnIn = Phaser.Math.FloatBetween(settings.gapMin, settings.gapMax);
+      }
+
+      checkCollisions(time);
+
+      score = Math.floor(distance / PX_PER_METER) + fragmentsCollected * FRAGMENT_POINTS;
+      scoreText.setText('Score: ' + score);
+      const secondsLeft = Math.max(0, Math.ceil((GAME_DURATION_MS - elapsedMs) / 1000));
+      timeText.setText(secondsLeft + 's');
+
+      if (elapsedMs >= GAME_DURATION_MS) finishGame(true);
+    }
+
+    function updatePlayer(time, dt) {
+      if (!player.onGround) {
+        player.vy += GRAVITY * dt;
+        player.y += player.vy * dt;
+        if (player.y >= groundY) {
+          player.y = groundY;
+          player.vy = 0;
+          player.onGround = true;
+          player.canDoubleJump = true;
+        }
+      }
+
+      const sliding = isSliding(time);
+      playerSprite.setY(player.y);
+      playerSprite.setScale(sliding ? 1.2 : 1, sliding ? 0.5 : 1);
+      playerSprite.setAlpha(time < invulnerableUntil ? (Math.floor(time / 100) % 2 ? 0.3 : 1) : 1);
+    }
+
+    function isSliding(time) {
+      return player.onGround && time < player.slideUntil;
+    }
+
+    function scrollWorld(dx) {
+      obstacles.forEach((o) => {
+        o.x -= dx;
+        o.sprite.x = o.x;
+      });
+      fragments.forEach((f) => {
+        f.x -= dx;
+        f.sprite.x = f.x;
+      });
+      groundTiles.forEach((t) => {
+        t.x -= dx;
+        if (t.x < -30) t.x += Math.ceil((width + 120) / 90) * 90;
+      });
+
+      obstacles = obstacles.filter((o) => {
+        if (o.x < -60) { o.sprite.destroy(); return false; }
+        return true;
+      });
+      fragments = fragments.filter((f) => {
+        if (f.x < -60) { f.sprite.destroy(); return false; }
+        return true;
+      });
+    }
+
+    function getPlayerBox(time) {
+      const h = isSliding(time) ? PLAYER_SLIDE_H : PLAYER_H;
+      return { left: playerX - PLAYER_W / 2, right: playerX + PLAYER_W / 2, top: player.y - h, bottom: player.y };
+    }
+
+    function checkCollisions(time) {
+      const box = getPlayerBox(time);
+
+      // Fragments : collectés même pendant l'invulnérabilité
+      fragments = fragments.filter((f) => {
+        const cx = Phaser.Math.Clamp(f.x, box.left, box.right);
+        const cy = Phaser.Math.Clamp(f.y, box.top, box.bottom);
+        if ((f.x - cx) ** 2 + (f.y - cy) ** 2 <= f.r * f.r) {
+          fragmentsCollected += 1;
+          flashFeedback(f.x, f.y, '+' + FRAGMENT_POINTS, '#fbbf24');
+          f.sprite.destroy();
+          return false;
+        }
+        return true;
+      });
+
+      if (time < invulnerableUntil) return;
+
+      // Hitbox légèrement réduite pour pardonner les frôlements
+      const margin = 4;
+      for (const o of obstacles) {
+        const overlapX = box.right - margin > o.x - o.w / 2 && box.left + margin < o.x + o.w / 2;
+        const overlapY = box.bottom - margin > o.top && box.top + margin < o.bottom;
+        if (overlapX && overlapY) {
+          hitObstacle(time);
+          break;
+        }
+      }
+    }
+
+    function hitObstacle(time) {
+      lives = Math.max(0, lives - 1);
+      livesText.setText(getLivesString());
+      invulnerableUntil = time + INVULNERABLE_MS;
+      scene.cameras.main.shake(200, 0.01);
+      flashFeedback(playerX, player.y - 70, 'Aïe !', '#ef4444');
+      if (lives <= 0) finishGame(false);
+    }
+
+    function flashFeedback(x, y, text, color) {
+      const feedback = scene.add.text(x, y, text, { fontSize: '18px', color, fontStyle: 'bold' }).setOrigin(0.5).setDepth(12);
+      scene.tweens.add({
+        targets: feedback,
+        y: y - 40,
+        alpha: 0,
+        duration: 700,
+        onComplete: () => feedback.destroy(),
+      });
+    }
+
+    function finishGame(survived) {
+      if (gameEnded) return;
+      gameEnded = true;
+      running = false;
+      scene.time.delayedCall(400, () => {
+        endGame(survived, score);
+      });
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>

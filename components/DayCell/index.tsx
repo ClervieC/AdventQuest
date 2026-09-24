@@ -4,7 +4,7 @@ import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 interface DayCellProps {
   day: number;
   icon: string;
-  status: 'done' | 'today' | 'locked';
+  status: 'done' | 'today' | 'missed' | 'locked';
   isGolden?: boolean;
   bestScore?: number;
   onPress: () => void;
@@ -32,18 +32,20 @@ export function DayCell({ day, icon, status, isGolden, bestScore, onPress }: Day
           styles.cell,
           status === 'done' && styles.done,
           status === 'today' && styles.today,
+          status === 'missed' && styles.missed,
           status === 'locked' && styles.locked,
           isGolden && styles.golden,
         ]}
       >
         {status === 'done' && <Text style={styles.tick}>✓</Text>}
+        {status === 'missed' && <Text style={styles.cross}>✗</Text>}
         <Text style={[styles.dayNumber, status === 'locked' && styles.lockedText]}>
           {day === 24 ? '🎁' : day}
         </Text>
         {status === 'locked' ? (
           <Text style={styles.lockIcon}>🔒</Text>
         ) : (
-          <Text style={styles.icon}>{icon}</Text>
+          <Text style={[styles.icon, status === 'missed' && styles.missedIcon]}>{icon}</Text>
         )}
         {status === 'done' && bestScore !== undefined && (
           <Text style={styles.score}>+{bestScore}</Text>
@@ -70,6 +72,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#130d2a',
     borderWidth: 2,
     borderColor: '#7c3aed',
+  },
+  missed: {
+    backgroundColor: '#1a0f14',
+    borderWidth: 1,
+    borderColor: '#3a1a22',
+  },
+  missedIcon: {
+    opacity: 0.35,
+  },
+  cross: {
+    position: 'absolute',
+    top: 4,
+    right: 5,
+    fontSize: 9,
+    color: '#f87171',
   },
   locked: {
     backgroundColor: '#0a1420',

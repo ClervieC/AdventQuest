@@ -12,6 +12,9 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isReadyRef = useRef(false);
+  // Ref et pas dépendance : utiliser un hint ne doit pas renvoyer INIT (ça relancerait la partie)
+  const hintsRef = useRef(hintsAvailable);
+  hintsRef.current = hintsAvailable;
 
   const sendMessageToGame = (message: object) => {
     webViewRef.current?.postMessage(JSON.stringify(message));
@@ -20,7 +23,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   // Quand le jeu est prêt ET que l'utilisateur a appuyé sur Jouer → envoyer INIT
   useEffect(() => {
     if (isStarted && isReadyRef.current) {
-      sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy' });
+      sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current });
     }
   }, [isStarted, difficulty]);
 
@@ -38,7 +41,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
           setIsLoading(false);
           // Envoyer INIT seulement si l'utilisateur a déjà appuyé sur Jouer
           if (isStarted) {
-            sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy' });
+            sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current });
           }
         }
 

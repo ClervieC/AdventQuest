@@ -23,6 +23,8 @@ export function Calendar() {
           ? 'done'
           : config.day === currentDay
           ? 'today'
+          : config.day < currentDay
+          ? 'missed'
           : 'locked';
 
         return (

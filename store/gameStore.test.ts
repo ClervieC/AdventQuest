@@ -42,6 +42,16 @@ describe('gameStore - finishAttempt', () => {
     expect(state.days[1].bestScore).toBe(1250);
   });
 
+  test("rejouer un jour manqué ne rend pas le fragment et ne compte pas d'essai (mode entraînement)", () => {
+    useGameStore.setState({
+      days: { 3: { fragmentWon: false, bestScore: 0, attempts: 0 } },
+    });
+    useGameStore.getState().finishAttempt(3, 5000, true); // jour 3 passé, rejoué et réussi
+    const state = useGameStore.getState();
+    expect(state.days[3]).toEqual({ fragmentWon: false, bestScore: 0, attempts: 0 });
+    expect(state.totalFragments()).toBe(0);
+  });
+
   test('garde le meilleur score entre plusieurs tentatives le même jour', () => {
     useGameStore.getState().finishAttempt(5, 500, false);
     useGameStore.getState().finishAttempt(5, 1200, true);

@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -112,6 +112,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: 'Carte de la forêt',
     fragmentIcon: '🃏',
     storyIntro: "Un jeu de cartes magiques bloque l'accès au fragment. Résous-le pour avancer.",
+    zone: '🌲 La Forêt de Grimnoir',
+  },
+  {
+    day: 13,
+    game: 'runner',
+    difficulty: 'medium',
+    fragmentName: 'Étoile filante',
+    fragmentIcon: '🌠',
+    storyIntro: "Grimnoir s'enfuit à travers la forêt avec un fragment ! Cours sans t'arrêter : saute les racines, glisse sous les stalactites et tiens 60 secondes.",
     zone: '🌲 La Forêt de Grimnoir',
   },
   {

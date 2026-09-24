@@ -7,10 +7,11 @@ import { MemorySequenceGame } from '@/games/day08_memory_sequence';
 import { BubbleShooterGame } from '@/games/day09_bubbleshooter';
 import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
 import { SolitaireGame } from '@/games/day11_solitaire';
+import { RunnerGame } from '@/games/day13_runner';
 import { LabyrintheGame } from '@/games/day14_labyrinthe';
 import { NonogramGame } from '@/games/day15_nonogram';
-import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
 import { getDayConfig } from '../../constants/days';
 import { QuizGame } from '../../games/day01_quiz';
@@ -32,6 +33,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   bubbleshooter: BubbleShooterGame,
   solitaire: SolitaireGame,
   nonogram: NonogramGame,
+  runner: RunnerGame,
 };
 
 export default function GameScreen() {
@@ -43,6 +45,7 @@ export default function GameScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.text}>Configuration manquante pour le jour {dayNumber}</Text>
+        <BackButton />
       </View>
     );
   }
@@ -52,7 +55,8 @@ export default function GameScreen() {
   if (!GameComponent) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>🎮 Jeu "{config.game}" — pas encore implémenté</Text>
+        <Text style={styles.text}>🎮 Jeu « {config.game} » — pas encore implémenté</Text>
+        <BackButton />
       </View>
     );
   }
@@ -71,6 +75,14 @@ export default function GameScreen() {
   );
 }
 
+function BackButton() {
+  return (
+    <Pressable style={styles.backButton} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
+      <Text style={styles.backButtonText}>Retour au calendrier</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -83,5 +95,17 @@ const styles = StyleSheet.create({
     color: '#7a9ab8',
     fontSize: 13,
     textAlign: 'center',
+  },
+  backButton: {
+    backgroundColor: '#162540',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginTop: 24,
+  },
+  backButtonText: {
+    color: '#7a9ab8',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
