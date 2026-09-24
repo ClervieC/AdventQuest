@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabLayout() {
   // 70px de barre visible + la zone du geste "home" sur iPhone
@@ -10,25 +10,25 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#a78bfa',
-        tabBarInactiveTintColor: '#3a5a7a',
+        tabBarActiveTintColor: "#a78bfa",
+        tabBarInactiveTintColor: "#3a5a7a",
         tabBarStyle: {
-          backgroundColor: '#090e18',
-          borderTopColor: '#141e2a',
+          backgroundColor: "#090e18",
+          borderTopColor: "#141e2a",
           height: 70 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: 12 + insets.bottom,
+          paddingBottom: 2 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: "600",
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Calendrier',
+          title: "Calendrier",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
           ),
@@ -37,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="leaderboard"
         options={{
-          title: 'Classement',
+          title: "Classement",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trophy" size={size} color={color} />
           ),
@@ -46,7 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
+          title: "Profil",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),

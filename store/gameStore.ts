@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 export interface DayState {
   fragmentWon: boolean;
@@ -31,8 +31,8 @@ const initialDays: Record<number, DayState> = {
   2: { fragmentWon: true, bestScore: 890, attempts: 2 },
   3: { fragmentWon: true, bestScore: 1440, attempts: 1 },
   4: { fragmentWon: true, bestScore: 1100, attempts: 1 },
-  5: { fragmentWon: true, bestScore: 0, attempts: 0 },
-  6: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  5: { fragmentWon: true, bestScore: 0, attempts: 1 },
+  6: { fragmentWon: false, bestScore: 0, attempts: 1 },
   7: { fragmentWon: false, bestScore: 0, attempts: 0 },
   8: { fragmentWon: false, bestScore: 0, attempts: 0 },
   9: { fragmentWon: false, bestScore: 0, attempts: 0 },
@@ -43,10 +43,11 @@ const initialDays: Record<number, DayState> = {
   15: { fragmentWon: false, bestScore: 0, attempts: 0 },
   16: { fragmentWon: false, bestScore: 0, attempts: 0 },
   19: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  20: { fragmentWon: false, bestScore: 0, attempts: 0 },
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  currentDay: 19, // simulé pour le dev — viendra de la date serveur en Phase 5
+  currentDay: 20, // simulé pour le dev — viendra de la date serveur en Phase 5
   hints: 3,
   days: initialDays,
 
@@ -60,24 +61,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   bossUnlocked: () => get().totalFragments() >= FRAGMENT_THRESHOLD,
 
-  finishAttempt: (day, score, success) => set((state) => {
-    if (day !== state.currentDay) return state; // sécurité : pas de triche
-    const existing = state.days[day] || { fragmentWon: false, bestScore: 0, attempts: 0 };
-    return {
-      days: {
-        ...state.days,
-        [day]: {
-          fragmentWon: success || existing.fragmentWon,
-          bestScore: Math.max(existing.bestScore, score),
-          attempts: existing.attempts + 1,
+  finishAttempt: (day, score, success) =>
+    set((state) => {
+      if (day !== state.currentDay) return state; // sécurité : pas de triche
+      const existing = state.days[day] || {
+        fragmentWon: false,
+        bestScore: 0,
+        attempts: 0,
+      };
+      return {
+        days: {
+          ...state.days,
+          [day]: {
+            fragmentWon: success || existing.fragmentWon,
+            bestScore: Math.max(existing.bestScore, score),
+            attempts: existing.attempts + 1,
+          },
         },
-      },
-    };
-  }),
+      };
+    }),
 
-  useHint: () => set((state) => ({
-    hints: Math.max(0, state.hints - 1),
-  })),
+  useHint: () =>
+    set((state) => ({
+      hints: Math.max(0, state.hints - 1),
+    })),
 
   setCurrentDay: (day) => set({ currentDay: day }),
 }));

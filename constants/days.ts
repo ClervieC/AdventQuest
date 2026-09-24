@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -157,6 +157,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: 'Bouclier de givre',
     fragmentIcon: '🛡️',
     storyIntro: "Du haut de ses remparts, Grimnoir fait pleuvoir boules de neige, comètes et fantômes. Esquive tout pendant 60 secondes pour atteindre le fragment !",
+    zone: '🏰 La Citadelle de Grimnoir',
+  },
+  {
+    day: 20,
+    game: 'cassebriques',
+    difficulty: 'hard',
+    fragmentName: 'Cœur de glace',
+    fragmentIcon: '🧊',
+    storyIntro: "Le dernier mur de la citadelle est fait de blocs de glace enchantée. Brise-les tous avant la fin du temps, mais méfie-toi des pièges de Grimnoir cachés dans la glace !",
     zone: '🏰 La Citadelle de Grimnoir',
   },
 ];
