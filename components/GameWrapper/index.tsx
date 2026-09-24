@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getZoneForDay } from '../../constants/zones';
+import { useSoundEffect } from '../../hooks/use-sound-effect';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 import { GameResult } from './types';
 
@@ -18,6 +20,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
   const { hints, useHint, finishAttempt, canPlay, isLocked, days, bossUnlocked, totalFragments } = useGameStore();
   const [phase, setPhase] = useState<'intro' | 'playing' | 'result'>('intro');
   const [result, setResult] = useState<GameResult | null>(null);
+  const playFragmentSound = useSoundEffect(require('../../assets/sounds/fragment.wav'));
+  const playVictorySound = useSoundEffect(require('../../assets/sounds/victory.wav'));
+  const playFailureSound = useSoundEffect(require('../../assets/sounds/failure.wav'));
 
   const dayState = days[day];
   const alreadyWon = dayState?.fragmentWon ?? false;
@@ -26,6 +31,10 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
 
   const handleGameEnd = (gameResult: GameResult) => {
     if (!isPractice) finishAttempt(day, gameResult.score, gameResult.success);
+    // Le son "fragment" est réservé aux vrais fragments ; en entraînement, simple son de victoire
+    if (!gameResult.success) playFailureSound();
+    else if (isPractice) playVictorySound();
+    else playFragmentSound();
     setResult(gameResult);
     setPhase('result');
   };
@@ -84,7 +93,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
 
       {phase === 'intro' && (
         <View style={styles.introContainer}>
-          <Text style={styles.dayLabel}>Jour {day} / 24</Text>
+          <Text style={styles.dayLabel}>
+            Jour {day} / 24 · {getZoneForDay(day).icon} {getZoneForDay(day).name}
+          </Text>
           <Text style={styles.title}>{fragmentIcon} {fragmentName}</Text>
           <Text style={styles.story}>{storyIntro}</Text>
 

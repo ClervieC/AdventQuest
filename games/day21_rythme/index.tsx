@@ -1,8 +1,9 @@
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
-import { getChart } from './charts';
+import { CHART_VALSE, getChart } from './charts';
 import {
   applyTap,
   comboMultiplier,
@@ -27,6 +28,13 @@ const HIT_LINE_OFFSET = 36; // distance entre la ligne de frappe et le bas de la
 const HINT_DURATION_MS = 8000;
 const HINT_WINDOW_SCALE = 2;
 const END_DELAY_MS = 900;
+const AUDIO_START_TIMEOUT_MS = 1500; // si le son ne démarre pas (autoplay bloqué...), on joue en silence
+const RESYNC_INTERVAL_MS = 500;
+const RESYNC_THRESHOLD_MS = 60;
+
+// Musiques générées depuis les partitions (npm run generate:audio) : chaque note tombe sur un coup de clochette
+const CARILLON_AUDIO = require('./audio/carillon.wav');
+const VALSE_AUDIO = require('./audio/valse.wav');
 
 const FEEDBACK: Record<Judgement | 'empty', { text: string; color: string }> = {
   perfect: { text: 'Parfait !', color: '#34d399' },
@@ -40,9 +48,16 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
   const chart = useMemo(() => getChart(difficulty), [difficulty]);
   const lastNoteTime = chart.notes[chart.notes.length - 1].time;
 
+  const player = useAudioPlayer(chart === CHART_VALSE ? VALSE_AUDIO : CARILLON_AUDIO);
+  const audioStatus = useAudioPlayerStatus(player);
+  const audioPlayingRef = useRef(false);
+  audioPlayingRef.current = audioStatus.playing;
+
   // Valeurs lues dans la boucle d'animation : toujours via des refs (sinon closures périmées)
   const statesRef = useRef<NoteState[]>(createNoteStates(chart));
-  const startRef = useRef(0);
+  // null tant que le morceau n'a pas démarré : l'horloge des notes se cale sur le début réel de la musique
+  const startRef = useRef<number | null>(null);
+  const [silentMode, setSilentMode] = useState(false);
   const scoreRef = useRef(0);
   const comboRef = useRef(0);
   const hintUntilRef = useRef(0);
@@ -59,14 +74,46 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
     setFeedback({ ...FEEDBACK[kind], id: Date.now() });
   };
 
-  const currentTime = () => performance.now() - startRef.current;
+  const currentTime = () => (startRef.current === null ? 0 : performance.now() - startRef.current);
   const windowScale = (t: number) => (t < hintUntilRef.current ? HINT_WINDOW_SCALE : 1);
 
+  // Lance la musique dès qu'elle est chargée (en mode silencieux de l'iPhone aussi)
   useEffect(() => {
-    startRef.current = performance.now();
+    if (!audioStatus.isLoaded) return;
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    player.play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioStatus.isLoaded]);
+
+  // En quittant le jeu, les sons d'interface doivent de nouveau respecter le mode silencieux
+  useEffect(() => () => {
+    setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const mountedAt = performance.now();
+    let lastResync = 0;
     let frame = 0;
 
     const loop = () => {
+      const wallNow = performance.now();
+      if (startRef.current === null) {
+        if (audioPlayingRef.current) {
+          startRef.current = wallNow - player.currentTime * 1000;
+        } else if (wallNow - mountedAt > AUDIO_START_TIMEOUT_MS) {
+          startRef.current = wallNow;
+          setSilentMode(true);
+        } else {
+          frame = requestAnimationFrame(loop);
+          return;
+        }
+      } else if (audioPlayingRef.current && wallNow - lastResync > RESYNC_INTERVAL_MS) {
+        // Recale l'horloge sur la position réelle de la musique si elle a dérivé
+        lastResync = wallNow;
+        const audioMs = player.currentTime * 1000;
+        if (Math.abs(wallNow - startRef.current - audioMs) > RESYNC_THRESHOLD_MS) startRef.current = wallNow - audioMs;
+      }
+
       const t = currentTime();
       const { states, missed } = expireMissedNotes(statesRef.current, t, windowScale(t));
       if (missed > 0) {
@@ -78,6 +125,7 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
 
       if (!endedRef.current && isChartFinished(statesRef.current) && t > lastNoteTime + END_DELAY_MS) {
         endedRef.current = true;
+        player.pause();
         onGameEndRef.current({ success: hasPassed(statesRef.current), score: scoreRef.current });
         return;
       }
@@ -90,7 +138,7 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
   }, []);
 
   const handleTap = (lane: Lane) => {
-    if (endedRef.current) return;
+    if (endedRef.current || startRef.current === null) return;
     const t = currentTime();
     const { states, judgement } = applyTap(statesRef.current, lane, t, windowScale(t));
     statesRef.current = states;
@@ -147,7 +195,9 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
       <View style={styles.header}>
         <View>
           <Text style={styles.score}>{scoreRef.current}</Text>
-          <Text style={styles.songName}>🎵 {chart.name}</Text>
+          <Text style={styles.songName}>
+            {startRef.current === null ? '🎵 Chargement de la musique...' : `🎵 ${chart.name}${silentMode ? ' (sans son)' : ''}`}
+          </Text>
         </View>
         <View style={styles.headerRight}>
           <Text style={styles.combo}>

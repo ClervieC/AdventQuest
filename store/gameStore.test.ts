@@ -1,9 +1,41 @@
 /// <reference types="jest" />
+import * as api from '../services/api';
+import * as pending from '../services/pendingAttempts';
 import { useGameStore } from './gameStore';
+
+// Pas de vrai serveur ni de stockage dans les tests : on les remplace par des faux contrôlables
+jest.mock('../services/api', () => {
+  class ApiError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+    }
+  }
+  return {
+    ApiError,
+    ensureSession: jest.fn(() => Promise.resolve()),
+    fetchPlayerState: jest.fn(),
+    createProfile: jest.fn(),
+    submitAttempt: jest.fn(() => new Promise(() => {})), // par défaut : réponse qui n'arrive jamais
+    consumeHint: jest.fn(() => new Promise(() => {})),
+    getDeviceTimezone: jest.fn(() => 'Europe/Paris'),
+  };
+});
+jest.mock('../services/pendingAttempts', () => ({
+  loadPendingAttempts: jest.fn(() => Promise.resolve([])),
+  savePendingAttempts: jest.fn(() => Promise.resolve()),
+}));
+
+const mockedApi = api as jest.Mocked<typeof api>;
+const mockedPending = pending as jest.Mocked<typeof pending>;
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // Réinitialise le store avant chaque test pour éviter les interférences
 beforeEach(() => {
+  jest.clearAllMocks();
   useGameStore.setState({
+    status: 'ready',
     currentDay: 5,
     hints: 3,
     days: {
@@ -96,5 +128,99 @@ describe('gameStore - useHint', () => {
     useGameStore.setState({ hints: 0 });
     useGameStore.getState().useHint();
     expect(useGameStore.getState().hints).toBe(0);
+  });
+});
+describe('gameStore - synchronisation avec le serveur', () => {
+  const serverState = (overrides: Partial<api.PlayerState> = {}): api.PlayerState => ({
+    profile: { id: 'u1', username: 'Clervie', timezone: 'Europe/Paris' },
+    current_day: 3,
+    hints: 2,
+    progress: [{ day: 1, fragment_won: true, best_score: 900, attempts: 1 }],
+    ...overrides,
+  });
+
+  test('au lancement, le jour courant et la progression viennent du serveur', async () => {
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState());
+    await useGameStore.getState().init();
+    const state = useGameStore.getState();
+    expect(mockedApi.ensureSession).toHaveBeenCalled();
+    expect(state.status).toBe('ready');
+    expect(state.currentDay).toBe(3);
+    expect(state.hints).toBe(2);
+    expect(state.username).toBe('Clervie');
+    expect(state.days).toEqual({ 1: { fragmentWon: true, bestScore: 900, attempts: 1 } });
+  });
+
+  test('sans profil, on demande un pseudo', async () => {
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState({ profile: null }));
+    await useGameStore.getState().init();
+    expect(useGameStore.getState().status).toBe('needs_profile');
+  });
+
+  test('serveur injoignable : écran d’erreur, pas de plantage', async () => {
+    mockedApi.fetchPlayerState.mockRejectedValueOnce(new Error('Network request failed'));
+    await useGameStore.getState().init();
+    expect(useGameStore.getState().status).toBe('error');
+    expect(useGameStore.getState().errorMessage).toContain('Network');
+  });
+
+  test('l’inscription envoie le pseudo et le fuseau du téléphone', async () => {
+    mockedApi.createProfile.mockResolvedValueOnce(serverState());
+    await useGameStore.getState().register('Clervie');
+    expect(mockedApi.createProfile).toHaveBeenCalledWith('Clervie', 'Europe/Paris');
+    expect(useGameStore.getState().status).toBe('ready');
+  });
+
+  test('une partie est envoyée au serveur et sa réponse fait foi', async () => {
+    mockedApi.submitAttempt.mockResolvedValueOnce({
+      progress: { day: 5, fragment_won: true, best_score: 700, attempts: 3 },
+      hints: 4,
+      current_day: 5,
+    });
+    useGameStore.getState().finishAttempt(5, 700, true);
+    expect(mockedApi.submitAttempt).toHaveBeenCalledWith(5, 700, true);
+    await flush();
+    expect(useGameStore.getState().days[5]).toEqual({ fragmentWon: true, bestScore: 700, attempts: 3 });
+    expect(useGameStore.getState().hints).toBe(4);
+  });
+
+  test('hors ligne : la partie est gardée pour être renvoyée plus tard', async () => {
+    mockedApi.submitAttempt.mockRejectedValueOnce(new mockedApi.ApiError('network', 'Network request failed'));
+    useGameStore.getState().finishAttempt(5, 700, true);
+    await flush();
+    await flush();
+    expect(mockedPending.savePendingAttempts).toHaveBeenCalledWith([{ day: 5, score: 700, success: true }]);
+    expect(useGameStore.getState().days[5].fragmentWon).toBe(true); // le joueur voit quand même son résultat
+  });
+
+  test('au lancement suivant, les parties en attente sont renvoyées avant de charger l’état', async () => {
+    mockedPending.loadPendingAttempts.mockResolvedValueOnce([{ day: 2, score: 400, success: true }]);
+    mockedApi.submitAttempt.mockResolvedValueOnce({
+      progress: { day: 2, fragment_won: true, best_score: 400, attempts: 1 },
+      hints: 2,
+      current_day: 2,
+    });
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState());
+    await useGameStore.getState().init();
+    expect(mockedApi.submitAttempt).toHaveBeenCalledWith(2, 400, true);
+    expect(mockedPending.savePendingAttempts).toHaveBeenLastCalledWith([]);
+  });
+
+  test('partie refusée par le serveur (minuit est passé) : on se recale sur son état', async () => {
+    mockedApi.submitAttempt.mockRejectedValueOnce(new mockedApi.ApiError('day_not_playable', 'day_not_playable'));
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState({ current_day: 6, progress: [] }));
+    useGameStore.getState().finishAttempt(5, 700, true);
+    await flush();
+    await flush();
+    expect(useGameStore.getState().currentDay).toBe(6);
+    expect(useGameStore.getState().days[5]).toBeUndefined();
+  });
+
+  test('un hint utilisé est décompté par le serveur', async () => {
+    mockedApi.consumeHint.mockResolvedValueOnce(1);
+    useGameStore.getState().useHint();
+    expect(useGameStore.getState().hints).toBe(2); // tout de suite côté app
+    await flush();
+    expect(useGameStore.getState().hints).toBe(1); // puis la valeur du serveur
   });
 });

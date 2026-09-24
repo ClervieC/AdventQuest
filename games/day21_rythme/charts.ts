@@ -1,8 +1,8 @@
-import { Chart, ChartNote, Lane } from './logic';
+import type { Chart, ChartNote, Lane } from './logic';
 
 // Une partition = une liste de [temps en battements, couloir].
 // LEAD_IN laisse le temps à la première note de descendre avant d'atteindre la ligne.
-const LEAD_IN_MS = 2500;
+export const LEAD_IN_MS = 2500;
 
 function buildChart(name: string, bpm: number, approachMs: number, beats: [number, Lane][]): Chart {
   const msPerBeat = 60000 / bpm;

@@ -2,18 +2,20 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { calculateScore, eliminateWrongAnswers, isAnswerCorrect, isSuccess } from './logic';
-import { QUIZ_QUESTIONS } from './questions';
+import { pickQuizQuestions } from './questions';
 
 
 export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponentProps) {
+  // 5 questions tirées au hasard à chaque partie (le composant est recréé à chaque "Jouer")
+  const [questions] = useState(() => pickQuizQuestions());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [eliminatedOptions, setEliminatedOptions] = useState<number[]>([]);
 
-  const currentQuestion = QUIZ_QUESTIONS[currentIndex];
-  const isLastQuestion = currentIndex === QUIZ_QUESTIONS.length - 1;
+  const currentQuestion = questions[currentIndex];
+  const isLastQuestion = currentIndex === questions.length - 1;
 
   const handleAnswer = (index: number) => {
     if (selectedIndex !== null) return; // déjà répondu, on bloque double-clic
@@ -42,9 +44,6 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
     if (hintsAvailable === 0 || eliminatedOptions.length > 0) return;
     onUseHint();
     // élimine 2 mauvaises réponses au hasard
-    const wrongIndexes = currentQuestion.options
-      .map((_, i) => i)
-      .filter((i) => i !== currentQuestion.correctIndex);
     const toEliminate = eliminateWrongAnswers(currentQuestion);
 
     setEliminatedOptions(toEliminate);
@@ -52,7 +51,7 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
 
   return (
     <View style={styles.container}>
-      <Text style={styles.progress}>Question {currentIndex + 1} / {QUIZ_QUESTIONS.length}</Text>
+      <Text style={styles.progress}>Question {currentIndex + 1} / {questions.length}</Text>
       <Text style={styles.question}>{currentQuestion.question}</Text>
 
       <View style={styles.options}>

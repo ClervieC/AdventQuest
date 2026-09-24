@@ -55,6 +55,11 @@ const PRELOADED_GAMES = new Set<GameType>([
   'runner', 'dodgeball', 'cassebriques', 'marathon_22', 'marathon_23', 'boss',
 ]);
 
+// Build web statique (Vercel...) : pré-génère une page par jour, /game/1 à /game/24
+export async function generateStaticParams(): Promise<{ day: string }[]> {
+  return Array.from({ length: 24 }, (_, i) => ({ day: String(i + 1) }));
+}
+
 export default function GameScreen() {
   const { day } = useLocalSearchParams<{ day: string }>();
   const dayNumber = parseInt(day, 10);

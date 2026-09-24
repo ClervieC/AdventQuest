@@ -16,16 +16,17 @@ describe('Quiz - calculateScore', () => {
 });
 
 describe('Quiz - isSuccess', () => {
-  test('600 points = succès (seuil exact)', () => {
-    expect(isSuccess(600)).toBe(true);
+  test('10 questions par partie : il faut 6 bonnes réponses (1200 points)', () => {
+    expect(isSuccess(calculateScore(6))).toBe(true);
+    expect(isSuccess(calculateScore(5))).toBe(false);
   });
 
-  test('599 points = échec (juste sous le seuil)', () => {
-    expect(isSuccess(599)).toBe(false);
+  test('1199 points = échec (juste sous le seuil)', () => {
+    expect(isSuccess(1199)).toBe(false);
   });
 
-  test('1000 points = succès', () => {
-    expect(isSuccess(1000)).toBe(true);
+  test('sans faute = succès', () => {
+    expect(isSuccess(calculateScore(10))).toBe(true);
   });
 
   test('0 points = échec', () => {
