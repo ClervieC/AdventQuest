@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; touch-action: none; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+    function notifyHintUsed() {
+      sendToReactNative({ type: 'REQUEST_HINT_USE' });
+    }
+
+    let currentDifficulty = 'easy';
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          currentDifficulty = data.difficulty;
+          hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE DODGE BALL
+    // ============================================
+
+    // spawnMs = délai entre deux projectiles au début / à la fin ; vitesses en px/s
+    const DIFFICULTY_SETTINGS = {
+      easy:      { durationMs: 60000, spawnStartMs: 750, spawnEndMs: 330, speedStart: 220, speedEnd: 420, specialChance: 0.15 },
+      medium:    { durationMs: 70000, spawnStartMs: 650, spawnEndMs: 280, speedStart: 250, speedEnd: 480, specialChance: 0.25 },
+      hard:      { durationMs: 80000, spawnStartMs: 560, spawnEndMs: 240, speedStart: 280, speedEnd: 540, specialChance: 0.35 },
+      very_hard: { durationMs: 90000, spawnStartMs: 480, spawnEndMs: 200, speedStart: 310, speedEnd: 600, specialChance: 0.45 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
+    }
+
+    const PLAYER_RADIUS = 15;          // hitbox volontairement plus petite que l'emoji
+    const PLAYER_MAX_SPEED = 900;      // px/s, le personnage rattrape le doigt sans téléporter
+    const MULTIPLIER_STEP_MS = 15000;  // le multiplicateur augmente toutes les 15 s
+    const POINTS_PER_SECOND = 10;
+    const GIFT_POINTS = 100;
+    const GIFT_CHANCE = 0.08;
+
+    // Projectiles de Grimnoir
+    const PROJECTILE_TYPES = {
+      snowball: { emoji: '❄️', radius: 12, speedFactor: 1,    size: 28 },
+      comet:    { emoji: '☄️', radius: 12, speedFactor: 1.6,  size: 30 },
+      ghost:    { emoji: '👻', radius: 13, speedFactor: 0.75, size: 30, zigzag: true },
+      gift:     { emoji: '🎁', radius: 16, speedFactor: 0.8,  size: 28, bonus: true },
+    };
+
+    let scene;
+    let width, height, playerY, topY;
+
+    let playerSprite, shieldSprite;
+    let playerX = 0;
+    let targetX = 0;
+    let projectiles = [];
+
+    let running = false;
+    let gameEnded = false;
+    let score = 0;
+    let elapsedMs = 0;
+    let nextSpawnMs = 0;
+    let shieldActive = false;
+    let hintsLeft = 0;
+    let keys;
+
+    let scoreText, timeText, multText, hintButton, hintText, messageText;
+    let bgObjects = [];
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+
+      playerSprite = this.add.text(0, 0, '🧝', { fontSize: '40px' }).setOrigin(0.5).setDepth(5);
+      shieldSprite = this.add.circle(0, 0, 30, 0x7dd3fc, 0.18).setStrokeStyle(2, 0x7dd3fc).setDepth(4).setVisible(false);
+
+      scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setDepth(10);
+      multText = this.add.text(20, 46, '×1', { fontSize: '16px', color: '#a78bfa', fontStyle: 'bold' }).setDepth(10);
+      timeText = this.add.text(0, 20, '', { fontSize: '20px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(10);
+      hintButton = this.add.rectangle(0, 42, 120, 34, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
+      hintText = this.add.text(0, 59, '', { fontSize: '13px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
+      messageText = this.add.text(0, 0, 'Glisse le doigt pour esquiver\nAttrape les 🎁 pour des bonus', {
+        fontSize: '14px', color: '#7a9ab8', align: 'center',
+      }).setOrigin(0.5).setDepth(10);
+
+      layout();
+      // La WebView change de taille entre l'écran d'intro et la partie : on recalcule tout
+      this.scale.on('resize', layout);
+
+      this.input.on('pointerdown', handlePointerDown);
+      this.input.on('pointermove', (pointer) => { if (pointer.isDown) moveTo(pointer.x); });
+
+      // Clavier pour tester game.html dans un navigateur
+      keys = this.input.keyboard.createCursorKeys();
+
+      resetState();
+      notifyReady();
+
+      // Hors de l'app (navigateur), on lance directement une partie
+      if (!window.ReactNativeWebView) {
+        hintsLeft = 3;
+        scene.time.delayedCall(300, () => configureDifficulty('easy'));
+      }
+    }
+
+    function layout() {
+      width = scene.scale.width;
+      height = scene.scale.height;
+      topY = 90;
+      playerY = height - 70;
+
+      drawBackground();
+
+      timeText.setX(width - 20);
+      hintButton.setX(width - 20);
+      hintText.setX(width - 80);
+      messageText.setPosition(width / 2, height / 2);
+
+      playerX = Phaser.Math.Clamp(playerX || width / 2, PLAYER_RADIUS, width - PLAYER_RADIUS);
+      targetX = Phaser.Math.Clamp(targetX || width / 2, PLAYER_RADIUS, width - PLAYER_RADIUS);
+      playerSprite.setPosition(playerX, playerY);
+      shieldSprite.setPosition(playerX, playerY);
+    }
+
+    function drawBackground() {
+      bgObjects.forEach((o) => o.destroy());
+      bgObjects = [];
+      const add = (obj) => { bgObjects.push(obj); return obj; };
+      // Ciel étoilé de la citadelle
+      for (let i = 0; i < 45; i++) {
+        add(scene.add.circle(Math.random() * width, topY + Math.random() * (height - topY), Math.random() * 1.5 + 0.5, 0xffffff, Math.random() * 0.4 + 0.15));
+      }
+      // Remparts de Grimnoir en haut, d'où tombent les projectiles
+      add(scene.add.rectangle(0, 0, width, topY, 0x0a1420).setOrigin(0, 0));
+      for (let x = 0; x < width; x += 28) {
+        add(scene.add.rectangle(x, topY - 12, 16, 12, 0x1a3050).setOrigin(0, 0));
+      }
+      add(scene.add.rectangle(0, topY - 2, width, 2, 0x3b2a6b).setOrigin(0, 0));
+      // Sol enneigé
+      add(scene.add.rectangle(0, playerY + 24, width, height - playerY - 24, 0x0a1420).setOrigin(0, 0));
+      add(scene.add.rectangle(0, playerY + 24, width, 4, 0xdbeafe).setOrigin(0, 0));
+    }
+
+    function resetState() {
+      projectiles.forEach((p) => p.sprite.destroy());
+      projectiles = [];
+      score = 0;
+      elapsedMs = 0;
+      nextSpawnMs = 800;
+      shieldActive = false;
+      running = false;
+      gameEnded = false;
+      playerX = width / 2;
+      targetX = width / 2;
+      playerSprite.setPosition(playerX, playerY).setAlpha(1).setAngle(0);
+      shieldSprite.setVisible(false);
+      scoreText.setText('Score: 0');
+      multText.setText('×1');
+      timeText.setText(Math.ceil(settings.durationMs / 1000) + 's');
+      updateHintButton();
+    }
+
+    // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
+    function startGame() {
+      resetState();
+      running = true;
+      messageText.setAlpha(1);
+      scene.tweens.add({ targets: messageText, alpha: 0, delay: 2200, duration: 600 });
+    }
+
+    function progress() {
+      return Math.min(1, elapsedMs / settings.durationMs);
+    }
+
+    function currentMultiplier() {
+      return 1 + Math.floor(elapsedMs / MULTIPLIER_STEP_MS);
+    }
+
+    function updateHintButton() {
+      hintText.setText(shieldActive ? '🛡️ Bouclier actif' : '💡 Bouclier (' + hintsLeft + ')');
+      hintButton.setAlpha(hintsLeft > 0 || shieldActive ? 1 : 0.4);
+    }
+
+    // ---------- Entrées ----------
+
+    function handlePointerDown(pointer) {
+      if (!running) return;
+      // Le hint ne se déclenche qu'au tap, jamais en glissant le doigt dessus
+      if (hintButton.getBounds().contains(pointer.x, pointer.y)) {
+        useHint();
+        return;
+      }
+      moveTo(pointer.x);
+    }
+
+    function moveTo(x) {
+      if (!running) return;
+      targetX = Phaser.Math.Clamp(x, PLAYER_RADIUS, width - PLAYER_RADIUS);
+    }
+
+    function useHint() {
+      if (hintsLeft <= 0 || shieldActive) return;
+      hintsLeft -= 1;
+      shieldActive = true;
+      shieldSprite.setVisible(true).setScale(0.5);
+      scene.tweens.add({ targets: shieldSprite, scale: 1, duration: 200, ease: 'Back.easeOut' });
+      notifyHintUsed();
+      flashFeedback(playerX, playerY - 50, '🛡️ Bouclier !', '#7dd3fc');
+      updateHintButton();
+    }
+
+    // ---------- Génération ----------
+
+    function pickType() {
+      if (Math.random() < GIFT_CHANCE) return 'gift';
+      // Les projectiles spéciaux arrivent progressivement
+      if (Math.random() < settings.specialChance * (0.4 + progress())) {
+        return Math.random() < 0.5 ? 'comet' : 'ghost';
+      }
+      return 'snowball';
+    }
+
+    function spawnProjectile() {
+      const kind = pickType();
+      const type = PROJECTILE_TYPES[kind];
+      const x = Phaser.Math.Between(type.radius + 4, width - type.radius - 4);
+      const baseSpeed = settings.speedStart + (settings.speedEnd - settings.speedStart) * progress();
+      const sprite = scene.add.text(x, topY, type.emoji, { fontSize: type.size + 'px' }).setOrigin(0.5).setDepth(3);
+      projectiles.push({
+        kind, type, sprite,
+        x, y: topY,
+        originX: x,
+        speed: baseSpeed * type.speedFactor * Phaser.Math.FloatBetween(0.9, 1.1),
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+
+    // ---------- Boucle ----------
+
+    function update(time, delta) {
+      if (!running) return;
+
+      const dtMs = Math.min(delta, 50); // évite les sauts énormes si la WebView a été en pause
+      const dt = dtMs / 1000;
+      elapsedMs += dtMs;
+
+      updatePlayer(dt);
+
+      nextSpawnMs -= dtMs;
+      if (nextSpawnMs <= 0) {
+        spawnProjectile();
+        nextSpawnMs = settings.spawnStartMs + (settings.spawnEndMs - settings.spawnStartMs) * progress();
+      }
+
+      updateProjectiles(dt);
+      if (!running) return;
+
+      score += POINTS_PER_SECOND * currentMultiplier() * dt;
+      scoreText.setText('Score: ' + Math.floor(score));
+      multText.setText('×' + currentMultiplier());
+      const secondsLeft = Math.max(0, Math.ceil((settings.durationMs - elapsedMs) / 1000));
+      timeText.setText(secondsLeft + 's');
+
+      if (elapsedMs >= settings.durationMs) finishGame(true);
+    }
+
+    function updatePlayer(dt) {
+      if (keys.left.isDown) targetX = PLAYER_RADIUS;
+      else if (keys.right.isDown) targetX = width - PLAYER_RADIUS;
+      else if (Phaser.Input.Keyboard.JustUp(keys.left) || Phaser.Input.Keyboard.JustUp(keys.right)) targetX = playerX;
+
+      const maxStep = PLAYER_MAX_SPEED * dt;
+      const diff = targetX - playerX;
+      playerX += Phaser.Math.Clamp(diff, -maxStep, maxStep);
+      playerSprite.setPosition(playerX, playerY);
+      playerSprite.setAngle(Phaser.Math.Clamp(diff * 0.15, -15, 15));
+      shieldSprite.setPosition(playerX, playerY);
+    }
+
+    function updateProjectiles(dt) {
+      for (const p of projectiles) {
+        p.y += p.speed * dt;
+        if (p.type.zigzag) {
+          p.phase += dt * 3;
+          p.x = Phaser.Math.Clamp(p.originX + Math.sin(p.phase) * 55, p.type.radius, width - p.type.radius);
+        }
+        p.sprite.setPosition(p.x, p.y);
+        if (p.kind === 'comet') p.sprite.setAngle(-45);
+
+        const dist = Phaser.Math.Distance.Between(p.x, p.y, playerX, playerY);
+        if (!p.done && dist < p.type.radius + PLAYER_RADIUS) {
+          p.done = true;
+          if (p.type.bonus) {
+            score += GIFT_POINTS;
+            flashFeedback(p.x, p.y - 20, '+' + GIFT_POINTS, '#fbbf24');
+          } else if (shieldActive) {
+            shieldActive = false;
+            scene.tweens.add({ targets: shieldSprite, scale: 1.8, alpha: 0, duration: 250, onComplete: () => shieldSprite.setVisible(false).setAlpha(1).setScale(1) });
+            scene.cameras.main.shake(120, 0.006);
+            flashFeedback(playerX, playerY - 50, 'Bloqué !', '#7dd3fc');
+            updateHintButton();
+          } else {
+            hitPlayer();
+            return;
+          }
+        }
+      }
+
+      projectiles = projectiles.filter((p) => {
+        if (p.done || p.y > height + 40) { p.sprite.destroy(); return false; }
+        return true;
+      });
+    }
+
+    function hitPlayer() {
+      scene.cameras.main.shake(250, 0.015);
+      playerSprite.setText('💫');
+      flashFeedback(playerX, playerY - 50, 'Touché !', '#ef4444');
+      finishGame(false);
+    }
+
+    function flashFeedback(x, y, text, color) {
+      const feedback = scene.add.text(x, y, text, { fontSize: '18px', color, fontStyle: 'bold' }).setOrigin(0.5).setDepth(12);
+      scene.tweens.add({
+        targets: feedback,
+        y: y - 40,
+        alpha: 0,
+        duration: 700,
+        onComplete: () => feedback.destroy(),
+      });
+    }
+
+    function finishGame(survived) {
+      if (gameEnded) return;
+      gameEnded = true;
+      running = false;
+      const finalScore = Math.floor(score);
+      scene.time.delayedCall(survived ? 400 : 900, () => {
+        playerSprite.setText('🧝');
+        endGame(survived, finalScore);
+      });
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>

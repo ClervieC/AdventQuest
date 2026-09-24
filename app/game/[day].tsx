@@ -17,6 +17,7 @@ import { getDayConfig } from '../../constants/days';
 import { QuizGame } from '../../games/day01_quiz';
 import { SudokuGame } from '../../games/day03_sudoku';
 import { WhackAMoleGame } from '../../games/day16_whackamole';
+import { DodgeBallGame } from '../../games/day19_dodgeball';
 
 const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   quiz: QuizGame,
@@ -34,6 +35,7 @@ const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
   solitaire: SolitaireGame,
   nonogram: NonogramGame,
   runner: RunnerGame,
+  dodgeball: DodgeBallGame,
 };
 
 export default function GameScreen() {

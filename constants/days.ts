@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -149,6 +149,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '❤️',
     storyIntro: "Des créatures magiques surgissent des buissons. Tapote-les pour les calmer et récupérer le fragment.",
     zone: '🌲 La Forêt de Grimnoir',
+  },
+  {
+    day: 19,
+    game: 'dodgeball',
+    difficulty: 'hard',
+    fragmentName: 'Bouclier de givre',
+    fragmentIcon: '🛡️',
+    storyIntro: "Du haut de ses remparts, Grimnoir fait pleuvoir boules de neige, comètes et fantômes. Esquive tout pendant 60 secondes pour atteindre le fragment !",
+    zone: '🏰 La Citadelle de Grimnoir',
   },
 ];
 
