@@ -59,12 +59,26 @@
       startGame();
     }
 
+    // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
     function startGame() {
+      blocks.forEach((block) => block.sprite && block.sprite.destroy());
+      if (currentBlock) currentBlock.sprite.destroy();
+      blocks = [];
+      currentBlock = null;
+      movingDirection = 1;
+      floorsBuilt = 0;
+      cameraOffsetY = 0;
+      scene.cameras.main.scrollY = 0;
+      gameEnded = false;
+
+      // La taille finale de la WebView n'est connue qu'ici, pas dans create
       const baseX = scene.scale.width / 2;
       const baseY = scene.scale.height - 100;
+      progressText.setX(scene.scale.width / 2);
+      updateProgressText();
 
-      blocks.push({ x: baseX, width: INITIAL_BLOCK_WIDTH, y: baseY });
-      drawBlock(baseX, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
+      const baseSprite = drawBlock(baseX, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
+      blocks.push({ x: baseX, width: INITIAL_BLOCK_WIDTH, y: baseY, sprite: baseSprite });
       spawnNextBlock();
     }
 
@@ -106,7 +120,9 @@
       currentBlock.x += movingDirection * (settings.speed / 60);
 
       const margin = currentBlock.width / 2 + 10;
-      if (currentBlock.x > scene.scale.width - margin || currentBlock.x < margin) {
+      // Demi-tour seulement si on va VERS le bord (sinon, après un redimensionnement,
+      // un bloc déjà hors limite changerait de sens à chaque image et resterait coincé)
+      if ((currentBlock.x > scene.scale.width - margin && movingDirection > 0) || (currentBlock.x < margin && movingDirection < 0)) {
         movingDirection *= -1;
       }
 

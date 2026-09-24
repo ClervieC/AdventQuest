@@ -23,9 +23,11 @@ interface GameStore {
   setCurrentDay: (day: number) => void;
 }
 
-const FRAGMENT_THRESHOLD = 12;
+export const FRAGMENT_THRESHOLD = 12;
+export const BOSS_DAY = 24;
 
 // Données simulées pour le développement — à remplacer par Supabase en Phase 5
+// (12 fragments gagnés pour pouvoir tester le boss du jour 24 ; en mettre moins pour voir le portail scellé)
 const initialDays: Record<number, DayState> = {
   1: { fragmentWon: true, bestScore: 1250, attempts: 1 },
   2: { fragmentWon: true, bestScore: 890, attempts: 2 },
@@ -38,18 +40,21 @@ const initialDays: Record<number, DayState> = {
   9: { fragmentWon: false, bestScore: 0, attempts: 0 },
   10: { fragmentWon: true, bestScore: 1300, attempts: 1 },
   11: { fragmentWon: false, bestScore: 0, attempts: 0 },
-  13: { fragmentWon: false, bestScore: 0, attempts: 0 },
-  14: { fragmentWon: false, bestScore: 0, attempts: 0 },
-  15: { fragmentWon: false, bestScore: 0, attempts: 0 },
-  16: { fragmentWon: false, bestScore: 0, attempts: 0 },
-  19: { fragmentWon: false, bestScore: 0, attempts: 0 },
-  20: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  13: { fragmentWon: true, bestScore: 980, attempts: 1 },
+  14: { fragmentWon: true, bestScore: 1150, attempts: 1 },
+  15: { fragmentWon: true, bestScore: 1320, attempts: 1 },
+  16: { fragmentWon: true, bestScore: 870, attempts: 1 },
+  17: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  18: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  19: { fragmentWon: true, bestScore: 1040, attempts: 1 },
+  20: { fragmentWon: true, bestScore: 1510, attempts: 1 },
   22: { fragmentWon: false, bestScore: 0, attempts: 0 },
   23: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  24: { fragmentWon: false, bestScore: 0, attempts: 0 },
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  currentDay: 23, // simulé pour le dev — viendra de la date serveur en Phase 5
+  currentDay: 24, // simulé pour le dev — viendra de la date serveur en Phase 5
   hints: 3,
   days: initialDays,
 

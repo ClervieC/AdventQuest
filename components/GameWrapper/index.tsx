@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGameStore } from '../../store/gameStore';
+import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 import { GameResult } from './types';
 
 interface GameWrapperProps {
@@ -15,7 +15,7 @@ interface GameWrapperProps {
 
 export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
-  const { hints, useHint, finishAttempt, canPlay, isLocked, days } = useGameStore();
+  const { hints, useHint, finishAttempt, canPlay, isLocked, days, bossUnlocked, totalFragments } = useGameStore();
   const [phase, setPhase] = useState<'intro' | 'playing' | 'result'>('intro');
   const [result, setResult] = useState<GameResult | null>(null);
 
@@ -30,7 +30,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
     setPhase('result');
   };
 
-  // En entraînement, les hints ne sont pas consommés : ils restent pour les vrais jours
+  const isBoss = day === BOSS_DAY;
+  // Pas de hints en entraînement (ils restent pour les vrais jours) ni contre le boss (règle du jeu)
+  const hintsAllowed = !isPractice && !isBoss;
   const noop = () => {};
 
   const handleStart = () => setPhase('playing');
@@ -44,6 +46,23 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
       <Text style={styles.headerBackText}>‹ Calendrier</Text>
     </Pressable>
   );
+
+  // Le portail du boss ne s'ouvre qu'avec assez de fragments
+  if (isBoss && !isLocked(day) && !bossUnlocked()) {
+    const missing = FRAGMENT_THRESHOLD - totalFragments();
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+        {backButton}
+        <View style={styles.introContainer}>
+          <Text style={styles.dayLabel}>Jour {day} / 24</Text>
+          <Text style={styles.title}>🔒 Le portail est scellé</Text>
+          <Text style={styles.story}>
+            Il faut {FRAGMENT_THRESHOLD} fragments pour affronter Grimnoir. Tu en as {totalFragments()} : il t&apos;en manque {missing}.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   // Sécurité : un jour futur n'est jamais jouable
   if (isLocked(day)) {
@@ -89,7 +108,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
 
           {!isPractice && (
             <View style={styles.hintsRow}>
-              <Text style={styles.hintsLabel}>💡 {hints} hints disponibles</Text>
+              <Text style={styles.hintsLabel}>
+                {isBoss ? '🚫 Aucun hint contre le boss' : `💡 ${hints} hints disponibles`}
+              </Text>
             </View>
           )}
 
@@ -105,8 +126,8 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
       <View style={[styles.gameContainer, phase !== 'playing' && styles.hidden]}>
         {children({
           onGameEnd: handleGameEnd,
-          hintsAvailable: isPractice ? 0 : hints,
-          onUseHint: isPractice ? noop : useHint,
+          hintsAvailable: hintsAllowed ? hints : 0,
+          onUseHint: hintsAllowed ? useHint : noop,
           isStarted: phase === 'playing',
         })}
       </View>

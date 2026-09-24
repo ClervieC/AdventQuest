@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23' | 'boss';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -151,6 +151,26 @@ export const DAYS_CONFIG: DayConfig[] = [
     zone: '🌲 La Forêt de Grimnoir',
   },
   {
+    day: 17,
+    game: 'sudoku',
+    difficulty: 'hard',
+    gameDifficulty: 'hard',
+    fragmentName: 'Sceau des remparts',
+    fragmentIcon: '🔢',
+    storyIntro: "La grande porte de la citadelle est verrouillée par un sceau de chiffres bien plus retors que celui de l'horloge du village. Peu d'indices cette fois : à toi de jouer !",
+    zone: '🏰 La Citadelle de Grimnoir',
+  },
+  {
+    day: 18,
+    game: 'memory_sequence',
+    difficulty: 'hard',
+    gameDifficulty: 'hard',
+    fragmentName: 'Écho des lutins',
+    fragmentIcon: '🎶',
+    storyIntro: "Les lutins de Grimnoir gardent les couloirs de la citadelle et chantent une mélodie de plus en plus longue. Répète-la sans erreur jusqu'au bout pour passer !",
+    zone: '🏰 La Citadelle de Grimnoir',
+  },
+  {
     day: 19,
     game: 'dodgeball',
     difficulty: 'hard',
@@ -185,6 +205,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '💠',
     storyIntro: "Au bout du pont, Grimnoir tente un dernier barrage. Esquive sa pluie de projectiles, puis garde ton sang-froid pour déchiffrer la grille magique qui scelle la porte !",
     zone: '🌉 Le Pont Suspendu',
+  },
+  {
+    day: 24,
+    game: 'boss',
+    difficulty: 'boss',
+    fragmentName: 'Le Cœur de Noël',
+    fragmentIcon: '❤️‍🔥',
+    storyIntro: "Grimnoir t'attend dans la Salle du Cœur. Reconstruis la tour du Cœur, brise son armure de glace, puis réponds à sa dernière énigme. Trois épreuves, aucun hint, aucune erreur permise !",
+    zone: '💖 Salle du Cœur',
   },
 ];
 
