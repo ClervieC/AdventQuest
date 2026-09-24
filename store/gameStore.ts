@@ -40,6 +40,7 @@ const initialDays: Record<number, DayState> = {
   9: { fragmentWon: false, bestScore: 0, attempts: 0 },
   10: { fragmentWon: true, bestScore: 1300, attempts: 1 },
   11: { fragmentWon: false, bestScore: 0, attempts: 0 },
+  12: { fragmentWon: false, bestScore: 0, attempts: 0 },
   13: { fragmentWon: true, bestScore: 980, attempts: 1 },
   14: { fragmentWon: true, bestScore: 1150, attempts: 1 },
   15: { fragmentWon: true, bestScore: 1320, attempts: 1 },
@@ -48,13 +49,14 @@ const initialDays: Record<number, DayState> = {
   18: { fragmentWon: false, bestScore: 0, attempts: 0 },
   19: { fragmentWon: true, bestScore: 1040, attempts: 1 },
   20: { fragmentWon: true, bestScore: 1510, attempts: 1 },
+  21: { fragmentWon: false, bestScore: 0, attempts: 0 },
   22: { fragmentWon: false, bestScore: 0, attempts: 0 },
   23: { fragmentWon: false, bestScore: 0, attempts: 0 },
   24: { fragmentWon: false, bestScore: 0, attempts: 0 },
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  currentDay: 24, // simulé pour le dev — viendra de la date serveur en Phase 5
+  currentDay: 21, // simulé pour le dev — viendra de la date serveur en Phase 5
   hints: 3,
   days: initialDays,
 

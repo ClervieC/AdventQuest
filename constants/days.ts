@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23' | 'boss';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23' | 'boss' | 'rythme';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -115,6 +115,16 @@ export const DAYS_CONFIG: DayConfig[] = [
     zone: '🌲 La Forêt de Grimnoir',
   },
   {
+    day: 12,
+    game: 'sudoku',
+    difficulty: 'medium',
+    gameDifficulty: 'medium',
+    fragmentName: 'Rune des cavernes',
+    fragmentIcon: '🔷',
+    storyIntro: "Au fond des cavernes de givre, une porte de cristal est gravée d'une grille de chiffres à moitié effacée. Complète-la pour l'ouvrir !",
+    zone: '🌲 La Forêt de Grimnoir',
+  },
+  {
     day: 13,
     game: 'runner',
     difficulty: 'medium',
@@ -187,6 +197,16 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentIcon: '🧊',
     storyIntro: "Le dernier mur de la citadelle est fait de blocs de glace enchantée. Brise-les tous avant la fin du temps, mais méfie-toi des pièges de Grimnoir cachés dans la glace !",
     zone: '🏰 La Citadelle de Grimnoir',
+  },
+  {
+    day: 21,
+    game: 'rythme',
+    difficulty: 'hard',
+    gameDifficulty: 'hard',
+    fragmentName: 'Cloche du pont',
+    fragmentIcon: '🔔',
+    storyIntro: "Le pont suspendu ne tient que si ses cloches sonnent en rythme. Suis la Valse des flocons : tape chaque note quand elle touche la ligne !",
+    zone: '🌉 Le Pont Suspendu',
   },
   {
     day: 22,
