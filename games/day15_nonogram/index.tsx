@@ -8,13 +8,19 @@ import {
     createEmptyGrid,
     cycleCell,
     Grid,
-    isPuzzleSolved
+    isPuzzleSolved,
+    NonogramPuzzle
 } from './logic';
 import { getRandomNonogram } from './puzzles';
 
-export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }: GameComponentProps) {
+interface NonogramGameProps extends GameComponentProps {
+  // Dessin imposé (ex. le sapin du marathon du jour 23) ; sinon tirage au hasard selon la difficulté
+  puzzle?: NonogramPuzzle;
+}
+
+export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty, puzzle: forcedPuzzle }: NonogramGameProps) {
   const puzzleDifficulty = difficulty === 'hard' || difficulty === 'very_hard' ? 'hard' : 'easy';
-  const [puzzle] = useState(() => getRandomNonogram(puzzleDifficulty));
+  const [puzzle] = useState(() => forcedPuzzle ?? getRandomNonogram(puzzleDifficulty));
   const [grid, setGrid] = useState<Grid>(() => createEmptyGrid(puzzle.size));
   const startTimeRef = useRef(Date.now());
   const wrongTogglesRef = useRef(0);

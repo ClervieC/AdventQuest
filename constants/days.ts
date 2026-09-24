@@ -1,4 +1,4 @@
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -175,6 +175,15 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: 'Corde du pont',
     fragmentIcon: '🪢',
     storyIntro: "Le pont suspendu vers la Salle du Cœur est gardé par deux épreuves. Repousse les envahisseurs, puis fais éclater les bulles de givre, sans échouer une seule fois !",
+    zone: '🌉 Le Pont Suspendu',
+  },
+  {
+    day: 23,
+    game: 'marathon_23',
+    difficulty: 'very_hard',
+    fragmentName: 'Dernier éclat',
+    fragmentIcon: '💠',
+    storyIntro: "Au bout du pont, Grimnoir tente un dernier barrage. Esquive sa pluie de projectiles, puis garde ton sang-froid pour déchiffrer la grille magique qui scelle la porte !",
     zone: '🌉 Le Pont Suspendu',
   },
 ];

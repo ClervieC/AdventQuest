@@ -8,6 +8,9 @@ export interface MarathonStage {
   icon: string;
   component: ComponentType<any>;
   difficulty?: GameComponentProps['difficulty'];
+  // false pour les jeux React Native qui démarrent leur chrono au montage : sinon le temps
+  // passé sur l'écran d'entracte compterait dans leur score. Les jeux Phaser, eux, attendent INIT.
+  preload?: boolean;
 }
 
 interface MarathonGameProps extends GameComponentProps {
@@ -69,7 +72,7 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
         {stages.map((stage, i) => {
           const isActive = i === state.stageIndex && state.status === 'playing';
           // Pendant l'entracte, l'épreuve suivante se charge en arrière-plan (même taille : pas de redimensionnement)
-          const isPreloading = i === state.stageIndex + 1 && state.status === 'interlude';
+          const isPreloading = i === state.stageIndex + 1 && state.status === 'interlude' && stage.preload !== false;
           if (!isActive && !isPreloading) return null;
 
           const Stage = stage.component;

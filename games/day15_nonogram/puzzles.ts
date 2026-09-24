@@ -29,18 +29,18 @@ export const NONOGRAM_STAR: NonogramPuzzle = {
   ],
 };
 
-/** Sapin simple, 7x7 (pour la version plus difficile du jour 23) */
+/** Sapin de Noël 7x7 (marathon du jour 23) : étoile, 3 étages de branches, tronc. Solution unique. */
 export const NONOGRAM_TREE: NonogramPuzzle = {
   name: 'Sapin de Noël',
   size: 7,
   solution: [
     [_, _, _, F, _, _, _],
     [_, _, F, F, F, _, _],
-    [_, _, _, F, _, _, _],
     [_, F, F, F, F, F, _],
-    [_, _, _, F, _, _, _],
-    [F, F, F, F, F, F, F],
     [_, _, F, F, F, _, _],
+    [_, F, F, F, F, F, _],
+    [F, F, F, F, F, F, F],
+    [_, _, _, F, _, _, _],
   ],
 };
 
