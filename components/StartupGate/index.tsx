@@ -64,15 +64,15 @@ const ERROR_MESSAGES: Partial<Record<string, string>> = {
   invalid_credentials: 'Pseudo ou mot de passe incorrect.',
 };
 
-// Nouveau joueur (choisir un pseudo) ou joueur qui a déjà un compte (se connecter)
+// Connexion par défaut ; les nouveaux joueurs passent à la création de compte par le lien en dessous
 function WelcomeForms({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void }) {
-  const [mode, setMode] = useState<'new' | 'login'>('new');
+  const [mode, setMode] = useState<'new' | 'login'>('login');
   return (
     <>
       {mode === 'new' ? <UsernameForm onOpenLegal={onOpenLegal} /> : <LoginForm />}
       <Pressable onPress={() => setMode(mode === 'new' ? 'login' : 'new')} style={styles.switchLink} hitSlop={8}>
         <Text style={styles.switchLinkText}>
-          {mode === 'new' ? 'J’ai déjà un compte → Se connecter' : '← Je suis un nouveau Gardien'}
+          {mode === 'new' ? '← J’ai déjà un compte : me connecter' : 'Pas encore de compte ? Créer mon compte →'}
         </Text>
       </Pressable>
     </>
@@ -103,8 +103,10 @@ function LoginForm() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.panel}>
-      <Text style={styles.title}>Bon retour, Gardien !</Text>
-      <Text style={styles.text}>Connecte-toi avec ton pseudo et ton mot de passe pour retrouver ta progression.</Text>
+      <Text style={styles.title}>Connexion</Text>
+      <Text style={styles.text}>
+        Grimnoir a brisé le Cœur de Noël en 24 fragments. Connecte-toi avec ton pseudo et ton mot de passe pour reprendre ta quête.
+      </Text>
       <TextInput
         value={username}
         onChangeText={setUsername}
