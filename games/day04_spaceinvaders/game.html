@@ -79,6 +79,8 @@
     let started = false; // la boucle ne doit rien faire avant INIT (sinon le jeu se joue tout seul pendant l'intro)
     let pointerTargetX = null;
     let isPointerDown = false;
+    let dragStartPointerX = 0;
+    let dragStartPlayerX = 0;
     let lastShotTime = 0;
     const SHOT_COOLDOWN_MS = 350;
 
@@ -92,12 +94,16 @@
       playerX = width / 2;
       player = this.add.triangle(playerX, height - 60, 0, 30, 15, 0, 30, 30, 0x7c3aed);
 
-      this.input.on('pointermove', (pointer) => {
-        pointerTargetX = pointer.x;
-      });
+      // Contrôle "glisser" : le vaisseau suit le mouvement du doigt (pas de téléportation à l'endroit touché)
       this.input.on('pointerdown', (pointer) => {
-        pointerTargetX = pointer.x;
+        dragStartPointerX = pointer.x;
+        dragStartPlayerX = player.x;
+        pointerTargetX = player.x;
         isPointerDown = true;
+      });
+      this.input.on('pointermove', (pointer) => {
+        if (!isPointerDown) return;
+        pointerTargetX = dragStartPlayerX + (pointer.x - dragStartPointerX);
       });
       this.input.on('pointerup', () => {
         isPointerDown = false;

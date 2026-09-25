@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { playSfx } from '../../services/sfx';
-import { calculatePipeScore, isPathConnected, PipeTile, rotateTile } from './logic';
-import { PIPE_PUZZLE_EASY } from './puzzles';
+import { calculatePipeScore, connectedFrom, isPathConnected, PipeTile, rotateTile } from './logic';
+import { generatePipePuzzle, PIPE_SIZE_BY_DIFFICULTY } from './puzzles';
 
 const PIPE_SYMBOLS: Record<string, string> = {
   straight: '┃',
@@ -13,9 +13,13 @@ const PIPE_SYMBOLS: Record<string, string> = {
   empty: '·',
 };
 
-export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponentProps) {
-  const puzzle = PIPE_PUZZLE_EASY;
+export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy' }: GameComponentProps) {
+  // Nouvelle grille à chaque partie, plus grande selon la difficulté
+  const [puzzle] = useState(() => generatePipePuzzle(PIPE_SIZE_BY_DIFFICULTY[difficulty]));
   const [grid, setGrid] = useState<PipeTile[][]>(() => puzzle.grid.map((row) => row.map((t) => ({ ...t }))));
+  const { width } = useWindowDimensions();
+  const cellSize = Math.min(64, Math.floor((Math.min(width, 520) - 48) / puzzle.gridSize));
+  const flowing = connectedFrom(grid, puzzle.start);
   const rotationsCountRef = useRef(0);
   const hintsUsedRef = useRef(0);
 
@@ -34,18 +38,27 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint }: GameCom
     }
   };
 
+  // Indice : place dans la bonne position une tuile du chemin qui est encore mal tournée
   const handleHint = () => {
     if (hintsAvailable === 0) return;
+    const wrong = puzzle.path.filter(({ row, col }) => grid[row][col].rotation !== puzzle.solution[row][col].rotation);
+    if (wrong.length === 0) return;
+    const { row, col } = wrong[Math.floor(Math.random() * wrong.length)];
     onUseHint();
     hintsUsedRef.current += 1;
-    // Hint simple : indique visuellement la case de départ et d'arrivée (déjà visibles ici,
-    // donc pour ce jeu le hint pourrait plutôt révéler la bonne rotation d'une tuile au hasard.
-    // Implémentation simplifiée pour le MVP : on ne fait que décompter le hint pour l'instant.
+    playSfx('place');
+    const newGrid = grid.map((r) => r.map((t) => ({ ...t })));
+    newGrid[row][col] = { ...puzzle.solution[row][col] };
+    setGrid(newGrid);
+    if (isPathConnected(newGrid, puzzle.start, puzzle.end)) {
+      onGameEnd({ success: true, score: calculatePipeScore(rotationsCountRef.current, hintsUsedRef.current) });
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Connecte le flux magique</Text>
+      <Text style={styles.title}>Connecte la Source à la Sortie</Text>
+      <Text style={styles.subtitle}>Touche un tuyau pour le tourner · les tuyaux reliés à la Source s’allument en vert</Text>
 
       <View style={styles.grid}>
         {grid.map((row, rowIndex) => (
@@ -60,11 +73,18 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint }: GameCom
                   onPress={() => handleTilePress(rowIndex, colIndex)}
                   style={[
                     styles.cell,
+                    { width: cellSize, height: cellSize },
                     isStart && styles.cellStart,
                     isEnd && styles.cellEnd,
                   ]}
                 >
-                  <Text style={[styles.cellSymbol, { transform: [{ rotate: `${tile.rotation * 90}deg` }] }]}>
+                  <Text
+                    style={[
+                      styles.cellSymbol,
+                      { fontSize: Math.round(cellSize * 0.45), transform: [{ rotate: `${tile.rotation * 90}deg` }] },
+                      flowing.has(`${rowIndex},${colIndex}`) && tile.type !== 'empty' && styles.cellSymbolFlowing,
+                    ]}
+                  >
                     {PIPE_SYMBOLS[tile.type]}
                   </Text>
                   {isStart && <Text style={styles.cellLabel}>Source</Text>}
@@ -97,7 +117,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
-    marginBottom: 24,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#b7c8da',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 18,
+    paddingHorizontal: 12,
   },
   grid: {
     borderWidth: 1,
@@ -124,6 +151,10 @@ const styles = StyleSheet.create({
   cellSymbol: {
     fontSize: 28,
     color: '#a78bfa',
+  },
+  // Tuyaux déjà reliés à la source : le flux avance
+  cellSymbolFlowing: {
+    color: '#34d399',
   },
   cellLabel: {
     position: 'absolute',

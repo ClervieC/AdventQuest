@@ -1,12 +1,4 @@
-import {
-    calculateSudokuScore,
-    Grid,
-    isGridComplete,
-    isGridValid,
-    isSolved,
-    isValidPlacement,
-    revealRandomCell,
-} from './logic';
+import { calculateSudokuScore, completedNumbers, Grid, isGridComplete, isGridValid, isSolved, isValidPlacement, revealRandomCell } from './logic';
 
 // Grille 9x9 complète et valide, utilisée comme référence dans tous les tests
 const VALID_SOLVED_GRID: Grid = [
@@ -120,5 +112,17 @@ describe('Sudoku 9x9 - revealRandomCell', () => {
 
   test('retourne null si la grille est déjà complète', () => {
     expect(revealRandomCell(VALID_SOLVED_GRID, VALID_SOLVED_GRID)).toBeNull();
+  });
+});
+describe('Sudoku - chiffres finis', () => {
+  test('un chiffre posé 9 fois est « fini », pas un chiffre posé 8 fois', () => {
+    const grid = Array.from({ length: 9 }, (_, r) => Array.from({ length: 9 }, (_, c) => (c === 0 ? 5 : c === 1 && r < 8 ? 7 : null)));
+    const done = completedNumbers(grid, 9);
+    expect(done.has(5)).toBe(true);
+    expect(done.has(7)).toBe(false);
+  });
+
+  test('grille vide : aucun chiffre fini', () => {
+    expect(completedNumbers(Array.from({ length: 9 }, () => Array(9).fill(null)), 9).size).toBe(0);
   });
 });

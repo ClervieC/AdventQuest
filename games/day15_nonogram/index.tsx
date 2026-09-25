@@ -81,7 +81,8 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
   };
 
   const cellSize = puzzle.size > 5 ? 32 : 40;
-  const maxRowHintWidth = Math.max(...rowHints.map((h) => h.length)) * 16;
+  // Chaque nombre d'indice dans sa pastille : "1 1" ne peut plus être lu "11" (retour testeur)
+  const maxRowHintWidth = Math.max(...rowHints.map((h) => h.length)) * (PILL_SIZE + PILL_GAP) + 6;
 
   return (
     <View style={styles.container}>
@@ -94,7 +95,7 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
           {columnHints.map((hints, col) => (
             <View key={col} style={[styles.columnHintCell, { width: cellSize }]}>
               {hints.map((h, i) => (
-                <Text key={i} style={styles.hintText}>{h}</Text>
+                <HintPill key={i} value={h} />
               ))}
             </View>
           ))}
@@ -104,7 +105,11 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
       {grid.map((row, rowIndex) => (
         <View key={rowIndex} style={styles.gridRow}>
           <View style={[styles.rowHintCell, { width: maxRowHintWidth }]}>
-            <Text style={styles.hintText}>{rowHints[rowIndex].join(' ')}</Text>
+            <View style={styles.rowHintPills}>
+              {rowHints[rowIndex].map((h, i) => (
+                <HintPill key={i} value={h} />
+              ))}
+            </View>
           </View>
           {row.map((cellState, colIndex) => (
             <Pressable
@@ -134,7 +139,41 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
   );
 }
 
+const PILL_SIZE = 18;
+const PILL_GAP = 3;
+
+function HintPill({ value }: { value: number }) {
+  return (
+    <View style={styles.pill}>
+      <Text style={styles.pillText}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  pill: {
+    minWidth: PILL_SIZE,
+    height: PILL_SIZE,
+    paddingHorizontal: 3,
+    borderRadius: 5,
+    backgroundColor: '#243a5a',
+    borderWidth: 1,
+    borderColor: '#3a5a82',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: PILL_GAP / 2,
+    marginHorizontal: PILL_GAP / 2,
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  rowHintPills: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 4,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',

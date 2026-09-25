@@ -2,7 +2,14 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { playSfx } from '../../services/sfx';
-import { calculateSudokuScore, Grid, isSolved, revealRandomCell, SudokuPuzzle } from './logic';
+import {
+  calculateSudokuScore,
+  completedNumbers,
+  Grid,
+  isSolved,
+  revealRandomCell,
+  SudokuPuzzle,
+} from './logic';
 import { generateSudokuPuzzle, SudokuDifficulty } from './puzzles';
 
 interface SudokuGameProps extends GameComponentProps {
@@ -15,6 +22,8 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [hintsUsedThisGame, setHintsUsedThisGame] = useState(0);
   const startTimeRef = useRef(Date.now());
+
+  const finished = completedNumbers(grid, puzzle.gridSize);
 
   const isOriginalCell = (row: number, col: number) => puzzle.initialGrid[row][col] !== null;
 
@@ -99,11 +108,20 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
       </View>
 
       <View style={styles.numberPad}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-          <Pressable key={num} style={styles.numberButton} onPress={() => handleNumberPress(num)}>
-            <Text style={styles.numberButtonText}>{num}</Text>
-          </Pressable>
-        ))}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+          // Chiffre posé 9 fois : grisé pour voir d'un coup d'œil lesquels sont finis
+          const done = finished.has(num);
+          return (
+            <Pressable
+              key={num}
+              style={[styles.numberButton, done && styles.numberButtonDone]}
+              onPress={() => handleNumberPress(num)}
+              accessibilityLabel={done ? `${num}, déjà posé 9 fois` : `Poser ${num}`}
+            >
+              <Text style={[styles.numberButtonText, done && styles.numberButtonTextDone]}>{num}</Text>
+            </Pressable>
+          );
+        })}
         <Pressable style={styles.numberButton} onPress={handleClearCell}>
           <Text style={styles.numberButtonText}>✕</Text>
         </Pressable>
@@ -191,6 +209,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#2c4262',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  numberButtonDone: {
+    backgroundColor: '#16233a',
+    opacity: 0.45,
+  },
+  numberButtonTextDone: {
+    color: '#8ea6c0',
+    textDecorationLine: 'line-through',
   },
   numberButtonText: {
     fontSize: 16,

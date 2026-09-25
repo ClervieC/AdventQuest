@@ -137,3 +137,26 @@ export function calculateMazeScore(movesCount: number, mazeSize: number): number
   const penalty = Math.max(0, movesCount - optimalMoves) * 15;
   return Math.max(baseScore - penalty, 200);
 }
+const PERPENDICULAR: Record<Direction, Direction[]> = {
+  up: ['left', 'right'],
+  down: ['left', 'right'],
+  left: ['up', 'down'],
+  right: ['up', 'down'],
+};
+
+/**
+ * Glissement : avance dans une direction jusqu'au mur, jusqu'au prochain croisement
+ * (une autre direction devient possible) ou jusqu'à la sortie. Renvoie la position atteinte et le nombre de cases.
+ */
+export function slideMove(maze: Maze, position: Position, direction: Direction): { position: Position; steps: number } {
+  const size = maze.length;
+  let current = position;
+  let steps = 0;
+  while (canMove(maze, current, direction)) {
+    current = getNextPosition(current, direction);
+    steps++;
+    if (isAtExit(current, size)) break;
+    if (PERPENDICULAR[direction].some((side) => canMove(maze, current, side))) break; // croisement
+  }
+  return { position: current, steps };
+}

@@ -1,12 +1,4 @@
-import {
-    attemptMove,
-    calculateMazeScore,
-    canMove,
-    generateMaze,
-    getNextPosition,
-    isAtExit,
-    Maze,
-} from './logic';
+import { attemptMove, calculateMazeScore, canMove, generateMaze, getNextPosition, isAtExit, Maze, slideMove } from './logic';
 
 describe('generateMaze', () => {
   test('génère une grille de la bonne taille', () => {
@@ -139,5 +131,51 @@ describe('Solvabilité du labyrinthe généré (test d\'intégration de la logiq
     }
 
     expect(foundExit).toBe(true);
+  });
+});
+describe('Labyrinthe - glissement jusqu’au croisement', () => {
+  // Couloir en L sur 3×3 : (0,0)→(0,1)→(0,2)→(1,2)→(2,2), avec un embranchement en (0,1) vers le bas
+  const open = (maze: ReturnType<typeof makeClosed>, a: [number, number], b: [number, number]) => {
+    const [r1, c1] = a;
+    const [r2, c2] = b;
+    if (r1 === r2) {
+      const [left, right] = c1 < c2 ? [a, b] : [b, a];
+      maze[left[0]][left[1]].walls.right = false;
+      maze[right[0]][right[1]].walls.left = false;
+    } else {
+      const [top, bottom] = r1 < r2 ? [a, b] : [b, a];
+      maze[top[0]][top[1]].walls.bottom = false;
+      maze[bottom[0]][bottom[1]].walls.top = false;
+    }
+  };
+  const makeClosed = (size: number) =>
+    Array.from({ length: size }, () => Array.from({ length: size }, () => ({ walls: { top: true, right: true, bottom: true, left: true }, visited: true })));
+
+  test('s’arrête au croisement (une autre direction s’ouvre)', () => {
+    const maze = makeClosed(3);
+    open(maze, [0, 0], [0, 1]);
+    open(maze, [0, 1], [0, 2]);
+    open(maze, [0, 1], [1, 1]); // embranchement vers le bas en (0,1)
+    const result = slideMove(maze, { row: 0, col: 0 }, 'right');
+    expect(result).toEqual({ position: { row: 0, col: 1 }, steps: 1 });
+  });
+
+  test('va jusqu’au bout du couloir quand il n’y a pas de croisement', () => {
+    const maze = makeClosed(3);
+    open(maze, [0, 0], [0, 1]);
+    open(maze, [0, 1], [0, 2]);
+    const result = slideMove(maze, { row: 0, col: 0 }, 'right');
+    expect(result).toEqual({ position: { row: 0, col: 2 }, steps: 2 });
+  });
+
+  test('s’arrête à la sortie', () => {
+    const maze = makeClosed(3);
+    open(maze, [2, 0], [2, 1]);
+    open(maze, [2, 1], [2, 2]);
+    expect(slideMove(maze, { row: 2, col: 0 }, 'right').position).toEqual({ row: 2, col: 2 });
+  });
+
+  test('mur direct : ne bouge pas', () => {
+    expect(slideMove(makeClosed(3), { row: 0, col: 0 }, 'right')).toEqual({ position: { row: 0, col: 0 }, steps: 0 });
   });
 });

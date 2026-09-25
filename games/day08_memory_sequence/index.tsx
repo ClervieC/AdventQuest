@@ -103,10 +103,15 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
       <Text style={styles.progress}>
         Séquence : {sequence.length} / {config.maxLength}
       </Text>
-      <Text style={styles.statusText}>
-        {phase === 'showing' && 'Regarde bien...'}
-        {phase === 'waiting_input' && 'À toi de reproduire !'}
-      </Text>
+      {/* Bandeau très visible : qui joue ? (retour testeur : "pas clair quand ce n'est plus à toi") */}
+      <View style={[styles.turnBanner, phase === 'waiting_input' ? styles.turnBannerYou : styles.turnBannerWatch]}>
+        <Text style={styles.turnTitle}>{phase === 'waiting_input' ? '👉 À toi !' : '👀 Regarde bien…'}</Text>
+        <Text style={styles.turnDetail}>
+          {phase === 'waiting_input'
+            ? `Reproduis la séquence : ${playerInput.length} / ${sequence.length}`
+            : 'Retiens l’ordre des couleurs'}
+        </Text>
+      </View>
 
       <View style={styles.symbolGrid}>
         {([0, 1, 2, 3] as SymbolIndex[]).map((symbolIndex) => (
@@ -117,6 +122,8 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
             style={[
               styles.symbolButton,
               { backgroundColor: SYMBOL_COLORS[symbolIndex] },
+              // Pendant la démonstration, les couleurs non allumées sont estompées : on voit bien laquelle s'allume
+              phase === 'showing' && highlightedSymbol !== symbolIndex && styles.symbolDimmed,
               highlightedSymbol === symbolIndex && styles.symbolHighlighted,
             ]}
           >
@@ -147,11 +154,31 @@ const styles = StyleSheet.create({
     color: '#b7c8da',
     marginBottom: 8,
   },
-  statusText: {
-    fontSize: 16,
-    fontWeight: '600',
+  turnBanner: {
+    alignSelf: 'stretch',
+    borderRadius: 14,
+    borderWidth: 2,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  turnBannerWatch: {
+    backgroundColor: '#2e1a5c',
+    borderColor: '#a78bfa',
+  },
+  turnBannerYou: {
+    backgroundColor: '#12301f',
+    borderColor: '#34d399',
+  },
+  turnTitle: {
+    fontSize: 22,
+    fontWeight: '800',
     color: '#fff',
-    marginBottom: 32,
+  },
+  turnDetail: {
+    fontSize: 13,
+    color: '#cdd9e5',
+    marginTop: 4,
   },
   symbolGrid: {
     flexDirection: 'row',
@@ -159,6 +186,9 @@ const styles = StyleSheet.create({
     gap: 16,
     justifyContent: 'center',
     width: 220,
+  },
+  symbolDimmed: {
+    opacity: 0.35,
   },
   symbolButton: {
     width: 96,

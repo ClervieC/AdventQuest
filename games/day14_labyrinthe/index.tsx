@@ -4,7 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { playSfx } from '../../services/sfx';
 import {
-    attemptMove,
+    slideMove,
     calculateMazeScore,
     Direction,
     generateMaze,
@@ -26,12 +26,13 @@ export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
 
   const handleMove = useCallback(
     (direction: Direction) => {
+      // Un glissement avance jusqu'au mur, au prochain croisement ou à la sortie
       const current = positionRef.current;
-      const newPosition = attemptMove(maze, current, direction);
+      const { position: newPosition, steps } = slideMove(maze, current, direction);
 
-      // si la position a réellement changé, on compte le mouvement ; sinon on a heurté un mur
-      if (newPosition.row !== current.row || newPosition.col !== current.col) {
-        movesCountRef.current += 1;
+      // si la position a réellement changé, on compte les cases parcourues ; sinon on a heurté un mur
+      if (steps > 0) {
+        movesCountRef.current += steps;
         playSfx('tap');
         positionRef.current = newPosition;
         setPlayerPosition(newPosition);

@@ -71,6 +71,27 @@ function moveInDirection(pos: Position, direction: 0 | 1 | 2 | 3): Position {
  * Vérifie si un chemin connecté existe entre `start` et `end` via BFS,
  * en suivant uniquement les connexions valides entre tuiles adjacentes.
  */
+/** Cases reliées à `start` en suivant les tuyaux (pour afficher le flux qui avance) */
+export function connectedFrom(grid: PipeTile[][], start: Position): Set<string> {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const visited = new Set<string>([`${start.row},${start.col}`]);
+  const queue: Position[] = [start];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (let direction = 0 as 0 | 1 | 2 | 3; direction <= 3; direction++) {
+      const next = moveInDirection(current, direction);
+      const key = `${next.row},${next.col}`;
+      if (next.row < 0 || next.row >= rows || next.col < 0 || next.col >= cols || visited.has(key)) continue;
+      if (areConnected(grid[current.row][current.col], grid[next.row][next.col], direction)) {
+        visited.add(key);
+        queue.push(next);
+      }
+    }
+  }
+  return visited;
+}
+
 export function isPathConnected(
   grid: PipeTile[][],
   start: Position,

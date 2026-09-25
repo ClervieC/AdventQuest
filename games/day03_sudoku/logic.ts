@@ -96,3 +96,9 @@ export function revealRandomCell(
     value: solution[randomCell.row][randomCell.col] as number,
   };
 }
+/** Chiffres déjà posés autant de fois que la taille de la grille (9 fois en 9×9) : ils sont "finis" */
+export function completedNumbers(grid: Grid, gridSize: number): Set<number> {
+  const counts = new Map<number, number>();
+  for (const row of grid) for (const cell of row) if (cell !== null) counts.set(cell, (counts.get(cell) ?? 0) + 1);
+  return new Set([...counts].filter(([, count]) => count >= gridSize).map(([value]) => value));
+}

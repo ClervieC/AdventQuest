@@ -77,6 +77,11 @@
     }
 
     function startGame() {
+      // Consigne claire au démarrage
+      const hint = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.4, 'Coupe les friandises 🍎🍪🪵\nÉvite les bombes 💣 !', {
+        fontSize: '20px', color: '#ffffff', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: hint, alpha: 0, delay: 2600, duration: 700, onComplete: () => hint.destroy() });
       scheduleNextSpawn();
       scene.time.addEvent({ delay: 1000, callback: tickCountdown, loop: true });
     }
@@ -84,6 +89,7 @@
     const GAME_DURATION_MS = 45000;
     const GRAVITY = 1100;
     const OBJECT_RADIUS = 28;
+    const TREATS = ['🍎', '🍊', '🍐', '🍪', '🧁', '🍭', '🪵']; // 🪵 = la bûche de Noël
 
     let scene;
     let objects = [];        // { sprite, x, y, vx, vy, isBomb, sliced }
@@ -144,11 +150,17 @@
       const vx = (Math.random() - 0.5) * 200 * ratio;
       const vy = -(settings.launchSpeedMin + Math.random() * (settings.launchSpeedMax - settings.launchSpeedMin)) * ratio;
 
-      const color = isBomb ? 0x1a1a1a : [0xef4444, 0x22c55e, 0xeab308, 0xa78bfa][Math.floor(Math.random() * 4)];
-      const sprite = scene.add.circle(x, y, OBJECT_RADIUS, color);
+      // Friandises de Noël à couper ; les bombes ont un halo rouge pour ne jamais les confondre
+      let sprite;
       if (isBomb) {
-        sprite.setStrokeStyle(2, 0xef4444);
+        const halo = scene.add.circle(0, 0, OBJECT_RADIUS + 4, 0xef4444, 0.35).setStrokeStyle(3, 0xef4444);
+        const bomb = scene.add.text(0, 0, '💣', { fontSize: OBJECT_RADIUS * 1.5 + 'px' }).setOrigin(0.5);
+        sprite = scene.add.container(x, y, [halo, bomb]);
+      } else {
+        const emoji = TREATS[Math.floor(Math.random() * TREATS.length)];
+        sprite = scene.add.text(x, y, emoji, { fontSize: OBJECT_RADIUS * 1.6 + 'px' }).setOrigin(0.5);
       }
+      sprite.spin = (Math.random() - 0.5) * 4;
 
       objects.push({ sprite, x, y, vx, vy, isBomb, sliced: false });
     }
@@ -214,6 +226,7 @@
         obj.y += obj.vy * dt;
         obj.sprite.x = obj.x;
         obj.sprite.y = obj.y;
+        obj.sprite.angle += obj.sprite.spin;
 
         if (obj.y > scene.scale.height + 60) {
           obj.sprite.destroy();

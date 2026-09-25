@@ -80,6 +80,10 @@
     let scoreText, timerText;
     let timeRemaining = GAME_DURATION_MS;
     let cannonX, cannonY;
+    let aimLine = null;
+    let aiming = false;
+    let loadedLabel = null;
+    let nextLabel = null;
     let countdownEvent = null;
     let descendEvent = null;
 
@@ -109,8 +113,10 @@
       scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
       timerText = this.add.text(width - 90, 50, '', { fontSize: '14px', color: '#f59e0b' });
 
-      this.input.on('pointermove', (pointer) => { updateAim(pointer.x, pointer.y); });
-      this.input.on('pointerdown', (pointer) => { updateAim(pointer.x, pointer.y); shootBubble(); });
+      // Viser en glissant le doigt (la ligne pointillée montre la trajectoire), tirer en relâchant
+      this.input.on('pointerdown', (pointer) => { aiming = true; updateAim(pointer.x, pointer.y); });
+      this.input.on('pointermove', (pointer) => { if (aiming || !pointer.wasTouch) updateAim(pointer.x, pointer.y); });
+      this.input.on('pointerup', () => { if (!aiming) return; aiming = false; hideAimLine(); shootBubble(); });
 
       notifyReady();
     }
@@ -121,6 +127,27 @@
       const dy = Math.min(py - cannonY, -20);
       cannonAngle = Math.atan2(dy, dx);
       if (cannonSprite) cannonSprite.rotation = cannonAngle + Math.PI / 2;
+      drawAimLine();
+    }
+
+    // Ligne de visée pointillée, de la couleur de la bulle à tirer
+    function drawAimLine() {
+      if (!aimLine || gameEnded) return;
+      aimLine.clear();
+      aimLine.fillStyle(currentBubbleColor, 0.9);
+      for (let d = BUBBLE_RADIUS + 14; d < 260; d += 16) {
+        aimLine.fillCircle(cannonX + Math.cos(cannonAngle) * d, cannonY + Math.sin(cannonAngle) * d, 3);
+      }
+    }
+    function hideAimLine() {
+      if (aimLine) aimLine.clear();
+    }
+
+    // Bulle à tirer bien visible (contour blanc) + étiquettes
+    function drawLoadedBubbles() {
+      [currentBubbleSprite, nextBubbleSprite].forEach((sprite) => sprite && sprite.destroy());
+      currentBubbleSprite = scene.add.circle(cannonX, cannonY, BUBBLE_RADIUS + 2, currentBubbleColor).setStrokeStyle(3, 0xffffff).setDepth(5);
+      nextBubbleSprite = scene.add.circle(scene.scale.width - 40, cannonY, BUBBLE_RADIUS * 0.7, nextBubbleColor).setStrokeStyle(2, 0xffffff, 0.7).setDepth(5);
     }
 
     // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
@@ -142,7 +169,7 @@
       timeRemaining = GAME_DURATION_MS;
       cannonAngle = -Math.PI / 2;
       cannonX = width / 2;
-      cannonY = scene.scale.height - 80;
+      cannonY = scene.scale.height - 120;
       scoreText.setText('Score: 0');
       timerText.setText('').setX(width - 90);
 
@@ -158,8 +185,12 @@
       nextBubbleColor = randomColor();
 
       cannonSprite = scene.add.triangle(cannonX, cannonY, 0, 20, 10, -10, 20, 20, 0x7c3aed);
-      currentBubbleSprite = scene.add.circle(cannonX, cannonY, BUBBLE_RADIUS, currentBubbleColor);
-      nextBubbleSprite = scene.add.circle(width - 40, cannonY, BUBBLE_RADIUS * 0.6, nextBubbleColor);
+      if (!aimLine) aimLine = scene.add.graphics().setDepth(4);
+      hideAimLine();
+      drawLoadedBubbles();
+      [loadedLabel, nextLabel].forEach((label) => label && label.destroy());
+      loadedLabel = scene.add.text(cannonX, cannonY + BUBBLE_RADIUS + 10, 'À tirer', { fontSize: '12px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5, 0);
+      nextLabel = scene.add.text(width - 40, cannonY + BUBBLE_RADIUS + 10, 'Suivante', { fontSize: '11px', color: '#b7c8da' }).setOrigin(0.5, 0);
 
       countdownEvent = scene.time.addEvent({ delay: 1000, callback: tickCountdown, loop: true });
 
@@ -189,12 +220,9 @@
         sprite: scene.add.circle(cannonX, cannonY, BUBBLE_RADIUS - 2, currentBubbleColor),
       };
 
-      currentBubbleSprite.destroy();
       currentBubbleColor = nextBubbleColor;
-      currentBubbleSprite = scene.add.circle(cannonX, cannonY, BUBBLE_RADIUS, currentBubbleColor);
-      nextBubbleSprite.destroy();
       nextBubbleColor = randomColor();
-      nextBubbleSprite = scene.add.circle(scene.scale.width - 40, cannonY, BUBBLE_RADIUS * 0.6, nextBubbleColor);
+      drawLoadedBubbles();
     }
 
     function update(time, delta) {

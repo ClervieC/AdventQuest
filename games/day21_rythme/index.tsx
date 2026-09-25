@@ -52,11 +52,8 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
   const player = useAudioPlayer(chart === CHART_VALSE ? VALSE_AUDIO : CARILLON_AUDIO);
   const audioStatus = useAudioPlayerStatus(player);
   const muted = useSettingsStore((state) => state.muted);
-
-  // Bouton 🔊/🔇 : la musique continue (elle sert d'horloge au jeu) mais devient muette
-  useEffect(() => {
-    player.volume = muted ? 0 : 1;
-  }, [muted, player]);
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
   const audioPlayingRef = useRef(false);
   audioPlayingRef.current = audioStatus.playing;
 
@@ -84,13 +81,34 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
   const currentTime = () => (startRef.current === null ? 0 : performance.now() - startRef.current);
   const windowScale = (t: number) => (t < hintUntilRef.current ? HINT_WINDOW_SCALE : 1);
 
-  // Lance la musique dès qu'elle est chargée (en mode silencieux de l'iPhone aussi)
+  // Lance la musique dès qu'elle est chargée (en mode silencieux de l'iPhone aussi), sauf si le son est coupé
   useEffect(() => {
-    if (!audioStatus.isLoaded) return;
+    if (!audioStatus.isLoaded || mutedRef.current) return;
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     player.play();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioStatus.isLoaded]);
+
+  // Bouton 🔊/🔇 : son coupé = musique VRAIMENT en pause (baisser le volume ne suffisait pas sur certains téléphones).
+  // Le jeu continue sur sa propre horloge ; au retour du son, la musique reprend au bon endroit.
+  useEffect(() => {
+    if (!audioStatus.isLoaded) return;
+    if (muted) {
+      player.pause();
+      return;
+    }
+    if (endedRef.current) return;
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    if (startRef.current === null) {
+      player.play();
+    } else {
+      player
+        .seekTo(Math.max(0, currentTime() / 1000))
+        .then(() => player.play())
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muted]);
 
   // En quittant le jeu, les sons d'interface doivent de nouveau respecter le mode silencieux
   useEffect(() => () => {
@@ -107,6 +125,8 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
       if (startRef.current === null) {
         if (audioPlayingRef.current) {
           startRef.current = wallNow - player.currentTime * 1000;
+        } else if (mutedRef.current) {
+          startRef.current = wallNow; // son coupé : on démarre tout de suite, sans musique
         } else if (wallNow - mountedAt > AUDIO_START_TIMEOUT_MS) {
           startRef.current = wallNow;
           setSilentMode(true);
@@ -203,7 +223,7 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
         <View>
           <Text style={styles.score}>{scoreRef.current}</Text>
           <Text style={styles.songName}>
-            {startRef.current === null ? '🎵 Chargement de la musique...' : `🎵 ${chart.name}${silentMode ? ' (sans son)' : ''}`}
+            {startRef.current === null ? '🎵 Chargement de la musique...' : `🎵 ${chart.name}${muted ? ' (son coupé)' : silentMode ? ' (sans son)' : ''}`}
           </Text>
         </View>
         <View style={styles.headerRight}>

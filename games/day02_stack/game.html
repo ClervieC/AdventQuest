@@ -50,10 +50,11 @@
     // ============================================
 
     const DIFFICULTY_SETTINGS = {
-      easy:      { speed: 120, targetFloors: 15, perfectTolerance: 12 },
-      medium:    { speed: 160, targetFloors: 14, perfectTolerance: 9 },
-      hard:      { speed: 200, targetFloors: 18, perfectTolerance: 6 },
-      very_hard: { speed: 240, targetFloors: 20, perfectTolerance: 4 },
+      // perfectTolerance : décalage (px) encore compté comme "parfait" (bloc non réduit)
+      easy:      { speed: 130, targetFloors: 15, perfectTolerance: 6 },
+      medium:    { speed: 170, targetFloors: 16, perfectTolerance: 4 },
+      hard:      { speed: 210, targetFloors: 18, perfectTolerance: 3 },
+      very_hard: { speed: 250, targetFloors: 20, perfectTolerance: 2 },
     };
 
     let settings = DIFFICULTY_SETTINGS.easy;
@@ -191,6 +192,7 @@
       currentBlock.sprite.destroy();
       const colorIndex = floorsBuilt % COLORS.length;
       const finalSprite = drawBlock(newCenterX, currentBlock.y, newWidth, COLORS[colorIndex]);
+      if (!isPerfect) dropOverhang(currentBlock, newLeft, newRight, COLORS[colorIndex]);
 
       blocks.push({ x: newCenterX, width: newWidth, y: currentBlock.y, sprite: finalSprite });
       sfx(isPerfect ? 'perfect' : 'place');
@@ -209,6 +211,29 @@
       }
 
       spawnNextBlock();
+    }
+
+    // Le morceau qui dépasse est coupé et tombe : on voit clairement la réduction du bloc
+    function dropOverhang(block, keptLeft, keptRight, color) {
+      const blockLeft = block.x - block.width / 2;
+      const blockRight = block.x + block.width / 2;
+      const pieces = [];
+      if (blockLeft < keptLeft) pieces.push([blockLeft, keptLeft]);
+      if (blockRight > keptRight) pieces.push([keptRight, blockRight]);
+      pieces.forEach(([left, right]) => {
+        const piece = scene.add.rectangle((left + right) / 2, block.y, right - left, BLOCK_HEIGHT, color).setStrokeStyle(2, 0xffffff, 0.15);
+        const direction = (left + right) / 2 < block.x ? -1 : 1;
+        scene.tweens.add({
+          targets: piece,
+          y: block.y + 400,
+          x: piece.x + direction * 60,
+          angle: direction * 50,
+          alpha: 0,
+          duration: 800,
+          ease: 'Quad.easeIn',
+          onComplete: () => piece.destroy(),
+        });
+      });
     }
 
     function finishGame(success) {

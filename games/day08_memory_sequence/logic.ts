@@ -10,6 +10,7 @@ export const DIFFICULTY_CONFIGS: Record<string, SequenceConfig> = {
   easy: { startLength: 3, maxLength: 5, displayDelayMs: 800 },
   medium: { startLength: 4, maxLength: 7, displayDelayMs: 650 },
   hard: { startLength: 5, maxLength: 10, displayDelayMs: 450 },
+  very_hard: { startLength: 6, maxLength: 12, displayDelayMs: 380 },
 };
 
 /** Génère une séquence aléatoire de la longueur demandée */

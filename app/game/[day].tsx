@@ -60,6 +60,9 @@ export async function generateStaticParams(): Promise<{ day: string }[]> {
   return Array.from({ length: 24 }, (_, i) => ({ day: String(i + 1) }));
 }
 
+// Difficulté du jour → difficulté du jeu (le boss joue ses épreuves en "hard")
+const GAME_DIFFICULTY = { easy: 'easy', medium: 'medium', hard: 'hard', very_hard: 'very_hard', boss: 'hard' } as const;
+
 export default function GameScreen() {
   const { day } = useLocalSearchParams<{ day: string }>();
   const dayNumber = parseInt(day, 10);
@@ -96,7 +99,7 @@ export default function GameScreen() {
         // Les jeux React Native démarrent (chrono, séquence...) dès leur montage : on ne les monte
         // qu'au clic sur Jouer, ce qui les recrée aussi à neuf à chaque "Rejouer"
         PRELOADED_GAMES.has(config.game) || gameProps.isStarted ? (
-          <GameComponent {...gameProps} difficulty={config.gameDifficulty} />
+          <GameComponent {...gameProps} difficulty={config.gameDifficulty ?? GAME_DIFFICULTY[config.difficulty]} />
         ) : null
       }
     </GameWrapper>
