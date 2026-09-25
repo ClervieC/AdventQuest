@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { useSettingsStore } from '../../store/settingsStore';
 import { CHART_VALSE, getChart } from './charts';
 import {
   applyTap,
@@ -50,6 +51,12 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
 
   const player = useAudioPlayer(chart === CHART_VALSE ? VALSE_AUDIO : CARILLON_AUDIO);
   const audioStatus = useAudioPlayerStatus(player);
+  const muted = useSettingsStore((state) => state.muted);
+
+  // Bouton 🔊/🔇 : la musique continue (elle sert d'horloge au jeu) mais devient muette
+  useEffect(() => {
+    player.volume = muted ? 0 : 1;
+  }, [muted, player]);
   const audioPlayingRef = useRef(false);
   audioPlayingRef.current = audioStatus.playing;
 

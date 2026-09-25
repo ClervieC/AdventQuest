@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import { calculatePipeScore, isPathConnected, PipeTile, rotateTile } from './logic';
 import { PIPE_PUZZLE_EASY } from './puzzles';
 
@@ -23,6 +24,7 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint }: GameCom
 
     const newGrid = grid.map((r) => r.map((t) => ({ ...t })));
     newGrid[row][col] = rotateTile(newGrid[row][col]);
+    playSfx('rotate');
     setGrid(newGrid);
     rotationsCountRef.current += 1;
 

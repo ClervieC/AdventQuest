@@ -3,6 +3,7 @@ import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import { getRandomDrawing } from './drawings';
 import { calculateDrawingScore, findNearestPoint, isDrawingComplete, isNextValidPoint } from './logic';
 
@@ -39,6 +40,7 @@ export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
     if (nearestPoint && isNextValidPoint(lastValidatedId, nearestPoint.id)) {
       const newLastValidated = nearestPoint.id;
       setLastValidatedId(newLastValidated);
+      playSfx('draw');
 
       if (isDrawingComplete(newLastValidated, drawing.points.length)) {
         const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
@@ -116,7 +118,7 @@ export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
         </View>
       </GestureDetector>
 
-      <Text style={styles.hint}>Glisse ton doigt du point 1 jusqu'au dernier point</Text>
+      <Text style={styles.hint}>Glisse ton doigt du point 1 jusqu&apos;au dernier point</Text>
     </View>
   );
 }

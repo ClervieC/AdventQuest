@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -179,6 +183,7 @@
     function loseLife() {
       if (gameEnded) return;
       lives = Math.max(0, lives - 1);
+      sfx('powerdown');
       livesText.setText(getLivesString());
       if (lives <= 0) {
         finishGame();
@@ -194,9 +199,11 @@
         if (distance <= HOLE_RADIUS) {
           if (hole.isFake) {
             score = Math.max(0, score - 50);
+            sfx('hurt');
             flashFeedback(hole.x, hole.y, '-50', 0xef4444);
           } else {
             score += 100;
+            sfx('whack');
             flashFeedback(hole.x, hole.y, '+100', 0x34d399);
           }
           if (hole.hideTimer) hole.hideTimer.remove();

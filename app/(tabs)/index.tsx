@@ -1,14 +1,20 @@
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar } from '../../components/Calendar';
+import { FragmentProgress } from '../../components/FragmentProgress';
+import { Snowfall } from '../../components/Snowfall';
+import { SoundToggle } from '../../components/SoundToggle';
 import { useGameStore } from '../../store/gameStore';
 
 export default function CalendarScreen() {
-  const { currentDay, totalFragments, bossUnlocked } = useGameStore();
+  const { currentDay, totalFragments } = useGameStore();
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + 12 }}>
+    <View style={styles.container}>
+      <Snowfall />
+      <SoundToggle style={[styles.soundToggle, { top: insets.top + 10 }]} />
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingTop: insets.top + 12 }}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>Avent magique · Décembre 2026</Text>
         <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
@@ -29,16 +35,11 @@ export default function CalendarScreen() {
         </View>
       )}
 
-      {!bossUnlocked() && (
-        <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>
-            ⚠️ Il faut 12 fragments minimum pour débloquer le Jour 24.
-          </Text>
-        </View>
-      )}
+      <FragmentProgress fragments={totalFragments()} />
 
       <Calendar />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -46,6 +47,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0c1521',
+  },
+  soundToggle: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 10,
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   hero: {
     padding: 20,
@@ -85,20 +95,6 @@ const styles = StyleSheet.create({
   seasonText: {
     color: '#c4b5fd',
     fontSize: 12,
-    textAlign: 'center',
-  },
-  warningBanner: {
-    backgroundColor: '#1a1000',
-    borderColor: '#3d2000',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-  },
-  warningText: {
-    color: '#92400e',
-    fontSize: 11,
     textAlign: 'center',
   },
 });

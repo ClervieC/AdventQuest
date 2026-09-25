@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -183,9 +187,11 @@
       obj.sprite.destroy();
 
       if (obj.isBomb) {
+        sfx('explode');
         finishGame(false);
         return;
       }
+      sfx('slice');
 
       score += 30;
       scoreText.setText('Score: ' + score);

@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -168,6 +172,7 @@
 
       if (overlapWidth <= 0) {
         // Aucun chevauchement : game over
+        sfx('hurt');
         finishGame(false);
         return;
       }
@@ -188,6 +193,7 @@
       const finalSprite = drawBlock(newCenterX, currentBlock.y, newWidth, COLORS[colorIndex]);
 
       blocks.push({ x: newCenterX, width: newWidth, y: currentBlock.y, sprite: finalSprite });
+      sfx(isPerfect ? 'perfect' : 'place');
       floorsBuilt += 1;
       updateProgressText();
 

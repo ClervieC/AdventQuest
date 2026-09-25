@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -349,6 +353,7 @@
       if (hintsLeft <= 0 || netActive) return;
       hintsLeft -= 1;
       netActive = true;
+      sfx('powerup');
       netSprite.setVisible(true).setAlpha(0);
       scene.tweens.add({ targets: netSprite, alpha: 0.8, duration: 250 });
       notifyHintUsed();
@@ -419,6 +424,7 @@
           ball.y = paddleY - PADDLE_H / 2 - BALL_RADIUS;
           combo = 0;
           comboText.setText('');
+          sfx('bounce');
         }
 
         // Filet de secours (hint)
@@ -426,6 +432,7 @@
           ball.y = paddleY + 30 - BALL_RADIUS;
           ball.vy = -Math.abs(ball.vy);
           netActive = false;
+          sfx('bounce');
           scene.tweens.add({ targets: netSprite, alpha: 0, duration: 300, onComplete: () => netSprite.setVisible(false) });
           flashFeedback(ball.x, paddleY, 'Sauvé !', '#7dd3fc');
           updateHintButton();
@@ -484,12 +491,14 @@
     function hitBrick(brick) {
       brick.hp -= 1;
       if (brick.hp > 0) {
+        sfx('tick');
         paintBrick(brick);
         scene.tweens.add({ targets: brick.sprite, scale: 0.9, duration: 60, yoyo: true });
         return;
       }
 
       brick.alive = false;
+      sfx('brick');
       combo += 1;
       const points = BRICK_POINTS * combo;
       score += points;
@@ -528,6 +537,7 @@
     function applyPower(power) {
       const now = scene.time.now;
       const info = POWERS[power];
+      sfx(info.good ? 'powerup' : 'powerdown');
       flashFeedback(paddle.x, paddleY - 40, info.label, info.good ? '#34d399' : '#f87171');
 
       if (power === 'multi') {
@@ -573,6 +583,7 @@
       gameEnded = true;
       running = false;
       if (!success) scene.cameras.main.shake(200, 0.01);
+      sfx(success ? 'perfect' : 'hurt');
       scene.time.delayedCall(success ? 700 : 500, () => endGame(success, score));
     }
 

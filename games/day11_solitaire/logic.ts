@@ -150,6 +150,107 @@ export function isGameWon(state: GameState): boolean {
   return state.foundations.every((foundation) => foundation.length === 13);
 }
 
+// ---------- Déplacements (utilisés par le glisser-déposer et le toucher) ----------
+
+export type MoveSource = { type: 'waste' } | { type: 'column'; columnIndex: number; cardIndex: number };
+export type MoveTarget = { type: 'column'; index: number } | { type: 'foundation'; index: number };
+
+/** Cartes emportées par un déplacement depuis cette source (null si rien de déplaçable) */
+export function getSourceCards(state: GameState, source: MoveSource): Card[] | null {
+  if (source.type === 'waste') {
+    return state.waste.length > 0 ? [state.waste[state.waste.length - 1]] : null;
+  }
+  const column = state.columns[source.columnIndex];
+  return column ? getMovableCards(column, source.cardIndex) : null;
+}
+
+/** Applique un déplacement ; renvoie le nouvel état, ou null si le coup est interdit */
+export function applyMove(state: GameState, source: MoveSource, target: MoveTarget): GameState | null {
+  const cards = getSourceCards(state, source);
+  if (!cards) return null;
+  if (target.type === 'column' && source.type === 'column' && source.columnIndex === target.index) return null;
+
+  if (target.type === 'foundation') {
+    // Une seule carte à la fois vers une fondation
+    if (cards.length !== 1 || !canPlaceOnFoundation(cards[0], state.foundations[target.index])) return null;
+  } else if (!canPlaceOnColumn(cards[0], state.columns[target.index])) {
+    return null;
+  }
+
+  // Retire les cartes de leur source (et retourne la carte découverte)
+  let next: GameState;
+  if (source.type === 'waste') {
+    next = { ...state, waste: state.waste.slice(0, -1) };
+  } else {
+    const columns = [...state.columns];
+    columns[source.columnIndex] = flipTopCardIfNeeded(state.columns[source.columnIndex].slice(0, source.cardIndex));
+    next = { ...state, columns };
+  }
+
+  if (target.type === 'foundation') {
+    const foundations = [...next.foundations];
+    foundations[target.index] = [...foundations[target.index], cards[0]];
+    return { ...next, foundations };
+  }
+  const columns = [...next.columns];
+  columns[target.index] = [...columns[target.index], ...cards];
+  return { ...next, columns };
+}
+
+/** Index de la fondation qui accepte cette carte, ou -1 */
+export function findFoundationFor(state: GameState, card: Card): number {
+  return state.foundations.findIndex((foundation) => canPlaceOnFoundation(card, foundation));
+}
+
+export type HintMove = { source: MoveSource; target: MoveTarget } | { draw: true };
+
+/**
+ * Suggère un coup utile, par ordre de priorité :
+ * 1. une carte vers une fondation ; 2. un déplacement qui découvre une carte cachée ;
+ * 3. la carte de la défausse vers une colonne ; 4. piocher. null s'il n'y a plus rien à faire.
+ */
+export function findHintMove(state: GameState): HintMove | null {
+  const sources: MoveSource[] = [];
+  if (state.waste.length > 0) sources.push({ type: 'waste' });
+  state.columns.forEach((column, columnIndex) => {
+    if (column.length > 0) sources.push({ type: 'column', columnIndex, cardIndex: column.length - 1 });
+  });
+
+  // 1. Vers une fondation
+  for (const source of sources) {
+    const cards = getSourceCards(state, source);
+    if (!cards) continue;
+    const foundation = findFoundationFor(state, cards[0]);
+    if (foundation !== -1) return { source, target: { type: 'foundation', index: foundation } };
+  }
+
+  // 2. Déplacer toute la partie visible d'une colonne pour découvrir une carte cachée
+  for (let columnIndex = 0; columnIndex < state.columns.length; columnIndex++) {
+    const column = state.columns[columnIndex];
+    const firstFaceUp = column.findIndex((card) => card.faceUp);
+    if (firstFaceUp <= 0) continue; // rien de caché dessous (déplacer un Roi seul vers une colonne vide ne sert à rien)
+    const source: MoveSource = { type: 'column', columnIndex, cardIndex: firstFaceUp };
+    for (let target = 0; target < state.columns.length; target++) {
+      if (applyMove(state, source, { type: 'column', index: target })) {
+        return { source, target: { type: 'column', index: target } };
+      }
+    }
+  }
+
+  // 3. La défausse vers une colonne
+  if (state.waste.length > 0) {
+    for (let target = 0; target < state.columns.length; target++) {
+      if (applyMove(state, { type: 'waste' }, { type: 'column', index: target })) {
+        return { source: { type: 'waste' }, target: { type: 'column', index: target } };
+      }
+    }
+  }
+
+  // 4. Piocher (ou recycler la défausse)
+  if (state.stock.length > 0 || state.waste.length > 0) return { draw: true };
+  return null;
+}
+
 /** Calcule le score selon le nombre de cartes en fondation et le temps pris */
 export function calculateSolitaireScore(cardsInFoundations: number, timeSpentSeconds: number, hintsUsed: number): number {
   const baseScore = cardsInFoundations * 25; // jusqu'à 52*25=1300 si toutes les cartes y sont

@@ -2,22 +2,12 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { DAYS_CONFIG } from '../../constants/days';
 import { ZONES } from '../../constants/zones';
-import { useSoundEffect } from '../../hooks/use-sound-effect';
+import { playSfx } from '../../services/sfx';
 import { useGameStore } from '../../store/gameStore';
 import { DayCell } from '../DayCell';
 
 export function Calendar() {
-  const { currentDay, days, isLocked } = useGameStore();
-  const playOpenSound = useSoundEffect(require('../../assets/sounds/open.wav'));
-
-  const handleDayPress = (day: number) => {
-    if (isLocked(day)) {
-      // on gérera le shake + message en étape 1.6
-      return;
-    }
-    playOpenSound();
-    router.push(`/game/${day}`);
-  };
+  const { currentDay, days, canTest } = useGameStore();
 
   return (
     <View style={styles.container}>
@@ -48,6 +38,8 @@ export function Calendar() {
                   ? 'today'
                   : config.day < currentDay
                   ? 'missed'
+                  : canTest(config.day)
+                  ? 'test'
                   : 'locked';
 
                 return (
@@ -58,7 +50,8 @@ export function Calendar() {
                       status={status}
                       isGolden={config.day === 24}
                       bestScore={dayState?.bestScore}
-                      onPress={() => handleDayPress(config.day)}
+                      onOpenStart={() => playSfx('open')}
+                      onOpen={() => router.push(`/game/${config.day}`)}
                     />
                   </View>
                 );

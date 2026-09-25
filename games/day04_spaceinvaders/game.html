@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -157,6 +161,7 @@
       lastShotTime = now;
 
       const bullet = scene.add.rectangle(player.x, player.y - 20, 4, 14, 0x6ee7b7);
+      sfx('shoot');
       playerBullets.push(bullet);
     }
 
@@ -244,6 +249,7 @@
           if (dist < 20) {
             enemy.alive = false;
             enemy.sprite.destroy();
+            sfx('explode');
             bullet.destroy();
             playerBullets.splice(bIndex, 1);
             score += 50;
@@ -259,6 +265,7 @@
           finishGame(true);
         } else {
           currentWave += 1;
+          sfx('powerup');
           scene.waveText.setText('Vague ' + currentWave);
           enemyDirection = 1;
           spawnWave();
@@ -268,6 +275,7 @@
 
     function finishGame(success) {
       if (gameEnded) return;
+      if (!success) sfx('hurt');
       gameEnded = true;
       scene.time.delayedCall(300, () => {
         endGame(success, score);

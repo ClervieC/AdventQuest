@@ -4,7 +4,7 @@
     "slug": "AdventQuest",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "adventquest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,17 +13,19 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0a0e34",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "AdventQuest",
+      "shortName": "AdventQuest",
+      "themeColor": "#0c1521",
+      "backgroundColor": "#0c1521"
     },
     "plugins": [
       "expo-router",

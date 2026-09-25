@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -175,6 +179,7 @@
       if (gameEnded || flyingBubble) return;
 
       const speed = 700;
+      sfx('shoot');
       flyingBubble = {
         x: cannonX,
         y: cannonY,
@@ -204,6 +209,7 @@
       // Rebond sur les murs latéraux
       if (flyingBubble.x < BUBBLE_RADIUS || flyingBubble.x > scene.scale.width - BUBBLE_RADIUS) {
         flyingBubble.vx *= -1;
+        sfx('bounce');
       }
 
       // Touche le plafond ou une bulle existante
@@ -294,6 +300,7 @@
       const connected = findConnectedSameColor(row, col);
 
       if (connected.length >= 3) {
+        sfx('pop');
         connected.forEach((pos) => {
           const key = hexKey(pos.row, pos.col);
           const bubble = grid[key];

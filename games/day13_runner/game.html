@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -275,11 +279,13 @@
       if (!running) return;
       if (player.onGround) {
         player.vy = JUMP_VELOCITY;
+        sfx('jump');
         player.onGround = false;
         player.canDoubleJump = true;
         player.slideUntil = 0;
       } else if (player.canDoubleJump) {
         player.vy = DOUBLE_JUMP_VELOCITY;
+        sfx('jump');
         player.canDoubleJump = false;
         scene.tweens.add({ targets: playerSprite, angle: 360, duration: 350, onComplete: () => playerSprite.setAngle(0) });
       }
@@ -292,12 +298,14 @@
         player.vy = Math.max(player.vy, 900);
       }
       player.slideUntil = scene.time.now + SLIDE_DURATION_MS;
+      sfx('slide');
     }
 
     function useHint() {
       if (hintsLeft <= 0 || scene.time.now < slowUntil) return;
       hintsLeft -= 1;
       slowUntil = scene.time.now + HINT_SLOW_MS;
+      sfx('powerup');
       notifyHintUsed();
       flashFeedback(width / 2, groundY - 160, '🐢 Ralenti 5s', '#a78bfa');
       updateHintButton();
@@ -432,6 +440,7 @@
         const cy = Phaser.Math.Clamp(f.y, box.top, box.bottom);
         if ((f.x - cx) ** 2 + (f.y - cy) ** 2 <= f.r * f.r) {
           fragmentsCollected += 1;
+          sfx('coin');
           flashFeedback(f.x, f.y, '+' + FRAGMENT_POINTS, '#fbbf24');
           f.sprite.destroy();
           return false;
@@ -454,6 +463,7 @@
     }
 
     function hitObstacle(time) {
+      sfx('hurt');
       lives = Math.max(0, lives - 1);
       livesText.setText(getLivesString());
       invulnerableUntil = time + INVULNERABLE_MS;

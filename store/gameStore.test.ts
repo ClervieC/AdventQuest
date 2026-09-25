@@ -20,6 +20,11 @@ jest.mock('../services/api', () => {
     submitAttempt: jest.fn(() => new Promise(() => {})), // par défaut : réponse qui n'arrive jamais
     consumeHint: jest.fn(() => new Promise(() => {})),
     getDeviceTimezone: jest.fn(() => 'Europe/Paris'),
+    hasProtectedAccount: jest.fn(() => Promise.resolve(false)),
+    protectAccount: jest.fn(() => Promise.resolve()),
+    loginWithUsername: jest.fn(() => Promise.resolve()),
+    logout: jest.fn(() => Promise.resolve()),
+    deleteMyAccount: jest.fn(() => Promise.resolve()),
   };
 });
 jest.mock('../services/pendingAttempts', () => ({
@@ -164,11 +169,33 @@ describe('gameStore - synchronisation avec le serveur', () => {
     expect(useGameStore.getState().errorMessage).toContain('Network');
   });
 
-  test('l’inscription envoie le pseudo et le fuseau du téléphone', async () => {
+  test('l’inscription crée le profil (pseudo + fuseau) puis enregistre le mot de passe', async () => {
     mockedApi.createProfile.mockResolvedValueOnce(serverState());
-    await useGameStore.getState().register('Clervie');
+    await useGameStore.getState().register('Clervie', 'secret123');
     expect(mockedApi.createProfile).toHaveBeenCalledWith('Clervie', 'Europe/Paris');
-    expect(useGameStore.getState().status).toBe('ready');
+    expect(mockedApi.protectAccount).toHaveBeenCalledWith('Clervie', 'secret123');
+    const state = useGameStore.getState();
+    expect(state.status).toBe('ready');
+    expect(state.hasAccount).toBe(true);
+    expect(state.passwordSetupFailed).toBe(false);
+  });
+
+  test('pseudo déjà pris : l’erreur remonte à l’écran, aucun mot de passe enregistré', async () => {
+    useGameStore.setState({ status: 'needs_profile' });
+    mockedApi.createProfile.mockRejectedValueOnce(new mockedApi.ApiError('username_taken', 'username_taken'));
+    await expect(useGameStore.getState().register('Clervie', 'secret123')).rejects.toThrow();
+    expect(mockedApi.protectAccount).not.toHaveBeenCalled();
+    expect(useGameStore.getState().status).toBe('needs_profile');
+  });
+
+  test('mot de passe non enregistré (serveur mal réglé) : on joue quand même, le Profil le redemandera', async () => {
+    mockedApi.createProfile.mockResolvedValueOnce(serverState());
+    mockedApi.protectAccount.mockRejectedValueOnce(new mockedApi.ApiError('email_confirmation_enabled', 'confirm'));
+    await useGameStore.getState().register('Clervie', 'secret123');
+    const state = useGameStore.getState();
+    expect(state.status).toBe('ready');
+    expect(state.hasAccount).toBe(false);
+    expect(state.passwordSetupFailed).toBe(true);
   });
 
   test('une partie est envoyée au serveur et sa réponse fait foi', async () => {
@@ -222,5 +249,123 @@ describe('gameStore - synchronisation avec le serveur', () => {
     expect(useGameStore.getState().hints).toBe(2); // tout de suite côté app
     await flush();
     expect(useGameStore.getState().hints).toBe(1); // puis la valeur du serveur
+  });
+});
+
+describe('gameStore - compte multi-appareils', () => {
+  const serverState = (overrides: Partial<api.PlayerState> = {}): api.PlayerState => ({
+    profile: { id: 'u1', username: 'Clervie', timezone: 'Europe/Paris' },
+    current_day: 3,
+    hints: 2,
+    progress: [],
+    ...overrides,
+  });
+
+  test('au lancement, on sait si le compte est protégé par un mot de passe', async () => {
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState());
+    mockedApi.hasProtectedAccount.mockResolvedValueOnce(true);
+    await useGameStore.getState().init();
+    expect(useGameStore.getState().hasAccount).toBe(true);
+  });
+
+  test('protéger son compte ajoute un mot de passe au joueur actuel (même pseudo)', async () => {
+    useGameStore.setState({ username: 'Clervie', hasAccount: false });
+    await useGameStore.getState().protectAccount('secret123');
+    expect(mockedApi.protectAccount).toHaveBeenCalledWith('Clervie', 'secret123');
+    expect(useGameStore.getState().hasAccount).toBe(true);
+  });
+
+  test('une erreur de protection remonte à l’écran et le compte reste non protégé', async () => {
+    useGameStore.setState({ username: 'Clervie', hasAccount: false });
+    mockedApi.protectAccount.mockRejectedValueOnce(new mockedApi.ApiError('weak_password', 'weak'));
+    await expect(useGameStore.getState().protectAccount('123')).rejects.toThrow();
+    expect(useGameStore.getState().hasAccount).toBe(false);
+  });
+
+  test('se connecter sur un autre appareil recharge la progression du compte', async () => {
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(
+      serverState({ progress: [{ day: 1, fragment_won: true, best_score: 800, attempts: 1 }] })
+    );
+    mockedApi.hasProtectedAccount.mockResolvedValueOnce(true);
+    await useGameStore.getState().login('Clervie', 'secret123');
+    expect(mockedApi.loginWithUsername).toHaveBeenCalledWith('Clervie', 'secret123');
+    expect(useGameStore.getState().days[1].bestScore).toBe(800);
+    expect(useGameStore.getState().hasAccount).toBe(true);
+  });
+
+  test('mauvais mot de passe : l’erreur remonte, rien n’est chargé', async () => {
+    mockedApi.loginWithUsername.mockRejectedValueOnce(new mockedApi.ApiError('invalid_credentials', 'bad'));
+    await expect(useGameStore.getState().login('Clervie', 'faux')).rejects.toThrow();
+    expect(mockedApi.fetchPlayerState).not.toHaveBeenCalled();
+  });
+
+  test('se déconnecter vide la progression locale et repart sur un nouveau joueur', async () => {
+    useGameStore.setState({ username: 'Clervie', hasAccount: true });
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState({ profile: null }));
+    await useGameStore.getState().logout();
+    expect(mockedApi.logout).toHaveBeenCalled();
+    const state = useGameStore.getState();
+    expect(state.days).toEqual({});
+    expect(state.username).toBeNull();
+    expect(state.status).toBe('needs_profile');
+  });
+});
+
+describe('gameStore - rôles et suppression de compte', () => {
+  const serverState = (overrides: Partial<api.PlayerState> = {}): api.PlayerState => ({
+    profile: { id: 'u1', username: 'Clervie', timezone: 'Europe/Paris', role: 'player', tester_days: [] },
+    current_day: 3,
+    hints: 2,
+    progress: [],
+    ...overrides,
+  });
+
+  test('le rôle et les jours de test viennent du serveur', async () => {
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(
+      serverState({ profile: { id: 'u1', username: 'Bob', timezone: 'Europe/Paris', role: 'tester', tester_days: [7, 12] } })
+    );
+    await useGameStore.getState().init();
+    expect(useGameStore.getState().role).toBe('tester');
+    expect(useGameStore.getState().testerDays).toEqual([7, 12]);
+  });
+
+  test('un joueur ne peut rien tester en avance', () => {
+    useGameStore.setState({ role: 'player', testerDays: [7] });
+    expect(useGameStore.getState().canTest(7)).toBe(false);
+  });
+
+  test('un testeur peut ouvrir uniquement les jours que l’admin lui a donnés', () => {
+    useGameStore.setState({ role: 'tester', testerDays: [7, 12] });
+    expect(useGameStore.getState().canTest(7)).toBe(true);
+    expect(useGameStore.getState().canTest(8)).toBe(false);
+  });
+
+  test('un testeur enregistre ses parties sur ses jours de test (pour le classement)', () => {
+    useGameStore.setState({ role: 'tester', testerDays: [12], currentDay: 9 });
+    useGameStore.getState().finishAttempt(12, 800, true);
+    expect(mockedApi.submitAttempt).toHaveBeenCalledWith(12, 800, true);
+    expect(useGameStore.getState().days[12]).toEqual({ fragmentWon: true, bestScore: 800, attempts: 1 });
+  });
+
+  test('… mais pas sur un jour qui ne lui a pas été ouvert', () => {
+    useGameStore.setState({ role: 'tester', testerDays: [12], currentDay: 9 });
+    useGameStore.getState().finishAttempt(13, 800, true);
+    expect(mockedApi.submitAttempt).not.toHaveBeenCalled();
+  });
+
+  test('un admin peut tester tous les jours', () => {
+    useGameStore.setState({ role: 'admin', testerDays: [] });
+    expect(useGameStore.getState().canTest(24)).toBe(true);
+  });
+
+  test('supprimer son compte efface tout localement et revient à l’inscription', async () => {
+    useGameStore.setState({ username: 'Clervie', role: 'admin', hasAccount: true, days: { 1: { fragmentWon: true, bestScore: 10, attempts: 1 } } });
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState({ profile: null }));
+    await useGameStore.getState().deleteAccount();
+    expect(mockedApi.deleteMyAccount).toHaveBeenCalled();
+    const state = useGameStore.getState();
+    expect(state.days).toEqual({});
+    expect(state.role).toBe('player');
+    expect(state.status).toBe('needs_profile');
   });
 });

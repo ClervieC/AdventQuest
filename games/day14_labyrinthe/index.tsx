@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import {
     attemptMove,
     calculateMazeScore,
@@ -20,24 +21,28 @@ export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
   const [maze] = useState<Maze>(() => generateMaze(MAZE_SIZE));
   const [playerPosition, setPlayerPosition] = useState<Position>({ row: 0, col: 0 });
   const movesCountRef = useRef(0);
+  const positionRef = useRef(playerPosition);
+  positionRef.current = playerPosition;
 
   const handleMove = useCallback(
     (direction: Direction) => {
-      setPlayerPosition((current) => {
-        const newPosition = attemptMove(maze, current, direction);
+      const current = positionRef.current;
+      const newPosition = attemptMove(maze, current, direction);
 
-        // si la position a réellement changé, on compte le mouvement
-        if (newPosition.row !== current.row || newPosition.col !== current.col) {
-          movesCountRef.current += 1;
+      // si la position a réellement changé, on compte le mouvement ; sinon on a heurté un mur
+      if (newPosition.row !== current.row || newPosition.col !== current.col) {
+        movesCountRef.current += 1;
+        playSfx('tap');
+        positionRef.current = newPosition;
+        setPlayerPosition(newPosition);
 
-          if (isAtExit(newPosition, MAZE_SIZE)) {
-            const score = calculateMazeScore(movesCountRef.current, MAZE_SIZE);
-            setTimeout(() => onGameEnd({ success: true, score }), 300); // petit délai pour voir l'arrivée
-          }
+        if (isAtExit(newPosition, MAZE_SIZE)) {
+          const score = calculateMazeScore(movesCountRef.current, MAZE_SIZE);
+          setTimeout(() => onGameEnd({ success: true, score }), 300); // petit délai pour voir l'arrivée
         }
-
-        return newPosition;
-      });
+      } else {
+        playSfx('bump');
+      }
     },
     [maze, onGameEnd]
   );
@@ -57,7 +62,7 @@ export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
   return (
     <GestureDetector gesture={panGesture}>
       <View style={styles.container}>
-        <Text style={styles.hint}>Glisse pour te déplacer jusqu'à la sortie 🎁</Text>
+        <Text style={styles.hint}>Glisse pour te déplacer jusqu&apos;à la sortie 🎁</Text>
 
         <View style={[styles.mazeContainer, { width: MAZE_SIZE * CELL_PIXEL_SIZE, height: MAZE_SIZE * CELL_PIXEL_SIZE }]}>
           {maze.map((row, rowIndex) =>

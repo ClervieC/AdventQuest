@@ -1,0 +1,15 @@
+{
+  "name": "AdventQuest",
+  "short_name": "AdventQuest",
+  "description": "Calendrier de l'Avent interactif : 24 mini-jeux pour réparer le Cœur de Noël.",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1521",
+  "theme_color": "#0c1521",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import {
     advanceSnake,
     calculateFinalScore,
@@ -36,6 +37,13 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
 
     return () => clearInterval(id);
   }, [timeLeft]);
+
+  // Bruitage quand le serpent mange une pomme (le score augmente)
+  const lastScoreRef = useRef(gameState.score);
+  useEffect(() => {
+    if (gameState.score > lastScoreRef.current) playSfx('eat');
+    lastScoreRef.current = gameState.score;
+  }, [gameState.score]);
 
   // Mort par collision avec soi-même
   useEffect(() => {

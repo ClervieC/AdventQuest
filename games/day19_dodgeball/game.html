@@ -23,6 +23,10 @@
         console.log('[DEV MODE]', message);
       }
     }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -235,6 +239,7 @@
       if (hintsLeft <= 0 || shieldActive) return;
       hintsLeft -= 1;
       shieldActive = true;
+      sfx('powerup');
       shieldSprite.setVisible(true).setScale(0.5);
       scene.tweens.add({ targets: shieldSprite, scale: 1, duration: 200, ease: 'Back.easeOut' });
       notifyHintUsed();
@@ -325,9 +330,11 @@
           p.done = true;
           if (p.type.bonus) {
             score += GIFT_POINTS;
+            sfx('coin');
             flashFeedback(p.x, p.y - 20, '+' + GIFT_POINTS, '#fbbf24');
           } else if (shieldActive) {
             shieldActive = false;
+            sfx('bounce');
             scene.tweens.add({ targets: shieldSprite, scale: 1.8, alpha: 0, duration: 250, onComplete: () => shieldSprite.setVisible(false).setAlpha(1).setScale(1) });
             scene.cameras.main.shake(120, 0.006);
             flashFeedback(playerX, playerY - 50, 'Bloqué !', '#7dd3fc');
@@ -346,6 +353,7 @@
     }
 
     function hitPlayer() {
+      sfx('explode');
       scene.cameras.main.shake(250, 0.015);
       playerSprite.setText('💫');
       flashFeedback(playerX, playerY - 50, 'Touché !', '#ef4444');

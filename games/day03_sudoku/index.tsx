@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import { calculateSudokuScore, Grid, isSolved, revealRandomCell, SudokuPuzzle } from './logic';
 import { generateSudokuPuzzle, SudokuDifficulty } from './puzzles';
 
@@ -34,6 +35,7 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
     if (!selectedCell) return;
     const newGrid = grid.map((row) => [...row]);
     newGrid[selectedCell.row][selectedCell.col] = value;
+    playSfx('place');
     setGrid(newGrid);
     checkAndFinish(newGrid, hintsUsedThisGame);
   };
@@ -42,6 +44,7 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
     if (!selectedCell) return;
     const newGrid = grid.map((row) => [...row]);
     newGrid[selectedCell.row][selectedCell.col] = null;
+    playSfx('tap');
     setGrid(newGrid);
   };
 

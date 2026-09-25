@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import { calculateScore, eliminateWrongAnswers, isAnswerCorrect, isSuccess } from './logic';
 import { pickQuizQuestions } from './questions';
 
@@ -22,6 +23,7 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
 
     setSelectedIndex(index);
     const isCorrect = isAnswerCorrect(currentQuestion, index);
+    playSfx(isCorrect ? 'correct' : 'wrong');
     const newScore = isCorrect ? score + 200 : score;
     const newCorrectCount = isCorrect ? correctAnswersCount + 1 : correctAnswersCount;
 
@@ -43,6 +45,7 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
   const handleHint = () => {
     if (hintsAvailable === 0 || eliminatedOptions.length > 0) return;
     onUseHint();
+    playSfx('tap');
     // élimine 2 mauvaises réponses au hasard
     const toEliminate = eliminateWrongAnswers(currentQuestion);
 

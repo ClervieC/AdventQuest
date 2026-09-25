@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import {
     calculateColumnHints,
     calculateNonogramScore,
@@ -34,6 +35,7 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
     const previousState = newGrid[row][col];
     const newState = cycleCell(previousState);
     newGrid[row][col] = newState;
+    playSfx('tap');
 
     // Compte une "erreur" si on remplit une case qui ne devrait pas l'être
     if (newState === 'filled' && !puzzle.solution[row][col]) {
@@ -53,6 +55,7 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
     if (hintsAvailable === 0) return;
     onUseHint();
     hintsUsedRef.current += 1;
+    playSfx('place');
 
     // Révèle une case correcte aléatoire pas encore correctement remplie
     const candidates: { row: number; col: number }[] = [];

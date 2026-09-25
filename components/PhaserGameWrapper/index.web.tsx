@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useSettingsStore } from '../../store/settingsStore';
 import { GameComponentProps } from '../GameWrapper/types';
+import { GAME_SOUNDS_SCRIPT } from './gameSounds';
 
 // Version web : react-native-webview ne marche pas dans le navigateur, on utilise une <iframe>.
 // Un faux window.ReactNativeWebView est injecté dans le game.html pour garder le même protocole de messages.
@@ -31,13 +33,16 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   // Ref et pas dépendance : utiliser un hint ne doit pas renvoyer INIT (ça relancerait la partie)
   const hintsRef = useRef(hintsAvailable);
   hintsRef.current = hintsAvailable;
+  const muted = useSettingsStore((state) => state.muted);
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
 
   useEffect(() => {
     let cancelled = false;
     fetch(resolveHtmlUri(htmlSource))
       .then((response) => response.text())
       .then((html) => {
-        if (!cancelled) setSrcDoc(html.replace(/<head>/i, '<head>' + BRIDGE_SCRIPT));
+        if (!cancelled) setSrcDoc(html.replace(/<head>/i, '<head>' + BRIDGE_SCRIPT + '<script>' + GAME_SOUNDS_SCRIPT + '</script>'));
       })
       .catch((error) => console.warn('Chargement du jeu Phaser impossible:', error));
     return () => {
@@ -49,8 +54,14 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
     iframeRef.current?.contentWindow?.postMessage(JSON.stringify(message), '*');
   };
 
+  // Bouton 🔊/🔇 : le jeu est prévenu tout de suite
+  useEffect(() => {
+    if (isReadyRef.current) sendMessageToGame({ type: 'SET_MUTED', muted });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muted]);
+
   const sendInit = () => {
-    sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current });
+    sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current });
   };
 
   // Quand le jeu est prêt ET que l'utilisateur a appuyé sur Jouer → envoyer INIT
@@ -72,6 +83,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
         if (data.type === 'GAME_READY') {
           isReadyRef.current = true;
           setIsLoading(false);
+          sendMessageToGame({ type: 'SET_MUTED', muted: mutedRef.current });
           if (isStarted) sendInit();
         }
 

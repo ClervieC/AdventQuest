@@ -3,10 +3,16 @@ import {
   ApiError,
   consumeHint,
   createProfile,
+  deleteMyAccount,
   ensureSession,
   fetchPlayerState,
   getDeviceTimezone,
+  hasProtectedAccount,
+  loginWithUsername,
+  logout as apiLogout,
   PlayerState,
+  protectAccount as apiProtectAccount,
+  Role,
   submitAttempt,
 } from '../services/api';
 import { loadPendingAttempts, PendingAttempt, savePendingAttempts } from '../services/pendingAttempts';
@@ -25,6 +31,10 @@ interface GameStore {
   errorMessage: string | null;
   username: string | null;
   timezone: string | null;
+  role: Role;
+  testerDays: number[];
+  hasAccount: boolean; // true = protégé par un mot de passe (connectable sur d'autres appareils)
+  passwordSetupFailed: boolean; // le mot de passe choisi à l'inscription n'a pas pu être enregistré
   currentDay: number; // 0 = saison pas commencée, 1..24, 25 = saison terminée (vient du serveur)
   hints: number;
   days: Record<number, DayState>;
@@ -34,11 +44,16 @@ interface GameStore {
   isLocked: (day: number) => boolean;
   totalFragments: () => number;
   bossUnlocked: () => boolean;
+  canTest: (day: number) => boolean; // testeur/admin : peut ouvrir ce jour en avance (mode test)
 
   // Serveur
   init: () => Promise<void>;
   refresh: () => Promise<void>;
-  register: (username: string) => Promise<void>;
+  register: (username: string, password: string) => Promise<void>;
+  protectAccount: (password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 
   // Actions de jeu
   finishAttempt: (day: number, score: number, success: boolean) => void;
@@ -80,6 +95,8 @@ export const useGameStore = create<GameStore>((set, get) => {
       errorMessage: null,
       username: state.profile?.username ?? null,
       timezone: state.profile?.timezone ?? null,
+      role: state.profile?.role ?? 'player',
+      testerDays: state.profile?.tester_days ?? [],
       currentDay: state.current_day,
       hints: state.hints,
       days: toDays(state.progress),
@@ -119,6 +136,10 @@ export const useGameStore = create<GameStore>((set, get) => {
     errorMessage: null,
     username: null,
     timezone: null,
+    role: 'player',
+    testerDays: [],
+    hasAccount: false,
+    passwordSetupFailed: false,
     currentDay: 0,
     hints: 0,
     days: {},
@@ -133,12 +154,18 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     bossUnlocked: () => get().totalFragments() >= FRAGMENT_THRESHOLD,
 
+    canTest: (day) => {
+      const { role, testerDays } = get();
+      return role === 'admin' || (role === 'tester' && testerDays.includes(day));
+    },
+
     init: async () => {
       set({ status: 'loading', errorMessage: null });
       try {
         await ensureSession();
         await flushPendingAttempts();
         applyServerState(await fetchPlayerState());
+        set({ hasAccount: await hasProtectedAccount() });
       } catch (error) {
         set({
           status: 'error',
@@ -158,13 +185,52 @@ export const useGameStore = create<GameStore>((set, get) => {
       }
     },
 
-    // Création du profil ; les erreurs (pseudo pris...) remontent à l'écran d'inscription
-    register: async (username) => {
-      applyServerState(await createProfile(username, getDeviceTimezone()));
+    // Inscription : pseudo + mot de passe d'un coup (le compte est tout de suite utilisable sur d'autres appareils).
+    // Les erreurs de pseudo (déjà pris...) remontent à l'écran d'inscription.
+    register: async (username, password) => {
+      const state = await createProfile(username, getDeviceTimezone());
+      let passwordSaved = false;
+      try {
+        await apiProtectAccount(state.profile?.username ?? username, password);
+        passwordSaved = true;
+      } catch {
+        // Le profil existe déjà : on laisse jouer, et le Profil proposera de choisir le mot de passe à nouveau
+      }
+      applyServerState(state);
+      set({ hasAccount: passwordSaved, passwordSetupFailed: !passwordSaved });
+    },
+
+    // Ajoute un mot de passe au joueur actuel (même joueur : la progression est gardée)
+    protectAccount: async (password) => {
+      const username = get().username;
+      if (!username) return;
+      await apiProtectAccount(username, password);
+      set({ hasAccount: true, passwordSetupFailed: false });
+    },
+
+    // Connexion à un compte existant sur cet appareil, puis chargement de sa progression
+    login: async (username, password) => {
+      await loginWithUsername(username, password);
+      await get().init();
+    },
+
+    // Déconnexion (seulement proposée pour un compte protégé) : repart sur un nouveau joueur anonyme
+    logout: async () => {
+      await apiLogout();
+      set({ days: {}, hints: 0, username: null, timezone: null, role: 'player', testerDays: [], hasAccount: false });
+      await get().init();
+    },
+
+    // Suppression définitive du compte (RGPD), puis retour à l'écran d'inscription
+    deleteAccount: async () => {
+      await deleteMyAccount();
+      set({ days: {}, hints: 0, username: null, timezone: null, role: 'player', testerDays: [], hasAccount: false });
+      await get().init();
     },
 
     finishAttempt: (day, score, success) => {
-      if (day !== get().currentDay) return; // sécurité : pas de triche (le serveur vérifie aussi)
+      // Jour courant, ou jour de test pour un testeur / admin (le serveur vérifie aussi)
+      if (day !== get().currentDay && !get().canTest(day)) return;
       set((state) => {
         const existing = state.days[day] || { fragmentWon: false, bestScore: 0, attempts: 0 };
         return {

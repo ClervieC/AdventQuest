@@ -1,16 +1,23 @@
+import { usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../../services/api';
+import { LegalKind, LegalLinks, LegalView } from '../Legal';
 import { useGameStore } from '../../store/gameStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 const USERNAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]{3,20}$/;
+const MIN_PASSWORD_LENGTH = 6;
 
 // Affiche l'app seulement une fois le joueur connecté et son profil créé
 export function StartupGate({ children }: { children: React.ReactNode }) {
   const { status, errorMessage, init, refresh } = useGameStore();
+  const pathname = usePathname();
+  const [legal, setLegal] = useState<LegalKind | null>(null);
 
   useEffect(() => {
     init();
+    useSettingsStore.getState().loadSettings(); // son coupé ou non (mémorisé sur l'appareil)
   }, [init]);
 
   // Au retour au premier plan : recharge l'état (le jour a pu changer à minuit) et renvoie les parties en attente
@@ -21,15 +28,18 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, [refresh]);
 
-  if (status === 'ready') return <>{children}</>;
+  // Les pages légales restent lisibles sans compte (liens demandés par les stores)
+  if (status === 'ready' || pathname?.startsWith('/legal')) return <>{children}</>;
+  if (legal) return <LegalView kind={legal} onBack={() => setLegal(null)} />;
 
   return (
-    <View style={styles.screen}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       {status === 'loading' && <ActivityIndicator size="large" color="#7c3aed" />}
       {status === 'error' && <ErrorPanel message={errorMessage} onRetry={init} />}
-      {status === 'needs_profile' && <UsernameForm />}
-    </View>
+      {status === 'needs_profile' && <WelcomeForms onOpenLegal={setLegal} />}
+      {status !== 'loading' && <LegalLinks onOpen={setLegal} />}
+    </ScrollView>
   );
 }
 
@@ -51,23 +61,97 @@ function ErrorPanel({ message, onRetry }: { message: string | null; onRetry: () 
 const ERROR_MESSAGES: Partial<Record<string, string>> = {
   username_taken: 'Ce pseudo est déjà pris, essaie-en un autre.',
   invalid_username: 'Entre 3 et 20 caractères : lettres, chiffres, espaces, - et _.',
+  invalid_credentials: 'Pseudo ou mot de passe incorrect.',
 };
 
-function UsernameForm() {
+// Nouveau joueur (choisir un pseudo) ou joueur qui a déjà un compte (se connecter)
+function WelcomeForms({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void }) {
+  const [mode, setMode] = useState<'new' | 'login'>('new');
+  return (
+    <>
+      {mode === 'new' ? <UsernameForm onOpenLegal={onOpenLegal} /> : <LoginForm />}
+      <Pressable onPress={() => setMode(mode === 'new' ? 'login' : 'new')} style={styles.switchLink} hitSlop={8}>
+        <Text style={styles.switchLinkText}>
+          {mode === 'new' ? 'J’ai déjà un compte → Se connecter' : '← Je suis un nouveau Gardien'}
+        </Text>
+      </Pressable>
+    </>
+  );
+}
+
+function LoginForm() {
+  const login = useGameStore((state) => state.login);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const canSubmit = username.trim().length >= 3 && password.length > 0 && !submitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await login(username.trim(), password);
+    } catch (e) {
+      const code = e instanceof ApiError ? e.code : 'network';
+      setError(ERROR_MESSAGES[code] ?? 'Connexion impossible, vérifie ta connexion internet.');
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.panel}>
+      <Text style={styles.title}>Bon retour, Gardien !</Text>
+      <Text style={styles.text}>Connecte-toi avec ton pseudo et ton mot de passe pour retrouver ta progression.</Text>
+      <TextInput
+        value={username}
+        onChangeText={setUsername}
+        placeholder="Pseudo"
+        placeholderTextColor="#3a5a7a"
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={styles.input}
+      />
+      <TextInput
+        value={password}
+        onChangeText={setPassword}
+        onSubmitEditing={handleSubmit}
+        placeholder="Mot de passe"
+        placeholderTextColor="#3a5a7a"
+        secureTextEntry
+        autoCapitalize="none"
+        style={[styles.input, styles.inputStacked]}
+      />
+      {error && <Text style={styles.error}>{error}</Text>}
+      <Pressable style={[styles.button, !canSubmit && styles.buttonDisabled]} onPress={handleSubmit} disabled={!canSubmit}>
+        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Se connecter</Text>}
+      </Pressable>
+    </KeyboardAvoidingView>
+  );
+}
+
+function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void }) {
   const register = useGameStore((state) => state.register);
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const trimmed = username.trim();
-  const isValid = USERNAME_PATTERN.test(trimmed);
+  const usernameValid = USERNAME_PATTERN.test(trimmed);
+  const passwordValid = password.length >= MIN_PASSWORD_LENGTH;
+  const mismatch = confirmation.length > 0 && password !== confirmation;
+  const isValid = usernameValid && passwordValid && password === confirmation;
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
-      await register(trimmed);
+      await register(trimmed, password);
     } catch (e) {
       const code = e instanceof ApiError ? e.code : 'network';
       setError(ERROR_MESSAGES[code] ?? 'Impossible de créer ton profil, vérifie ta connexion.');
@@ -79,35 +163,81 @@ function UsernameForm() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.panel}>
       <Text style={styles.title}>Bienvenue, Gardien des Fêtes !</Text>
       <Text style={styles.text}>
-        Grimnoir a brisé le Cœur de Noël en 24 fragments. Choisis ton nom de Gardien : il apparaîtra dans le classement.
+        Grimnoir a brisé le Cœur de Noël en 24 fragments. Crée ton compte de Gardien : ton pseudo apparaîtra dans le classement.
       </Text>
       <TextInput
         value={username}
         onChangeText={setUsername}
-        onSubmitEditing={handleSubmit}
-        placeholder="Ton pseudo"
+        placeholder="Ton pseudo (3 à 20 caractères)"
         placeholderTextColor="#3a5a7a"
         maxLength={20}
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.input}
       />
+      <TextInput
+        value={password}
+        onChangeText={setPassword}
+        placeholder={`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`}
+        placeholderTextColor="#3a5a7a"
+        secureTextEntry
+        autoCapitalize="none"
+        style={[styles.input, styles.inputStacked]}
+      />
+      <TextInput
+        value={confirmation}
+        onChangeText={setConfirmation}
+        onSubmitEditing={handleSubmit}
+        placeholder="Confirme le mot de passe"
+        placeholderTextColor="#3a5a7a"
+        secureTextEntry
+        autoCapitalize="none"
+        style={[styles.input, styles.inputStacked]}
+      />
+      {mismatch && <Text style={styles.error}>Les deux mots de passe ne sont pas identiques.</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={[styles.button, (!isValid || submitting) && styles.buttonDisabled]} onPress={handleSubmit} disabled={!isValid || submitting}>
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>✦ Commencer l&apos;aventure</Text>}
       </Pressable>
-      <Text style={styles.hint}>Pas besoin d&apos;e-mail : ta progression est liée à ce téléphone.</Text>
+      <Text style={styles.consent}>
+        En créant ton compte, tu acceptes les{' '}
+        <Text style={styles.consentLink} onPress={() => onOpenLegal('terms')}>
+          conditions d’utilisation
+        </Text>{' '}
+        et la{' '}
+        <Text style={styles.consentLink} onPress={() => onOpenLegal('privacy')}>
+          politique de confidentialité
+        </Text>
+        .
+      </Text>
+      <Text style={styles.hint}>
+        Pas besoin d&apos;e-mail : avec ton pseudo et ton mot de passe, tu retrouves ta progression sur ton téléphone, ton ordinateur ou un nouvel appareil. Retiens-les bien, ils ne peuvent pas être récupérés.
+      </Text>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  scroll: {
     flex: 1,
     backgroundColor: '#0c1521',
+  },
+  screen: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+  },
+  consent: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#7a9ab8',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  consentLink: {
+    color: '#a78bfa',
+    textDecorationLine: 'underline',
   },
   logo: {
     width: 120,
@@ -148,6 +278,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#fff',
+  },
+  inputStacked: {
+    marginTop: 10,
+  },
+  switchLink: {
+    marginTop: 24,
+    alignSelf: 'center',
+  },
+  switchLinkText: {
+    color: '#a78bfa',
+    fontSize: 13,
+    fontWeight: '600',
   },
   error: {
     fontSize: 12,

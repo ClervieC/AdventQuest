@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { playSfx } from '../../services/sfx';
 import {
     calculateSequenceScore,
     checkPlayerInput,
@@ -37,6 +38,7 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
     seqToPlay.forEach((symbol, index) => {
       const showTimeout = setTimeout(() => {
         setHighlightedSymbol(symbol);
+        playSfx(`note${symbol}`);
       }, index * config.displayDelayMs);
 
       const hideTimeout = setTimeout(() => {
@@ -66,11 +68,13 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
     const result = checkPlayerInput(sequence, newInput);
 
     if (result === 'wrong') {
+      playSfx('wrong');
       const score = calculateSequenceScore(sequence.length - 1, hintsUsedThisGame);
       onGameEnd({ success: false, score });
       return;
     }
 
+    playSfx(`note${symbolIndex}`);
     setPlayerInput(newInput);
 
     if (result === 'complete') {

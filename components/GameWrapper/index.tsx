@@ -1,9 +1,12 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getZoneForDay } from '../../constants/zones';
-import { useSoundEffect } from '../../hooks/use-sound-effect';
+import { FeedbackForm } from '../FeedbackForm';
+import { FragmentHeart } from '../FragmentHeart';
+import { playSfx } from '../../services/sfx';
+import { SoundToggle } from '../SoundToggle';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 import { GameResult } from './types';
 
@@ -17,31 +20,33 @@ interface GameWrapperProps {
 
 export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
-  const { hints, useHint, finishAttempt, canPlay, isLocked, days, bossUnlocked, totalFragments } = useGameStore();
+  const { hints, useHint, finishAttempt, canPlay, isLocked, canTest, role, days, bossUnlocked, totalFragments } = useGameStore();
   const [phase, setPhase] = useState<'intro' | 'playing' | 'result'>('intro');
   const [result, setResult] = useState<GameResult | null>(null);
-  const playFragmentSound = useSoundEffect(require('../../assets/sounds/fragment.wav'));
-  const playVictorySound = useSoundEffect(require('../../assets/sounds/victory.wav'));
-  const playFailureSound = useSoundEffect(require('../../assets/sounds/failure.wav'));
+  const [attemptId, setAttemptId] = useState(0); // un formulaire de retour neuf à chaque partie
 
   const dayState = days[day];
   const alreadyWon = dayState?.fragmentWon ?? false;
-  // Jour passé : on peut rejouer pour le plaisir, mais rien n'est enregistré
-  const isPractice = !canPlay(day);
+  // Jour futur ouvert en avance pour un testeur/admin : la partie est enregistrée (classement marqué 🧪)
+  const isTestMode = isLocked(day) && canTest(day);
+  // Jour passé : entraînement, rien n'est enregistré
+  const isPractice = !canPlay(day) && !isTestMode;
+  const canGiveFeedback = role === 'tester' || role === 'admin';
 
   const handleGameEnd = (gameResult: GameResult) => {
     if (!isPractice) finishAttempt(day, gameResult.score, gameResult.success);
     // Le son "fragment" est réservé aux vrais fragments ; en entraînement, simple son de victoire
-    if (!gameResult.success) playFailureSound();
-    else if (isPractice) playVictorySound();
-    else playFragmentSound();
+    if (!gameResult.success) playSfx('failure');
+    else if (isPractice) playSfx('victory');
+    else playSfx('fragment');
     setResult(gameResult);
+    setAttemptId((id) => id + 1);
     setPhase('result');
   };
 
   const isBoss = day === BOSS_DAY;
-  // Pas de hints en entraînement (ils restent pour les vrais jours) ni contre le boss (règle du jeu)
-  const hintsAllowed = !isPractice && !isBoss;
+  // Pas de hints en entraînement ni en test (ils restent pour les vrais jours), ni contre le boss (règle du jeu)
+  const hintsAllowed = !isPractice && !isTestMode && !isBoss;
   const noop = () => {};
 
   const handleStart = () => setPhase('playing');
@@ -51,9 +56,12 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
   const handleBackToCalendar = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const backButton = (
-    <Pressable style={styles.headerBack} onPress={handleBackToCalendar} hitSlop={12}>
-      <Text style={styles.headerBackText}>‹ Calendrier</Text>
-    </Pressable>
+    <View style={styles.headerRow}>
+      <Pressable style={styles.headerBack} onPress={handleBackToCalendar} hitSlop={12}>
+        <Text style={styles.headerBackText}>‹ Calendrier</Text>
+      </Pressable>
+      <SoundToggle />
+    </View>
   );
 
   // Le portail du boss ne s'ouvre qu'avec assez de fragments
@@ -73,8 +81,8 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
     );
   }
 
-  // Sécurité : un jour futur n'est jamais jouable
-  if (isLocked(day)) {
+  // Sécurité : un jour futur n'est jamais jouable (sauf accès testeur)
+  if (isLocked(day) && !isTestMode) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {backButton}
@@ -98,6 +106,15 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
           </Text>
           <Text style={styles.title}>{fragmentIcon} {fragmentName}</Text>
           <Text style={styles.story}>{storyIntro}</Text>
+
+          {isTestMode && (
+            <View style={[styles.practiceBanner, styles.testBanner]}>
+              <Text style={styles.practiceTitle}>🧪 Mode test</Text>
+              <Text style={styles.practiceText}>
+                Ce jour est ouvert en avance pour toi. Ton score compte dans le classement (marqué 🧪), sans hint, et tu pourras donner ton avis à la fin de la partie.
+              </Text>
+            </View>
+          )}
 
           {isPractice && (
             <View style={styles.practiceBanner}>
@@ -127,7 +144,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
 
           <Pressable style={styles.playButton} onPress={handleStart}>
             <Text style={styles.playButtonText}>
-              {isPractice ? "▶ S'entraîner" : dayState && dayState.attempts > 0 ? '↩ Rejouer' : '▶ Jouer maintenant'}
+              {isTestMode ? '▶ Tester' : isPractice ? "▶ S'entraîner" : dayState && dayState.attempts > 0 ? '↩ Rejouer' : '▶ Jouer maintenant'}
             </Text>
           </Pressable>
         </View>
@@ -144,25 +161,28 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
       </View>
 
       {phase === 'result' && result && (
-        <View style={styles.resultContainer}>
+        <ScrollView style={styles.resultScroll} contentContainerStyle={styles.resultContainer} keyboardShouldPersistTaps="handled">
           <Text style={styles.resultIcon}>{result.success ? '🎉' : '😔'}</Text>
           <Text style={styles.resultTitle}>
             {!result.success ? 'Pas cette fois...' : isPractice ? 'Bien joué !' : 'Fragment obtenu !'}
           </Text>
           <Text style={styles.resultScore}>Score : {result.score}</Text>
-          {isPractice && (
-            <Text style={styles.practiceText}>Entraînement — score non enregistré</Text>
-          )}
+          {isPractice && <Text style={styles.practiceText}>Entraînement — score non enregistré</Text>}
+          {isTestMode && <Text style={styles.practiceText}>🧪 Mode test — score enregistré</Text>}
 
           {result.success && !isPractice && (
-            <View style={styles.fragmentReveal}>
-              <Text style={styles.fragmentIcon}>{fragmentIcon}</Text>
-              <Text style={styles.fragmentName}>{fragmentName}</Text>
-            </View>
+            <FragmentHeart
+              day={day}
+              icon={fragmentIcon}
+              name={fragmentName}
+              wonDays={Object.entries(days)
+                .filter(([, state]) => state.fragmentWon)
+                .map(([d]) => Number(d))}
+            />
           )}
 
           <View style={styles.resultButtons}>
-            {!isLocked(day) && (
+            {(!isLocked(day) || isTestMode) && (
               <Pressable style={styles.retryButton} onPress={handleRetry}>
                 <Text style={styles.retryButtonText}>↩ Rejouer</Text>
               </Pressable>
@@ -171,7 +191,10 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
               <Text style={styles.backButtonText}>Retour au calendrier</Text>
             </Pressable>
           </View>
-        </View>
+
+          {/* Testeurs et admin : commentaire envoyé à l'admin (nouveau formulaire à chaque partie) */}
+          {canGiveFeedback && <FeedbackForm key={attemptId} day={day} />}
+        </ScrollView>
       )}
     </View>
   );
@@ -239,10 +262,18 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  resultContainer: {
+  resultScroll: {
     flex: 1,
+  },
+  testBanner: {
+    backgroundColor: '#0d2218',
+    borderColor: '#1a4030',
+  },
+  resultContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingBottom: 24,
   },
   resultIcon: {
     fontSize: 48,
@@ -256,22 +287,6 @@ const styles = StyleSheet.create({
   resultScore: {
     fontSize: 14,
     color: '#7a9ab8',
-    marginTop: 8,
-  },
-  fragmentReveal: {
-    alignItems: 'center',
-    marginTop: 24,
-    backgroundColor: '#090e18',
-    borderRadius: 12,
-    padding: 16,
-  },
-  fragmentIcon: {
-    fontSize: 32,
-  },
-  fragmentName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fbbf24',
     marginTop: 8,
   },
   resultButtons: {
@@ -300,6 +315,12 @@ const styles = StyleSheet.create({
     color: '#7a9ab8',
     fontSize: 14,
     fontWeight: '600',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   headerBack: {
     alignSelf: 'flex-start',
