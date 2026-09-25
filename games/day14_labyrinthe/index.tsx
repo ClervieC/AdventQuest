@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CELL_PIXEL_SIZE,
     height: CELL_PIXEL_SIZE,
-    borderColor: '#3a5a7a',
+    borderColor: '#8ea6c0',
   },
   exit: {
     position: 'absolute',

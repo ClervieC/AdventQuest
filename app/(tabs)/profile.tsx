@@ -44,7 +44,7 @@ export default function ProfileScreen() {
 
       <AccountSection />
       <DeleteAccountSection />
-      <LegalLinks onOpen={(kind) => router.push(kind === 'terms' ? '/legal/terms' : '/legal/privacy')} />
+      <LegalLinks onOpen={(kind) => router.push(`/legal/${kind}`)} />
     </ScrollView>
   );
 }
@@ -134,7 +134,7 @@ function AccountSection() {
         value={password}
         onChangeText={setPassword}
         placeholder={`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`}
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={styles.input}
@@ -144,7 +144,7 @@ function AccountSection() {
         onChangeText={setConfirmation}
         onSubmitEditing={handleProtect}
         placeholder="Confirme le mot de passe"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={styles.input}
@@ -199,7 +199,7 @@ function DeleteAccountSection() {
         value={typed}
         onChangeText={setTyped}
         placeholder={username ?? ''}
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.input}
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   adminButton: {
     marginTop: 14,
     alignSelf: 'stretch',
-    backgroundColor: '#1e0d40',
+    backgroundColor: '#2e1a5c',
     borderWidth: 1,
     borderColor: '#7c3aed',
     borderRadius: 12,
@@ -280,10 +280,10 @@ const styles = StyleSheet.create({
   },
   stat: {
     flex: 1,
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#141e2a',
+    borderColor: '#2c4262',
     paddingVertical: 14,
     alignItems: 'center',
   },
@@ -294,29 +294,29 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 4,
   },
   info: {
     fontSize: 13,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     textAlign: 'center',
     marginTop: 24,
     lineHeight: 20,
   },
   detail: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginTop: 12,
   },
   accountCard: {
     alignSelf: 'stretch',
     marginTop: 28,
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#3b2a6b',
+    borderColor: '#5b45a0',
     padding: 16,
     gap: 10,
   },
@@ -328,17 +328,17 @@ const styles = StyleSheet.create({
   accountText: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#7a9ab8',
+    color: '#b7c8da',
   },
   accountHint: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
   },
   input: {
     backgroundColor: '#0c1521',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -364,13 +364,13 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   secondaryButton: {
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 14,
     fontWeight: '600',
   },

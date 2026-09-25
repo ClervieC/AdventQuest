@@ -121,9 +121,9 @@ const styles = StyleSheet.create({
     width: SLOT,
     height: SLOT,
     borderRadius: SLOT / 2,
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
   },
   slotWon: {
     backgroundColor: '#fbbf24',
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   count: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     marginTop: 4,
   },
 });

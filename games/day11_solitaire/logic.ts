@@ -33,11 +33,23 @@ export function createDeck(): Card[] {
   return deck;
 }
 
-/** Mélange un tableau de cartes (Fisher-Yates) */
-export function shuffleDeck(deck: Card[]): Card[] {
+/** Générateur pseudo-aléatoire à graine (mulberry32) : une même graine donne toujours la même donne */
+export function createSeededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Mélange un tableau de cartes (Fisher-Yates) ; `random` permet un mélange reproductible à partir d'une graine */
+export function shuffleDeck(deck: Card[], random: () => number = Math.random): Card[] {
   const result = [...deck];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;

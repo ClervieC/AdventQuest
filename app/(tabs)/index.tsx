@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontSize: 11,
     letterSpacing: 2,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textTransform: 'uppercase',
   },
   logo: {
@@ -80,12 +80,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 12,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 4,
   },
   seasonBanner: {
-    backgroundColor: '#130d2a',
-    borderColor: '#3b2a6b',
+    backgroundColor: '#221647',
+    borderColor: '#5b45a0',
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,

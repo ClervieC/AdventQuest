@@ -9,6 +9,7 @@ import {
   calculateSolitaireScore,
   Card,
   createDeck,
+  createSeededRandom,
   dealNewGame,
   drawFromStock,
   findHintMove,
@@ -20,6 +21,13 @@ import {
   MoveTarget,
   shuffleDeck,
 } from './logic';
+import { SOLVABLE_SEEDS } from './solvableSeeds';
+
+/** Donne tirée parmi celles dont une solution a été vérifiée (voir solver.ts) : la partie est toujours gagnable */
+function dealSolvableGame(): GameState {
+  const seed = SOLVABLE_SEEDS[Math.floor(Math.random() * SOLVABLE_SEEDS.length)];
+  return dealNewGame(shuffleDeck(createDeck(), createSeededRandom(seed)));
+}
 
 const SUIT_SYMBOLS: Record<string, string> = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
 const RANK_LABELS: Record<number, string> = { 1: 'A', 11: 'V', 12: 'D', 13: 'R' };
@@ -116,7 +124,9 @@ const sameSource = (a: MoveSource | null, b: MoveSource | null) =>
 // ---------- Composant ----------
 
 export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponentProps) {
-  const [state, setState] = useState<GameState>(() => dealNewGame(shuffleDeck(createDeck())));
+  const [state, setState] = useState<GameState>(dealSolvableGame);
+  // Annulation d'un seul coup : on ne garde que la position d'avant le dernier coup
+  const [previous, setPrevious] = useState<GameState | null>(null);
   const [selection, setSelection] = useState<MoveSource | null>(null);
   const [dragging, setDragging] = useState<{ source: MoveSource; cards: Card[] } | null>(null);
   const [hint, setHint] = useState<HintMove | null>(null);
@@ -143,6 +153,7 @@ export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComp
   };
 
   const commit = (next: GameState) => {
+    setPrevious(stateRef.current);
     setState(next);
     setSelection(null);
     setHint(null);
@@ -151,6 +162,15 @@ export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComp
       const score = calculateSolitaireScore(52, timeSpent, hintsUsedRef.current);
       setTimeout(() => onGameEnd({ success: true, score }), 400);
     }
+  };
+
+  const handleUndo = () => {
+    if (!previous) return;
+    playSfx('tap');
+    setState(previous);
+    setPrevious(null); // un seul retour en arrière : il faut rejouer un coup pour pouvoir annuler à nouveau
+    setSelection(null);
+    setHint(null);
   };
 
   const tryMove = (source: MoveSource, target: MoveTarget) => {
@@ -383,13 +403,23 @@ export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComp
       </GestureDetector>
 
       <Text style={styles.help}>Glisse une carte, ou touche-la puis touche sa destination.</Text>
-      <Pressable
-        style={[styles.hintButton, hintsAvailable === 0 && styles.hintButtonDisabled]}
-        onPress={handleHint}
-        disabled={hintsAvailable === 0}
-      >
-        <Text style={styles.hintButtonText}>💡 Indice : montre un coup à jouer</Text>
-      </Pressable>
+      <View style={styles.buttonsRow}>
+        <Pressable
+          style={[styles.undoButton, !previous && styles.hintButtonDisabled]}
+          onPress={handleUndo}
+          disabled={!previous}
+          accessibilityLabel="Annuler le dernier coup"
+        >
+          <Text style={styles.undoButtonText}>↶ Annuler</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.hintButton, hintsAvailable === 0 && styles.hintButtonDisabled]}
+          onPress={handleHint}
+          disabled={hintsAvailable === 0}
+        >
+          <Text style={styles.hintButtonText}>💡 Indice : montre un coup</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -410,7 +440,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f0',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     overflow: 'hidden',
   },
   cardCorner: {
@@ -452,13 +482,13 @@ const styles = StyleSheet.create({
   emptyPile: {
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyPileText: {
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     fontSize: 14,
   },
   ghost: {
@@ -476,13 +506,30 @@ const styles = StyleSheet.create({
   },
   help: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 8,
   },
-  hintButton: {
+  buttonsRow: {
+    flexDirection: 'row',
+    gap: 10,
     marginTop: 10,
-    backgroundColor: '#1a1500',
-    borderColor: '#3d3000',
+  },
+  undoButton: {
+    backgroundColor: '#243a5a',
+    borderColor: '#3a5a82',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  undoButtonText: {
+    color: '#b7c8da',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  hintButton: {
+    backgroundColor: '#2a2208',
+    borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,

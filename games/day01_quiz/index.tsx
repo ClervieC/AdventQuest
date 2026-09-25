@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   progress: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -118,9 +118,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   option: {
-    backgroundColor: '#0f1d2e',
+    backgroundColor: '#16233a',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 12,
     padding: 16,
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   optionCorrect: {
-    backgroundColor: '#0d2218',
+    backgroundColor: '#12301f',
     borderColor: '#34d399',
   },
   optionWrong: {
@@ -141,12 +141,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   optionTextEliminated: {
-    color: '#3a5a7a',
+    color: '#8ea6c0',
   },
   hintButton: {
     marginTop: 24,
-    backgroundColor: '#1a1500',
-    borderColor: '#3d3000',
+    backgroundColor: '#2a2208',
+    borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,

@@ -11,6 +11,7 @@
     "lint": "expo lint",
     "test": "jest --watchAll",
     "test:ci": "jest",
+    "generate:solitaire": "npx --yes tsx scripts/find-solitaire-seeds.ts",
     "generate:audio": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generate-rythme-audio.mts && node scripts/generate-ui-sounds.mts"
   },
   "dependencies": {

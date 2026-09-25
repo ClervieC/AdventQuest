@@ -126,9 +126,9 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#0a1420',
+    backgroundColor: '#121d2c',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.5,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   stepDone: {
     borderColor: '#34d399',
-    backgroundColor: '#0d2218',
+    backgroundColor: '#12301f',
     opacity: 1,
   },
   stepText: {
@@ -187,10 +187,10 @@ const styles = StyleSheet.create({
   },
   nextCard: {
     marginTop: 28,
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3b2a6b',
+    borderColor: '#5b45a0',
     paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: 'center',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   nextLabel: {
     fontSize: 11,
     letterSpacing: 2,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textTransform: 'uppercase',
   },
   nextName: {

@@ -105,7 +105,7 @@ function UsersTab({ users, myId, onChanged }: { users: AdminUser[]; myId: string
           value={filter}
           onChangeText={setFilter}
           placeholder="🔎 Filtrer par pseudo"
-          placeholderTextColor="#3a5a7a"
+          placeholderTextColor="#8ea6c0"
           autoCapitalize="none"
           style={styles.input}
         />
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   backText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     padding: 4,
     marginVertical: 12,
@@ -347,12 +347,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segmentActive: {
-    backgroundColor: '#1e0d40',
+    backgroundColor: '#2e1a5c',
   },
   segmentText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3a5a7a',
+    color: '#8ea6c0',
   },
   segmentTextActive: {
     color: '#c4b5fd',
@@ -365,9 +365,9 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   input: {
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     fontSize: 13,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginTop: 24,
   },
@@ -387,13 +387,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   userCard: {
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#141e2a',
+    borderColor: '#2c4262',
   },
   userCardOpen: {
-    borderColor: '#3b2a6b',
+    borderColor: '#5b45a0',
   },
   userHeader: {
     flexDirection: 'row',
@@ -408,16 +408,16 @@ const styles = StyleSheet.create({
   },
   userMeta: {
     fontSize: 11,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     marginTop: 3,
   },
   userDate: {
     fontSize: 10,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 2,
   },
   chevron: {
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     fontSize: 14,
   },
   userActions: {
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1,
     textTransform: 'uppercase',
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 4,
   },
   row: {
@@ -439,18 +439,18 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 8,
     paddingVertical: 7,
     paddingHorizontal: 10,
   },
   chipOn: {
-    backgroundColor: '#1e0d40',
+    backgroundColor: '#2e1a5c',
     borderColor: '#7c3aed',
   },
   chipText: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontWeight: '600',
   },
   chipTextOn: {
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -476,17 +476,17 @@ const styles = StyleSheet.create({
   },
   dayChipText: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontWeight: '700',
   },
   smallButton: {
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
   smallButtonText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -502,27 +502,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   secondaryButton: {
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 16,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 13,
     fontWeight: '600',
   },
   secondaryOutline: {
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 6,
   },
   secondaryOutlineText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   note: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     lineHeight: 18,
   },
   disabled: {
@@ -561,10 +561,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   feedbackCard: {
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#141e2a',
+    borderColor: '#2c4262',
     padding: 12,
     gap: 6,
   },
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   },
   feedbackMeta: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
   },
   feedbackDelete: {
     alignSelf: 'flex-end',
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   },
   feedbackText: {
     fontSize: 13,
-    color: '#a9bdd2',
+    color: '#cdd9e5',
     lineHeight: 19,
   },
 });

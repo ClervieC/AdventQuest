@@ -41,7 +41,7 @@ const FEEDBACK: Record<Judgement | 'empty', { text: string; color: string }> = {
   perfect: { text: 'Parfait !', color: '#34d399' },
   good: { text: 'Bien', color: '#60a5fa' },
   miss: { text: 'Raté', color: '#f87171' },
-  empty: { text: 'Trop tôt', color: '#7a9ab8' },
+  empty: { text: 'Trop tôt', color: '#b7c8da' },
 };
 
 // Ce composant n'est monté qu'au clic sur "Jouer" (voir app/game/[day].tsx) : le morceau démarre au montage
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     overflow: 'hidden',
   },
   progressFill: {
@@ -340,12 +340,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
   },
   lane: {
     flex: 1,
     borderRightWidth: 1,
-    borderRightColor: '#141e2a',
+    borderRightColor: '#2c4262',
   },
   hitLine: {
     position: 'absolute',
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 14,
     borderWidth: 2,
-    backgroundColor: '#0a1420',
+    backgroundColor: '#121d2c',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   },
   hintButton: {
     marginTop: 10,
-    backgroundColor: '#1e0d40',
+    backgroundColor: '#2e1a5c',
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: 'center',

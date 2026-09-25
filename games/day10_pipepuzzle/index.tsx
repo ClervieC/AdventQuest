@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   grid: {
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
   },
   row: {
     flexDirection: 'row',
@@ -112,14 +112,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 0.5,
-    borderColor: '#1a3050',
-    backgroundColor: '#0f1d2e',
+    borderColor: '#3a5a82',
+    backgroundColor: '#16233a',
   },
   cellStart: {
-    backgroundColor: '#0d2218',
+    backgroundColor: '#12301f',
   },
   cellEnd: {
-    backgroundColor: '#1a1500',
+    backgroundColor: '#2a2208',
   },
   cellSymbol: {
     fontSize: 28,
@@ -129,12 +129,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     fontSize: 7,
-    color: '#7a9ab8',
+    color: '#b7c8da',
   },
   hintButton: {
     marginTop: 28,
-    backgroundColor: '#1a1500',
-    borderColor: '#3d3000',
+    backgroundColor: '#2a2208',
+    borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,

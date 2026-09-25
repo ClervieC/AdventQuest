@@ -45,10 +45,10 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: '#090e18cc',
+    backgroundColor: '#16233acc',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#141e2a',
+    borderColor: '#2c4262',
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 6,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   total: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#7a9ab8',
+    color: '#b7c8da',
   },
   status: {
     fontSize: 11,
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   track: {
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     overflow: 'visible',
   },
   fill: {

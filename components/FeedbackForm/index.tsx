@@ -44,7 +44,7 @@ export function FeedbackForm({ day }: { day: number }) {
         value={liked}
         onChangeText={setLiked}
         placeholder="Ce qui t’a plu"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         multiline
         maxLength={2000}
         style={styles.input}
@@ -53,7 +53,7 @@ export function FeedbackForm({ day }: { day: number }) {
         value={toChange}
         onChangeText={setToChange}
         placeholder="Ce qui peut être changé ou amélioré"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         multiline
         maxLength={2000}
         style={styles.input}
@@ -70,10 +70,10 @@ const styles = StyleSheet.create({
   card: {
     alignSelf: 'stretch',
     marginTop: 20,
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#3b2a6b',
+    borderColor: '#5b45a0',
     padding: 14,
     gap: 10,
   },
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   },
   star: {
     fontSize: 26,
-    color: '#1a3050',
+    color: '#3a5a82',
   },
   starOn: {
     color: '#fbbf24',
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
     backgroundColor: '#0c1521',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,

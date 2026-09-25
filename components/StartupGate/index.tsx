@@ -111,7 +111,7 @@ function LoginForm() {
         value={username}
         onChangeText={setUsername}
         placeholder="Pseudo"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.input}
@@ -121,7 +121,7 @@ function LoginForm() {
         onChangeText={setPassword}
         onSubmitEditing={handleSubmit}
         placeholder="Mot de passe"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={[styles.input, styles.inputStacked]}
@@ -171,7 +171,7 @@ function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
         value={username}
         onChangeText={setUsername}
         placeholder="Ton pseudo (3 à 20 caractères)"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         maxLength={20}
         autoCapitalize="none"
         autoCorrect={false}
@@ -181,7 +181,7 @@ function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
         value={password}
         onChangeText={setPassword}
         placeholder={`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`}
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={[styles.input, styles.inputStacked]}
@@ -191,7 +191,7 @@ function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
         onChangeText={setConfirmation}
         onSubmitEditing={handleSubmit}
         placeholder="Confirme le mot de passe"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={[styles.input, styles.inputStacked]}
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   consent: {
     fontSize: 11,
     lineHeight: 16,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     textAlign: 'center',
     marginTop: 12,
   },
@@ -260,21 +260,21 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 13,
     lineHeight: 20,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     textAlign: 'center',
     marginTop: 10,
   },
   detail: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginTop: 8,
   },
   input: {
     marginTop: 24,
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderWidth: 1,
-    borderColor: '#3b2a6b',
+    borderColor: '#5b45a0',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginTop: 12,
   },

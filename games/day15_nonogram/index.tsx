@@ -168,12 +168,12 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontSize: 11,
-    color: '#7a9ab8',
+    color: '#b7c8da',
   },
   cell: {
-    backgroundColor: '#0f1d2e',
+    backgroundColor: '#16233a',
     borderWidth: 0.5,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -181,16 +181,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#a78bfa',
   },
   cellMarked: {
-    backgroundColor: '#0f1d2e',
+    backgroundColor: '#16233a',
   },
   markedText: {
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     fontSize: 14,
   },
   hintButton: {
     marginTop: 24,
-    backgroundColor: '#1a1500',
-    borderColor: '#3d3000',
+    backgroundColor: '#2a2208',
+    borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,

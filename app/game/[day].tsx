@@ -120,19 +120,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 13,
     textAlign: 'center',
   },
   backButton: {
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 24,
     marginTop: 24,
   },
   backButtonText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 14,
     fontWeight: '600',
   },

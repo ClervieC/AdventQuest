@@ -1,5 +1,5 @@
 // Textes des Conditions d'utilisation et de la Politique de confidentialité.
-// ⚠️ Modèles à relire (idéalement par un juriste) et à compléter : les champs [entre crochets] sont à remplir.
+// À faire relire idéalement par un juriste avant la publication.
 
 export interface LegalSection {
   title: string;
@@ -12,8 +12,8 @@ export interface LegalDocument {
   sections: LegalSection[];
 }
 
-const EDITOR = '[Nom de l’éditeur ou de la société]';
-const CONTACT = '[adresse e-mail de contact]';
+const EDITOR = 'Clervie Causer';
+const CONTACT = 'clervie@bluedays.com';
 
 export const TERMS: LegalDocument = {
   title: 'Conditions générales d’utilisation',
@@ -117,7 +117,8 @@ export const PRIVACY: LegalDocument = {
     {
       title: '5. Hébergement',
       paragraphs: [
-        'Les données sont hébergées par Supabase (base de données et authentification) [région d’hébergement à préciser, ex. Union européenne — Francfort]. Le site web est servi par Vercel.',
+        'Les données du jeu (comptes, progression, classement, amis, retours) sont stockées par Supabase (base de données et authentification) dans l’Union européenne, région « Central EU » (Francfort, Allemagne).',
+        'Le site web est servi par Vercel, qui peut traiter des données techniques de connexion (comme l’adresse IP) le temps de délivrer les pages ; aucune donnée de jeu n’y est stockée.',
       ],
     },
     {
@@ -143,6 +144,42 @@ export const PRIVACY: LegalDocument = {
       paragraphs: [
         'L’application garde sur ton appareil ta session de connexion et, si tu joues hors ligne, les parties en attente d’envoi. Il ne s’agit pas de cookies publicitaires.',
       ],
+    },
+  ],
+};
+
+export const MENTIONS: LegalDocument = {
+  title: 'Mentions légales',
+  updatedAt: '27 septembre 2026',
+  sections: [
+    {
+      title: 'Éditeur',
+      paragraphs: [
+        `AdventQuest est édité par ${EDITOR}, à titre personnel.`,
+        `Contact : ${CONTACT}`,
+        `Directrice de la publication : ${EDITOR}.`,
+      ],
+    },
+    {
+      title: 'Hébergement du site',
+      paragraphs: ['Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, États-Unis — vercel.com'],
+    },
+    {
+      title: 'Hébergement des données',
+      paragraphs: [
+        'Supabase Pte. Ltd., 65 Chulia Street #38-02/03, OCBC Centre, Singapour 049513 — supabase.com',
+        'Les données du jeu sont stockées dans l’Union européenne (région « Central EU », Francfort, Allemagne).',
+      ],
+    },
+    {
+      title: 'Propriété intellectuelle',
+      paragraphs: [
+        'Les jeux, textes, illustrations, sons et le nom AdventQuest sont protégés. Toute reproduction sans autorisation est interdite.',
+      ],
+    },
+    {
+      title: 'Données personnelles',
+      paragraphs: ['Voir la politique de confidentialité, accessible depuis l’écran de connexion et l’onglet Profil.'],
     },
   ],
 };

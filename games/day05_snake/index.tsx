@@ -148,10 +148,10 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
   },
   grid: {
-    backgroundColor: '#0f1d2e',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 16,
   },
 });

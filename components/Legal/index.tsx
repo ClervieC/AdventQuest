@@ -1,13 +1,13 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PRIVACY, TERMS } from './content';
+import { MENTIONS, PRIVACY, TERMS } from './content';
 
-export type LegalKind = 'terms' | 'privacy';
+export type LegalKind = 'terms' | 'privacy' | 'mentions';
 
 /** Affiche les CGU ou la politique de confidentialité, avec un bouton retour */
 export function LegalView({ kind, onBack }: { kind: LegalKind; onBack: () => void }) {
   const insets = useSafeAreaInsets();
-  const doc = kind === 'terms' ? TERMS : PRIVACY;
+  const doc = kind === 'terms' ? TERMS : kind === 'privacy' ? PRIVACY : MENTIONS;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -43,6 +43,10 @@ export function LegalLinks({ onOpen }: { onOpen: (kind: LegalKind) => void }) {
       <Pressable onPress={() => onOpen('privacy')} hitSlop={8}>
         <Text style={styles.link}>Confidentialité</Text>
       </Pressable>
+      <Text style={styles.linkSeparator}>·</Text>
+      <Pressable onPress={() => onOpen('mentions')} hitSlop={8}>
+        <Text style={styles.link}>Mentions légales</Text>
+      </Pressable>
     </View>
   );
 }
@@ -58,7 +62,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   backText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -76,7 +80,7 @@ const styles = StyleSheet.create({
   },
   updated: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 4,
     marginBottom: 12,
   },
@@ -92,10 +96,11 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: 13,
     lineHeight: 20,
-    color: '#a9bdd2',
+    color: '#cdd9e5',
   },
   links: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
@@ -103,10 +108,10 @@ const styles = StyleSheet.create({
   },
   link: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     textDecorationLine: 'underline',
   },
   linkSeparator: {
-    color: '#3a5a7a',
+    color: '#8ea6c0',
   },
 });

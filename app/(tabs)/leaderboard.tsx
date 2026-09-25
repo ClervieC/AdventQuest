@@ -185,7 +185,7 @@ function UserSearch({ following, onToggleFollow }: { following: Set<string>; onT
         value={query}
         onChangeText={setQuery}
         placeholder="🔎 Rechercher un joueur par pseudo"
-        placeholderTextColor="#3a5a7a"
+        placeholderTextColor="#8ea6c0"
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.searchInput}
@@ -219,12 +219,12 @@ const styles = StyleSheet.create({
   },
   legend: {
     fontSize: 10,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 4,
   },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     padding: 4,
     marginTop: 12,
@@ -238,12 +238,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segmentActive: {
-    backgroundColor: '#1e0d40',
+    backgroundColor: '#2e1a5c',
   },
   segmentText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3a5a7a',
+    color: '#8ea6c0',
   },
   segmentTextActive: {
     color: '#c4b5fd',
@@ -253,9 +253,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   searchInput: {
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   searchEmpty: {
     fontSize: 12,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginVertical: 4,
   },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -301,23 +301,23 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#090e18',
+    backgroundColor: '#16233a',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#141e2a',
+    borderColor: '#2c4262',
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 12,
   },
   rowMe: {
     borderColor: '#7c3aed',
-    backgroundColor: '#130d2a',
+    backgroundColor: '#221647',
   },
   rank: {
     width: 28,
     fontSize: 16,
     fontWeight: '700',
-    color: '#7a9ab8',
+    color: '#b7c8da',
     textAlign: 'center',
   },
   player: {
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   },
   details: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 2,
   },
   right: {
@@ -357,8 +357,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   followButtonOn: {
-    backgroundColor: '#1e0d40',
-    borderColor: '#3b2a6b',
+    backgroundColor: '#2e1a5c',
+    borderColor: '#5b45a0',
   },
   followText: {
     fontSize: 11,
@@ -366,23 +366,23 @@ const styles = StyleSheet.create({
     color: '#a78bfa',
   },
   followTextOn: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
   },
   empty: {
     fontSize: 13,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textAlign: 'center',
     marginTop: 24,
   },
   retry: {
     marginTop: 12,
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
   retryText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontWeight: '600',
   },
 });

@@ -188,19 +188,19 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   done: {
-    backgroundColor: '#0d2218',
+    backgroundColor: '#12301f',
     borderWidth: 1,
-    borderColor: '#1a4030',
+    borderColor: '#2f6b4a',
   },
   today: {
-    backgroundColor: '#130d2a',
+    backgroundColor: '#221647',
     borderWidth: 2,
     borderColor: '#7c3aed',
   },
   missed: {
     backgroundColor: '#1a0f14',
     borderWidth: 1,
-    borderColor: '#3a1a22',
+    borderColor: '#6b2a36',
   },
   missedIcon: {
     opacity: 0.35,
@@ -225,9 +225,9 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
   locked: {
-    backgroundColor: '#0a1420',
+    backgroundColor: '#121d2c',
     borderWidth: 1,
-    borderColor: '#141e2a',
+    borderColor: '#2c4262',
   },
   golden: {
     borderColor: '#92400e',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   lockedText: {
-    color: '#1a2e42',
+    color: '#6b819c',
   },
   icon: {
     fontSize: 16,

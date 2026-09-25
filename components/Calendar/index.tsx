@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   zoneHeaderCurrent: {
-    backgroundColor: '#130d2a',
-    borderColor: '#3b2a6b',
+    backgroundColor: '#221647',
+    borderColor: '#5b45a0',
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
@@ -89,19 +89,19 @@ const styles = StyleSheet.create({
     color: '#c4b5fd',
   },
   zoneNameFuture: {
-    color: '#3a5a7a',
+    color: '#8ea6c0',
   },
   zoneDays: {
     fontSize: 10,
     letterSpacing: 1.5,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textTransform: 'uppercase',
     marginTop: 2,
   },
   zoneBanner: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#8a7ab8',
+    color: '#bcb2e3',
     marginTop: 8,
   },
   grid: {

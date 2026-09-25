@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 11,
     letterSpacing: 2,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     textTransform: 'uppercase',
   },
   title: {
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   story: {
     fontSize: 13,
-    color: '#4a6a8a',
+    color: '#a3b8cd',
     marginTop: 16,
     lineHeight: 20,
   },
@@ -266,8 +266,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   testBanner: {
-    backgroundColor: '#0d2218',
-    borderColor: '#1a4030',
+    backgroundColor: '#12301f',
+    borderColor: '#2f6b4a',
   },
   resultContainer: {
     flexGrow: 1,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   resultScore: {
     fontSize: 14,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     marginTop: 8,
   },
   resultButtons: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   retryButton: {
-    backgroundColor: '#1e0d40',
+    backgroundColor: '#2e1a5c',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -306,13 +306,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   backButton: {
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
   backButtonText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerBackText: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1530',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3b2a6b',
+    borderColor: '#5b45a0',
     padding: 14,
     gap: 6,
   },
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   },
   practiceText: {
     fontSize: 12,
-    color: '#8a7ab8',
+    color: '#bcb2e3',
     lineHeight: 18,
     marginTop: 4,
   },

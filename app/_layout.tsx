@@ -32,6 +32,7 @@ export default function RootLayout() {
         <Stack.Screen name="admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="legal/terms" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="legal/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="legal/mentions" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
       </StartupGate>
       <StatusBar style="auto" />

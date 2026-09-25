@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 0.5,
-    borderColor: '#1a3050',
-    backgroundColor: '#0f1d2e',
+    borderColor: '#3a5a82',
+    backgroundColor: '#16233a',
   },
   cellOriginal: {
-    backgroundColor: '#162540',
+    backgroundColor: '#243a5a',
   },
   cellSelected: {
-    backgroundColor: '#2d1b54',
+    backgroundColor: '#3d2a78',
     borderColor: '#7c3aed',
     borderWidth: 1.5,
   },
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     color: '#c4b5fd',
   },
   cellTextOriginal: {
-    color: '#7a9ab8',
+    color: '#b7c8da',
   },
   numberPad: {
     flexDirection: 'row',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 10,
-    backgroundColor: '#1a2e44',
+    backgroundColor: '#2c4262',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -199,8 +199,8 @@ const styles = StyleSheet.create({
   },
   hintButton: {
     marginTop: 20,
-    backgroundColor: '#1a1500',
-    borderColor: '#3d3000',
+    backgroundColor: '#2a2208',
+    borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,

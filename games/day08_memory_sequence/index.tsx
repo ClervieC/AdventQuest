@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   progress: {
     fontSize: 13,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     marginBottom: 8,
   },
   statusText: {
@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
   },
   hintButton: {
     marginTop: 32,
-    backgroundColor: '#1a1500',
-    borderColor: '#3d3000',
+    backgroundColor: '#2a2208',
+    borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,

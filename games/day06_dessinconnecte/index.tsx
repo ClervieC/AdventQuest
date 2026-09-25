@@ -99,7 +99,7 @@ export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
                       cx={(point.x / 100) * layoutSize.width}
                       cy={(point.y / 100) * layoutSize.height}
                       r={isNext ? 14 : 10}
-                      fill={isValidated ? '#34d399' : isNext ? '#7c3aed' : '#1a2e44'}
+                      fill={isValidated ? '#34d399' : isNext ? '#7c3aed' : '#2c4262'}
                     />
                     <SvgText
                       x={(point.x / 100) * layoutSize.width}
@@ -137,20 +137,20 @@ const styles = StyleSheet.create({
   },
   progress: {
     fontSize: 12,
-    color: '#7a9ab8',
+    color: '#b7c8da',
     marginBottom: 16,
   },
   canvas: {
     width: 280,
     height: 280,
-    backgroundColor: '#0f1d2e',
+    backgroundColor: '#16233a',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1a3050',
+    borderColor: '#3a5a82',
   },
   hint: {
     fontSize: 11,
-    color: '#3a5a7a',
+    color: '#8ea6c0',
     marginTop: 16,
     textAlign: 'center',
   },
