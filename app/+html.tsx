@@ -28,12 +28,13 @@ export default function Root({ children }: PropsWithChildren) {
         <ScrollViewStyleReset />
         {/* Fond sombre dès le premier affichage (évite un flash blanc avant le chargement de l'app) */}
         <style dangerouslySetInnerHTML={{ __html: 'html, body { background-color: #0c1521; }' }} />
-        {/* iPhone (Safari) : « 100 % » de hauteur peut inclure la zone cachée sous la barre d'outils,
-            le bas des pages (canon du Bubble Shooter, onglets...) se retrouvait caché.
-            100dvh = la hauteur réellement visible, qui suit l'apparition/disparition de la barre. */}
+        {/* iPhone : « 100 % » de hauteur peut inclure la zone cachée sous la barre d'outils de Safari,
+            et en PWA (écran d'accueil, barre d'état translucide) 100dvh est trop court de la hauteur
+            de la barre d'état : les onglets flottaient au-dessus d'un bandeau vide.
+            Un #root fixé aux 4 bords suit exactement la zone réellement affichée dans les deux cas. */}
         <style
           dangerouslySetInnerHTML={{
-            __html: '@supports (height: 100dvh) { html, body, #root { height: 100dvh; } }',
+            __html: '#root { position: fixed; top: 0; right: 0; bottom: 0; left: 0; height: auto; }',
           }}
         />
       </head>

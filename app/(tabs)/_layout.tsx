@@ -3,7 +3,7 @@ import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabLayout() {
-  // 58px de barre visible + la zone du geste "home" sur iPhone (70px était trop haut sur téléphone)
+  // 60px de barre visible (icône + libellé) + la zone du geste "home" sur iPhone
   const insets = useSafeAreaInsets();
 
   return (
@@ -15,9 +15,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: "#16233a",
           borderTopColor: "#2c4262",
-          height: 58 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: 4 + insets.bottom,
+          height: 60 + insets.bottom,
+          paddingTop: 4,
+          paddingBottom: insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 11,
