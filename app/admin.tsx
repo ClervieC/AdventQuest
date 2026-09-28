@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayConfig } from '../constants/days';
 import {
@@ -27,6 +27,48 @@ const ROLE_LABELS: Record<Role, string> = { player: '🎮 Joueur', tester: '🧪
 const ALL_DAYS = Array.from({ length: 24 }, (_, i) => i + 1);
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/profile'));
+
+// Props de « tirer vers le bas pour actualiser » passées aux listes des onglets
+interface PullToRefresh {
+  refreshControl: React.ReactElement<React.ComponentProps<typeof RefreshControl>>;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  scrollEventThrottle: number;
+}
+
+const PULL_THRESHOLD = 70; // px tirés au-dessus du haut de la liste pour déclencher (web)
+
+function usePullToRefresh(onRefresh: () => Promise<void>) {
+  const [refreshing, setRefreshing] = useState(false);
+  const busy = useRef(false);
+  const armed = useRef(true); // web : il faut revenir en haut de la liste avant de pouvoir relancer
+
+  const refresh = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setRefreshing(true);
+    await onRefresh();
+    busy.current = false;
+    setRefreshing(false);
+  }, [onRefresh]);
+
+  const pull: PullToRefresh = {
+    refreshControl: <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#a78bfa" colors={['#7c3aed']} />,
+    // Web (appli installée sur l'iPhone) : RefreshControl n'existe pas, on détecte le rebond élastique au-dessus de la liste
+    onScroll:
+      Platform.OS === 'web'
+        ? (event) => {
+            const y = event.nativeEvent.contentOffset.y;
+            if (y >= 0) armed.current = true;
+            else if (y < -PULL_THRESHOLD && armed.current) {
+              armed.current = false;
+              refresh();
+            }
+          }
+        : undefined,
+    scrollEventThrottle: 16,
+  };
+  return { refreshing, refresh, pull };
+}
 
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
@@ -57,6 +99,8 @@ export default function AdminScreen() {
     if (role === 'admin') load();
   }, [role, load]);
 
+  const { refreshing, refresh, pull } = usePullToRefresh(load);
+
   if (role !== 'admin') {
     return (
       <View style={[styles.screen, styles.column, styles.centered, { paddingTop: insets.top + 16 }]}>
@@ -75,7 +119,17 @@ export default function AdminScreen() {
       <Pressable onPress={goBack} hitSlop={12} style={styles.back}>
         <Text style={styles.backText}>‹ Profil</Text>
       </Pressable>
-      <Text style={styles.title}>🛠️ Administration</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>🛠️ Administration</Text>
+        {/* Sur le web la roue de RefreshControl ne s'affiche pas : on la montre ici, avec un bouton pour l'ordinateur */}
+        {refreshing ? (
+          <ActivityIndicator color="#a78bfa" />
+        ) : (
+          <Pressable onPress={refresh} hitSlop={10} accessibilityLabel="Actualiser">
+            <Text style={styles.refreshText}>↻</Text>
+          </Pressable>
+        )}
+      </View>
 
       <View style={styles.segmented}>
         <Pressable onPress={() => setTab('users')} style={[styles.segment, tab === 'users' && styles.segmentActive]}>
@@ -94,21 +148,21 @@ export default function AdminScreen() {
       {error && <Text style={styles.error}>{error}</Text>}
       {!users && !error && <ActivityIndicator style={styles.loader} color="#7c3aed" />}
       </View>
-      {users && tab === 'users' && <UsersTab users={users} myId={myId} onChanged={load} />}
-      {feedback && tab === 'feedback' && <FeedbackTab entries={feedback} onChanged={load} />}
+      {users && tab === 'users' && <UsersTab users={users} myId={myId} onChanged={load} pull={pull} />}
+      {feedback && tab === 'feedback' && <FeedbackTab entries={feedback} onChanged={load} pull={pull} />}
       {tab === 'survey' && surveys === 'unavailable' && (
         <View style={styles.column}>
           <Text style={styles.empty}>Sondage indisponible : lance d’abord le SQL 20260929000000_season_survey.sql dans Supabase.</Text>
         </View>
       )}
-      {tab === 'survey' && Array.isArray(surveys) && <SurveyTab entries={surveys} />}
+      {tab === 'survey' && Array.isArray(surveys) && <SurveyTab entries={surveys} pull={pull} />}
     </View>
   );
 }
 
 // ---------- Utilisateurs ----------
 
-function UsersTab({ users, myId, onChanged }: { users: AdminUser[]; myId: string | null; onChanged: () => void }) {
+function UsersTab({ users, myId, onChanged, pull }: { users: AdminUser[]; myId: string | null; onChanged: () => void; pull: PullToRefresh }) {
   const [filter, setFilter] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -119,6 +173,7 @@ function UsersTab({ users, myId, onChanged }: { users: AdminUser[]; myId: string
 
   return (
     <FlatList
+      {...pull}
       data={visible}
       keyExtractor={(u) => u.user_id}
       contentContainerStyle={styles.list}
@@ -287,7 +342,7 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
 
 type FeedbackView = 'todo' | 'archive';
 
-function FeedbackTab({ entries, onChanged }: { entries: FeedbackEntry[]; onChanged: () => void }) {
+function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; onChanged: () => void; pull: PullToRefresh }) {
   const [busyId, setBusyId] = useState<number | null>(null);
   // À traiter / Archivés (retours déjà traités, gardés pour l'historique)
   const [view, setView] = useState<FeedbackView>('todo');
@@ -311,6 +366,7 @@ function FeedbackTab({ entries, onChanged }: { entries: FeedbackEntry[]; onChang
 
   return (
     <FlatList
+      {...pull}
       data={visible}
       keyExtractor={(f) => String(f.id)}
       contentContainerStyle={styles.list}
@@ -381,7 +437,7 @@ function countChoices(lists: string[][]): [string, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-function SurveyTab({ entries }: { entries: SeasonSurveyEntry[] }) {
+function SurveyTab({ entries, pull }: { entries: SeasonSurveyEntry[]; pull: PullToRefresh }) {
   const ratings = entries.map((e) => e.rating).filter((r): r is number => r !== null);
   const average = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
   const games = countChoices(entries.map((e) => e.favorite_games));
@@ -401,6 +457,7 @@ function SurveyTab({ entries }: { entries: SeasonSurveyEntry[] }) {
 
   return (
     <FlatList
+      {...pull}
       data={entries}
       keyExtractor={(e) => e.user_id}
       contentContainerStyle={styles.list}
@@ -510,11 +567,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: '#fff',
-    marginTop: 4,
+  },
+  refreshText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#a78bfa',
   },
   segmented: {
     flexDirection: 'row',
