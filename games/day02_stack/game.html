@@ -77,13 +77,13 @@
       gameEnded = false;
 
       // La taille finale de la WebView n'est connue qu'ici, pas dans create
-      const baseX = scene.scale.width / 2;
-      const baseY = scene.scale.height - 100;
+      const baseLeft = Math.round((scene.scale.width - INITIAL_BLOCK_WIDTH) / 2);
+      const baseY = Math.round(scene.scale.height - 100);
       progressText.setX(scene.scale.width / 2);
       updateProgressText();
 
-      const baseSprite = drawBlock(baseX, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
-      blocks.push({ x: baseX, width: INITIAL_BLOCK_WIDTH, y: baseY, sprite: baseSprite });
+      const baseSprite = drawBlock(baseLeft, baseY, INITIAL_BLOCK_WIDTH, COLORS[0]);
+      blocks.push({ left: baseLeft, width: INITIAL_BLOCK_WIDTH, y: baseY, sprite: baseSprite });
       spawnNextBlock();
     }
 
@@ -92,8 +92,9 @@
     const COLORS = [0x7c3aed, 0xa78bfa, 0x6ee7b7, 0x34d399, 0xf5c842, 0xfb923c];
 
     let scene;
-    let blocks = [];          // historique des blocs empilés {x, width, y}
-    let currentBlock = null;  // bloc en mouvement actuel
+    // Tout est en pixels entiers (bord gauche + largeur) : la coupe tombe pile sur le bord du bloc du dessous
+    let blocks = [];          // historique des blocs empilés {left, width, y}
+    let currentBlock = null;  // bloc en mouvement : {pos (bord gauche, décimal pendant le mouvement), width, y}
     let movingDirection = 1;
     let floorsBuilt = 0;
     let cameraOffsetY = 0;
@@ -105,6 +106,7 @@
     function create() {
       scene = this;
       this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+      this.cameras.main.setRoundPixels(true);
 
       progressText = this.add.text(this.scale.width / 2, 24, '', {
         fontSize: '18px',
@@ -115,23 +117,28 @@
       updateProgressText();
 
       this.input.on('pointerdown', handleTap);
+      // Sur ordi : Espace, Entrée ou ↓ pour lâcher le bloc
+      ['SPACE', 'ENTER', 'DOWN'].forEach((key) => this.input.keyboard.on('keydown-' + key, (event) => { if (!event.repeat) handleTap(); }));
 
       notifyReady();
     }
 
-    function update() {
+    function update(time, delta) {
       if (gameEnded || !currentBlock) return;
 
-      currentBlock.x += movingDirection * (settings.speed / 60);
+      // Vitesse en px/s, indépendante du nombre d'images par seconde
+      currentBlock.pos += movingDirection * settings.speed * Math.min(delta, 50) / 1000;
 
-      const margin = currentBlock.width / 2 + 10;
+      const minLeft = EDGE_MARGIN;
+      const maxLeft = scene.scale.width - EDGE_MARGIN - currentBlock.width;
       // Demi-tour seulement si on va VERS le bord (sinon, après un redimensionnement,
       // un bloc déjà hors limite changerait de sens à chaque image et resterait coincé)
-      if ((currentBlock.x > scene.scale.width - margin && movingDirection > 0) || (currentBlock.x < margin && movingDirection < 0)) {
+      if ((currentBlock.pos > maxLeft && movingDirection > 0) || (currentBlock.pos < minLeft && movingDirection < 0)) {
         movingDirection *= -1;
       }
 
-      currentBlock.sprite.x = currentBlock.x;
+      // Affiché sur un pixel entier : pas de bords flous pendant le mouvement
+      currentBlock.sprite.x = Math.round(currentBlock.pos);
     }
 
     function updateProgressText() {
@@ -140,10 +147,18 @@
       progressText.setText(`${remaining} bloc${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}`);
     }
 
-    function drawBlock(x, y, width, color) {
-      const rect = scene.add.rectangle(x, y, width, BLOCK_HEIGHT, color);
-      rect.setStrokeStyle(2, 0xffffff, 0.15);
-      return rect;
+    const EDGE_MARGIN = 10;
+
+    // Bloc dessiné depuis son bord gauche (x = left, entier). Le liseré clair est tracé à l'intérieur du bloc
+    // pour ne jamais déborder sur le voisin (sinon les bords coupés paraissent décalés d'un pixel)
+    function drawBlock(left, y, width, color) {
+      const block = scene.add.container(left, y);
+      const fill = scene.add.rectangle(0, 0, width, BLOCK_HEIGHT, color).setOrigin(0, 0.5);
+      const outline = scene.add.graphics();
+      outline.lineStyle(2, 0xffffff, 0.18);
+      outline.strokeRect(1, -BLOCK_HEIGHT / 2 + 1, width - 2, BLOCK_HEIGHT - 2);
+      block.add([fill, outline]);
+      return block;
     }
 
     function spawnNextBlock() {
@@ -151,11 +166,10 @@
       const newY = lastBlock.y - BLOCK_HEIGHT;
       const colorIndex = floorsBuilt % COLORS.length;
 
-      const margin = lastBlock.width / 2 + 10;
-      const startX = movingDirection > 0 ? margin : scene.scale.width - margin;
-      const sprite = drawBlock(startX, newY, lastBlock.width, COLORS[colorIndex]);
+      const startLeft = movingDirection > 0 ? EDGE_MARGIN : scene.scale.width - EDGE_MARGIN - lastBlock.width;
+      const sprite = drawBlock(Math.round(startLeft), newY, lastBlock.width, COLORS[colorIndex]);
 
-      currentBlock = { x: startX, width: lastBlock.width, y: newY, sprite };
+      currentBlock = { pos: startLeft, width: lastBlock.width, y: newY, sprite };
 
       // Décale la caméra vers le haut si on approche du sommet de l'écran visible
       if (newY < 150) {
@@ -168,33 +182,29 @@
       if (gameEnded || !currentBlock) return;
 
       const lastBlock = blocks[blocks.length - 1];
-      const diff = currentBlock.x - lastBlock.x;
-      const overlapWidth = lastBlock.width - Math.abs(diff);
+      // Position lâchée arrondie au pixel : tout le calcul qui suit est en entiers
+      const droppedLeft = Math.round(currentBlock.pos);
+      const diff = droppedLeft - lastBlock.left;
 
-      if (overlapWidth <= 0) {
+      // Alignement "parfait" si le décalage est sous la tolérance : le bloc se cale exactement sur celui du dessous
+      const isPerfect = Math.abs(diff) <= settings.perfectTolerance;
+      const newLeft = isPerfect ? lastBlock.left : Math.max(droppedLeft, lastBlock.left);
+      const newRight = isPerfect ? lastBlock.left + lastBlock.width : Math.min(droppedLeft + currentBlock.width, lastBlock.left + lastBlock.width);
+      const newWidth = newRight - newLeft;
+
+      if (newWidth <= 0) {
         // Aucun chevauchement : game over
         sfx('hurt');
         finishGame(false);
         return;
       }
 
-      // Alignement "parfait" si la différence est sous la tolérance configurée
-      const isPerfect = Math.abs(diff) <= settings.perfectTolerance;
-      const finalWidth = isPerfect ? lastBlock.width : overlapWidth;
-      const finalX = isPerfect ? lastBlock.x : lastBlock.x + diff / 2 + (diff > 0 ? overlapWidth / 2 - lastBlock.width/2 + lastBlock.width/2 : 0);
-
-      // Recalcul propre du centre du chevauchement
-      const newLeft = Math.max(currentBlock.x - currentBlock.width / 2, lastBlock.x - lastBlock.width / 2);
-      const newRight = Math.min(currentBlock.x + currentBlock.width / 2, lastBlock.x + lastBlock.width / 2);
-      const newCenterX = (newLeft + newRight) / 2;
-      const newWidth = isPerfect ? lastBlock.width : (newRight - newLeft);
-
       currentBlock.sprite.destroy();
       const colorIndex = floorsBuilt % COLORS.length;
-      const finalSprite = drawBlock(newCenterX, currentBlock.y, newWidth, COLORS[colorIndex]);
-      if (!isPerfect) dropOverhang(currentBlock, newLeft, newRight, COLORS[colorIndex]);
+      const finalSprite = drawBlock(newLeft, currentBlock.y, newWidth, COLORS[colorIndex]);
+      if (!isPerfect) dropOverhang(droppedLeft, currentBlock.width, currentBlock.y, newLeft, newRight, COLORS[colorIndex]);
 
-      blocks.push({ x: newCenterX, width: newWidth, y: currentBlock.y, sprite: finalSprite });
+      blocks.push({ left: newLeft, width: newWidth, y: currentBlock.y, sprite: finalSprite });
       sfx(isPerfect ? 'perfect' : 'place');
       floorsBuilt += 1;
       updateProgressText();
@@ -214,18 +224,18 @@
     }
 
     // Le morceau qui dépasse est coupé et tombe : on voit clairement la réduction du bloc
-    function dropOverhang(block, keptLeft, keptRight, color) {
-      const blockLeft = block.x - block.width / 2;
-      const blockRight = block.x + block.width / 2;
+    // Le morceau coupé part exactement du bord où le bloc a été tranché
+    function dropOverhang(blockLeft, blockWidth, y, keptLeft, keptRight, color) {
+      const blockRight = blockLeft + blockWidth;
       const pieces = [];
       if (blockLeft < keptLeft) pieces.push([blockLeft, keptLeft]);
       if (blockRight > keptRight) pieces.push([keptRight, blockRight]);
       pieces.forEach(([left, right]) => {
-        const piece = scene.add.rectangle((left + right) / 2, block.y, right - left, BLOCK_HEIGHT, color).setStrokeStyle(2, 0xffffff, 0.15);
-        const direction = (left + right) / 2 < block.x ? -1 : 1;
+        const piece = scene.add.rectangle((left + right) / 2, y, right - left, BLOCK_HEIGHT, color);
+        const direction = left < keptLeft ? -1 : 1;
         scene.tweens.add({
           targets: piece,
-          y: block.y + 400,
+          y: y + 400,
           x: piece.x + direction * 60,
           angle: direction * 50,
           alpha: 0,

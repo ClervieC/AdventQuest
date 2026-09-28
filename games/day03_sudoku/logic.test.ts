@@ -1,4 +1,4 @@
-import { calculateSudokuScore, completedNumbers, Grid, isGridComplete, isGridValid, isSolved, isValidPlacement, revealRandomCell } from './logic';
+import { calculateSudokuScore, clearNotesAfterPlacement, completedNumbers, emptyNotes, Grid, isGridComplete, isGridValid, isSolved, isValidPlacement, revealRandomCell, toggleNote } from './logic';
 
 // Grille 9x9 complète et valide, utilisée comme référence dans tous les tests
 const VALID_SOLVED_GRID: Grid = [
@@ -124,5 +124,36 @@ describe('Sudoku - chiffres finis', () => {
 
   test('grille vide : aucun chiffre fini', () => {
     expect(completedNumbers(Array.from({ length: 9 }, () => Array(9).fill(null)), 9).size).toBe(0);
+  });
+});
+
+describe('notes', () => {
+  it('ajoute puis retire un chiffre noté, en gardant les notes triées', () => {
+    let notes = emptyNotes(9);
+    notes = toggleNote(notes, 0, 0, 7);
+    notes = toggleNote(notes, 0, 0, 2);
+    expect(notes[0][0]).toEqual([2, 7]);
+    notes = toggleNote(notes, 0, 0, 7);
+    expect(notes[0][0]).toEqual([2]);
+  });
+
+  it('ne modifie pas les notes d’origine', () => {
+    const notes = emptyNotes(9);
+    toggleNote(notes, 1, 1, 5);
+    expect(notes[1][1]).toEqual([]);
+  });
+
+  it('poser un chiffre vide la case et retire ce chiffre de la ligne, la colonne et le bloc', () => {
+    let notes = emptyNotes(9);
+    for (const [r, c] of [[0, 0], [0, 8], [8, 0], [1, 1], [4, 4]]) {
+      notes = toggleNote(notes, r, c, 3);
+      notes = toggleNote(notes, r, c, 6);
+    }
+    const after = clearNotesAfterPlacement(notes, 0, 0, 3, 9);
+    expect(after[0][0]).toEqual([]);
+    expect(after[0][8]).toEqual([6]); // même ligne
+    expect(after[8][0]).toEqual([6]); // même colonne
+    expect(after[1][1]).toEqual([6]); // même bloc
+    expect(after[4][4]).toEqual([3, 6]); // ailleurs : inchangé
   });
 });

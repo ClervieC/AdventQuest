@@ -98,6 +98,37 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
     [onGameEnd, onUseHint, difficulty, isStarted]
   );
 
+  // Clavier sur ordi : après le clic sur « Jouer », c'est la page qui a le focus, pas l'iframe du jeu.
+  // On recopie donc les touches vers le jeu (s'il a lui-même le focus, il les reçoit déjà directement).
+  useEffect(() => {
+    if (!isStarted) return;
+    const forward = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      const gameWindow = iframeRef.current?.contentWindow as (Window & typeof globalThis) | null | undefined;
+      if (!gameWindow) return;
+      // Flèches et Espace ne doivent pas faire défiler la page pendant la partie
+      if (GAME_KEYS.has(event.key)) event.preventDefault();
+      const copy = new gameWindow.KeyboardEvent(event.type, {
+        key: event.key,
+        code: event.code,
+        repeat: event.repeat,
+        bubbles: true,
+        cancelable: true,
+      });
+      // Phaser lit encore keyCode, que le constructeur ne permet pas de fixer
+      Object.defineProperty(copy, 'keyCode', { get: () => event.keyCode });
+      Object.defineProperty(copy, 'which', { get: () => event.which });
+      gameWindow.dispatchEvent(copy);
+    };
+    window.addEventListener('keydown', forward);
+    window.addEventListener('keyup', forward);
+    return () => {
+      window.removeEventListener('keydown', forward);
+      window.removeEventListener('keyup', forward);
+    };
+  }, [isStarted]);
+
   useEffect(() => {
     const listener = (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
@@ -126,9 +157,19 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   );
 }
 
+const GAME_AREA_BACKGROUND = '#111e31';
+const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ']);
+
 const styles = StyleSheet.create({
+  // Zone de jeu encadrée et un peu plus claire que la page : on voit où l'écran de jeu s'arrête
   container: {
     flex: 1,
+    backgroundColor: GAME_AREA_BACKGROUND,
+    borderWidth: 2,
+    borderColor: '#3a5a82',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -138,7 +179,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0c1521',
+    backgroundColor: GAME_AREA_BACKGROUND,
     zIndex: 10,
   },
 });

@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LegalLinks } from '../../components/Legal';
+import { SurveyInvite } from '../../components/SurveyInvite';
 import { ApiError } from '../../services/api';
+import { pageColumn } from '../../constants/layout';
 import { FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -15,7 +17,7 @@ export default function ProfileScreen() {
   const totalScore = Object.values(days).reduce((sum, day) => sum + day.bestScore, 0);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingTop: insets.top + 24 }]}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, pageColumn(20), { paddingTop: insets.top + 24 }]}>
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>{username ?? 'Gardien des Fêtes'}</Text>
       {role !== 'player' && (
@@ -41,6 +43,10 @@ export default function ProfileScreen() {
           : `Encore ${FRAGMENT_THRESHOLD - fragments} fragment${FRAGMENT_THRESHOLD - fragments > 1 ? 's' : ''} pour pouvoir affronter Grimnoir le jour 24.`}
       </Text>
       {timezone && <Text style={styles.detail}>Une nouvelle case s&apos;ouvre chaque jour à minuit ({timezone}).</Text>}
+
+      <View style={styles.survey}>
+        <SurveyInvite place="profile" />
+      </View>
 
       <AccountSection />
       <DeleteAccountSection />
@@ -222,6 +228,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#a78bfa',
     marginTop: 6,
+  },
+  survey: {
+    alignSelf: 'stretch',
+    marginTop: 20,
   },
   adminButton: {
     marginTop: 14,

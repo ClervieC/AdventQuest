@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { CHART_CARILLON, CHART_VALSE, getChart } from './charts';
+import { CHART_CARILLON, CHART_CARILLON_SIMPLE, CHART_VALSE, getChart } from './charts';
 import {
   applyTap,
   Chart,
@@ -158,8 +158,8 @@ describe('Rythme - affichage des notes', () => {
 });
 
 describe('Rythme - partitions jouables', () => {
-  test.each([CHART_CARILLON, CHART_VALSE].map((c) => [c.name, c] as const))('« %s »', (_name, chart) => {
-    expect(chart.notes.length).toBeGreaterThanOrEqual(30);
+  test.each([CHART_CARILLON, CHART_CARILLON_SIMPLE, CHART_VALSE].map((c) => [c.name + ' ' + c.notes.length, c] as const))('« %s »', (_name, chart) => {
+    expect(chart.notes.length).toBeGreaterThanOrEqual(20);
     chart.notes.forEach((n) => {
       expect(n.lane).toBeGreaterThanOrEqual(0);
       expect(n.lane).toBeLessThan(LANE_COUNT);
@@ -179,9 +179,17 @@ describe('Rythme - partitions jouables', () => {
     }
   });
 
-  test('facile/moyen = Carillon, difficile = Valse', () => {
-    expect(getChart('easy')).toBe(CHART_CARILLON);
-    expect(getChart('medium')).toBe(CHART_CARILLON);
+  test('version simplifiée du Carillon : moitié moins de notes, une seule à la fois, bien espacées', () => {
+    const notes = CHART_CARILLON_SIMPLE.notes;
+    expect(notes.length).toBeLessThanOrEqual(CHART_CARILLON.notes.length * 0.6);
+    for (let i = 1; i < notes.length; i++) expect(notes[i].time - notes[i - 1].time).toBeGreaterThanOrEqual(1200);
+    // Chaque note à taper tombe sur une note de la mélodie (la musique reste synchronisée)
+    notes.forEach((n) => expect(CHART_CARILLON.notes.some((m) => m.time === n.time && m.lane === n.lane)).toBe(true));
+  });
+
+  test('facile/moyen = Carillon simplifié, difficile = Valse', () => {
+    expect(getChart('easy')).toBe(CHART_CARILLON_SIMPLE);
+    expect(getChart('medium')).toBe(CHART_CARILLON_SIMPLE);
     expect(getChart('hard')).toBe(CHART_VALSE);
     expect(getChart('very_hard')).toBe(CHART_VALSE);
   });

@@ -102,3 +102,37 @@ export function completedNumbers(grid: Grid, gridSize: number): Set<number> {
   for (const row of grid) for (const cell of row) if (cell !== null) counts.set(cell, (counts.get(cell) ?? 0) + 1);
   return new Set([...counts].filter(([, count]) => count >= gridSize).map(([value]) => value));
 }
+
+// ---------- Notes (petits chiffres candidats) ----------
+
+/** Pour chaque case, les chiffres notés en petit par le joueur (triés) */
+export type Notes = number[][][];
+
+export function emptyNotes(gridSize: number): Notes {
+  return Array.from({ length: gridSize }, () => Array.from({ length: gridSize }, () => []));
+}
+
+/** Ajoute ou retire `value` des notes de la case (row, col) */
+export function toggleNote(notes: Notes, row: number, col: number, value: number): Notes {
+  const next = notes.map((r) => r.map((c) => [...c]));
+  const cell = next[row][col];
+  next[row][col] = cell.includes(value) ? cell.filter((v) => v !== value) : [...cell, value].sort((a, b) => a - b);
+  return next;
+}
+
+/**
+ * Un chiffre vient d'être posé en (row, col) : on vide les notes de la case,
+ * et on retire ce chiffre des notes de sa ligne, sa colonne et son bloc (il n'y est plus possible).
+ */
+export function clearNotesAfterPlacement(notes: Notes, row: number, col: number, value: number, gridSize: number): Notes {
+  const blockSize = Math.sqrt(gridSize);
+  const blockRow = Math.floor(row / blockSize) * blockSize;
+  const blockCol = Math.floor(col / blockSize) * blockSize;
+  return notes.map((cells, r) =>
+    cells.map((cell, c) => {
+      if (r === row && c === col) return [];
+      const sameBlock = r >= blockRow && r < blockRow + blockSize && c >= blockCol && c < blockCol + blockSize;
+      return r === row || c === col || sameBlock ? cell.filter((v) => v !== value) : [...cell];
+    })
+  );
+}

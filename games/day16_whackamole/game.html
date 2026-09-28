@@ -112,13 +112,38 @@
       livesText = this.add.text(width / 2, 20, getLivesString(), { fontSize: '22px' }).setOrigin(0.5, 0);
 
       this.input.on('pointerdown', handlePointerDown);
+      // Sur ordi : touches 1 à 9 disposées comme le pavé numérique (7 8 9 en haut, 1 2 3 en bas)
+      this.input.keyboard.on('keydown', (event) => {
+        const n = parseInt(event.key, 10);
+        if (!(n >= 1 && n <= 9)) return;
+        const row = GRID_ROWS - 1 - Math.floor((n - 1) / GRID_COLS);
+        const col = (n - 1) % GRID_COLS;
+        const hole = holes[row * GRID_COLS + col];
+        if (hole) handlePointerDown({ x: hole.x, y: hole.y });
+      });
 
       notifyReady();
     }
 
+    // INIT est renvoyé à chaque « Rejouer » (le jeu reste chargé) : on repart toujours d'une partie propre
+    let countdownEvent = null;
     function startGame() {
+      if (spawnTimer) { spawnTimer.remove(); spawnTimer = null; }
+      if (countdownEvent) { countdownEvent.remove(); countdownEvent = null; }
+      holes.forEach((hole) => {
+        if (hole.hideTimer) hole.hideTimer.remove();
+        hideMole(hole);
+      });
+      score = 0;
+      lives = MAX_LIVES;
+      timeRemaining = GAME_DURATION_MS;
+      gameEnded = false;
+      scoreText.setText('Score: 0');
+      livesText.setText(getLivesString());
+      countdownText.setText(Math.ceil(GAME_DURATION_MS / 1000) + 's');
+
       scheduleNextSpawn();
-      scene.time.addEvent({
+      countdownEvent = scene.time.addEvent({
         delay: 1000,
         callback: tickCountdown,
         loop: true,

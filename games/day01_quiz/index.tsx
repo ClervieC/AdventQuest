@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
 import { calculateScore, eliminateWrongAnswers, isAnswerCorrect, isSuccess } from './logic';
 import { pickQuizQuestions } from './questions';
@@ -41,6 +42,13 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
       }
     }, 900);
   };
+
+  // Sur ordi : touches 1 à 4 (ou A à D) pour répondre
+  useGameKeys((key) => {
+    const index = '1234'.indexOf(key) >= 0 ? '1234'.indexOf(key) : 'abcd'.indexOf(key.toLowerCase());
+    if (index < 0 || index >= currentQuestion.options.length || eliminatedOptions.includes(index)) return false;
+    handleAnswer(index);
+  });
 
   const handleHint = () => {
     if (hintsAvailable === 0 || eliminatedOptions.length > 0) return;
@@ -96,9 +104,13 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
 }
 
 const styles = StyleSheet.create({
+  // Sur grand écran, le quiz reste une colonne centrée au lieu de prendre toute la largeur
   container: {
     flex: 1,
     justifyContent: 'center',
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
   },
   progress: {
     fontSize: 11,

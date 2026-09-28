@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { pageColumn } from '../../constants/layout';
 import { MENTIONS, PRIVACY, TERMS } from './content';
 
 export type LegalKind = 'terms' | 'privacy' | 'mentions';
@@ -11,9 +12,11 @@ export function LegalView({ kind, onBack }: { kind: LegalKind; onBack: () => voi
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <Pressable onPress={onBack} hitSlop={12} style={styles.back}>
-        <Text style={styles.backText}>‹ Retour</Text>
-      </Pressable>
+      <View style={styles.column}>
+        <Pressable onPress={onBack} hitSlop={12} style={styles.back}>
+          <Text style={styles.backText}>‹ Retour</Text>
+        </Pressable>
+      </View>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
         <Text style={styles.title}>{doc.title}</Text>
         <Text style={styles.updated}>Dernière mise à jour : {doc.updatedAt}</Text>
@@ -57,7 +60,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0c1521',
   },
   back: {
-    paddingHorizontal: 20,
     paddingVertical: 6,
     alignSelf: 'flex-start',
   },
@@ -66,12 +68,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  content: {
-    paddingHorizontal: 20,
-    maxWidth: 720,
-    width: '100%',
-    alignSelf: 'center',
-  },
+  // Texte centré à la largeur du calendrier ; la barre de défilement reste au bord de l'écran
+  column: pageColumn(20),
+  content: pageColumn(20),
   title: {
     fontSize: 22,
     fontWeight: '700',

@@ -45,9 +45,25 @@ const VALSE_BEATS: [number, Lane][] = [
   [48, 0], [48, 3], [49, 1], [49, 2], [50.5, 0], [50.5, 3],
 ];
 
+/**
+ * Version simplifiée à jouer (jour 21, retour testeur « super compliqué ») : seulement les temps forts
+ * (un temps sur deux), jamais deux notes en même temps. La musique, elle, garde toute la mélodie.
+ */
+function strongBeatsOnly(beats: [number, Lane][]): [number, Lane][] {
+  const seen = new Set<number>();
+  return beats.filter(([beat]) => {
+    if (!Number.isInteger(beat) || beat % 2 !== 0 || seen.has(beat)) return false;
+    seen.add(beat);
+    return true;
+  });
+}
+
+/** Partition complète : sert à générer la musique (scripts/generate-rythme-audio.mts) */
 export const CHART_CARILLON: Chart = buildChart('Carillon de Noël', 100, 1800, CARILLON_BEATS);
+/** Notes à taper pour le Carillon (moitié moins, notes espacées d'au moins 1,2 s) */
+export const CHART_CARILLON_SIMPLE: Chart = buildChart('Carillon de Noël', 100, 1800, strongBeatsOnly(CARILLON_BEATS));
 export const CHART_VALSE: Chart = buildChart('Valse des flocons', 138, 1300, VALSE_BEATS);
 
 export function getChart(difficulty: 'easy' | 'medium' | 'hard' | 'very_hard' = 'easy'): Chart {
-  return difficulty === 'hard' || difficulty === 'very_hard' ? CHART_VALSE : CHART_CARILLON;
+  return difficulty === 'hard' || difficulty === 'very_hard' ? CHART_VALSE : CHART_CARILLON_SIMPLE;
 }

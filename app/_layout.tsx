@@ -11,12 +11,15 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+// Fond de toutes les pages = fond de l'appli : sur ordi, le contenu est centré et les côtés restent bleu nuit
+const withAppBackground = (theme: typeof DefaultTheme) => ({ ...theme, colors: { ...theme.colors, background: '#0c1521' } });
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0c1521' }}>
+    <ThemeProvider value={withAppBackground(colorScheme === 'dark' ? DarkTheme : DefaultTheme)}>
       <StartupGate>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -33,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="legal/terms" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="legal/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="legal/mentions" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="survey" options={{ headerShown: false, animation: 'slide_from_right' }} />
       </Stack>
       </StartupGate>
       <StatusBar style="auto" />

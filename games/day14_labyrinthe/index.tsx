@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
 import {
     slideMove,
@@ -16,6 +17,8 @@ import {
 const MAZE_SIZE = 8;
 const CELL_PIXEL_SIZE = 32;
 const WALL_THICKNESS = 2;
+
+const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 
 export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
   const [maze] = useState<Maze>(() => generateMaze(MAZE_SIZE));
@@ -58,6 +61,14 @@ export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
     } else {
       handleMove(translationY > 0 ? 'down' : 'up');
     }
+  });
+
+  // Sur ordi : les flèches font glisser jusqu'au prochain croisement
+  useGameKeys((key, event) => {
+    const direction = ARROW_DIRECTIONS[key];
+    if (!direction) return false;
+    if (event.repeat) return;
+    handleMove(direction);
   });
 
   return (

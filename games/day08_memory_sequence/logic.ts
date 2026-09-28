@@ -57,3 +57,11 @@ export function calculateSequenceScore(sequenceLengthReached: number, hintsUsed:
 export function hasWon(currentLength: number, maxLength: number): boolean {
   return currentLength >= maxLength;
 }
+/**
+ * Délai entre deux couleurs : plus lent aux premières manches pour se mettre dans le rythme
+ * (×1,5 à la 1re séquence, puis ×1,33, ×1,17), puis la vitesse normale de la difficulté.
+ */
+export function sequenceDelayMs(baseDelayMs: number, round: number): number {
+  const slowdown = 1 + 0.5 * Math.max(0, 1 - round / 3);
+  return Math.round(baseDelayMs * slowdown);
+}

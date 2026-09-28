@@ -1,13 +1,16 @@
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getZoneForDay } from '../../constants/zones';
+import { GameTutorial as Tutorial } from '../../constants/tutorials';
 import { FeedbackForm } from '../FeedbackForm';
+import { GameTutorial } from '../GameTutorial';
 import { FragmentHeart } from '../FragmentHeart';
 import { playSfx } from '../../services/sfx';
 import { SoundToggle } from '../SoundToggle';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
+import { CONTENT_WIDTH, pageColumn } from '../../constants/layout';
 import { GameResult } from './types';
 
 interface GameWrapperProps {
@@ -15,11 +18,18 @@ interface GameWrapperProps {
   fragmentName: string;
   fragmentIcon: string;
   storyIntro: string;
+  tutorial?: Tutorial; // « Comment jouer » affiché avant de lancer la partie
   children: (props: { onGameEnd: (result: GameResult) => void; hintsAvailable: number; onUseHint: () => void; isStarted: boolean }) => React.ReactNode;
 }
 
-export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, children }: GameWrapperProps) {
+export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutorial, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
+  // Haut de la zone de jeu (sous l'en-tête) : le jeu préchargé pendant l'intro est placé exactement là,
+  // sinon Phaser calcule sa mise en page sur une autre taille (éléments coupés à droite, grille décalée)
+  const [gameTop, setGameTop] = useState(0);
+  // Marge gauche/droite de la zone de jeu : centrée à la largeur du calendrier sur ordi, pleine largeur sur téléphone
+  const { width: screenWidth } = useWindowDimensions();
+  const gameSide = Math.max(0, (screenWidth - COLUMN_MAX_WIDTH) / 2) + CONTAINER_PADDING;
   const { hints, useHint, finishAttempt, canPlay, isLocked, canTest, role, days, bossUnlocked, totalFragments } = useGameStore();
   const [phase, setPhase] = useState<'intro' | 'playing' | 'result'>('intro');
   const [result, setResult] = useState<GameResult | null>(null);
@@ -147,7 +157,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
   };
 
   const backButton = (
-    <View style={styles.headerRow}>
+    <View style={[styles.headerRow, styles.column]} onLayout={(e) => setGameTop(e.nativeEvent.layout.y + e.nativeEvent.layout.height + HEADER_MARGIN)}>
       <Pressable style={styles.headerBack} onPress={handleBackToCalendar} hitSlop={12}>
         <Text style={styles.headerBackText}>‹ Calendrier</Text>
       </Pressable>
@@ -169,7 +179,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
     return (
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {backButton}
-        <View style={styles.introContainer}>
+        <View style={[styles.introContainer, styles.column]}>
           <Text style={styles.dayLabel}>Jour {day} / 24</Text>
           <Text style={styles.title}>🔒 Le portail est scellé</Text>
           <Text style={styles.story}>
@@ -185,7 +195,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
     return (
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {backButton}
-        <View style={styles.introContainer}>
+        <View style={[styles.introContainer, styles.column]}>
           <Text style={styles.dayLabel}>Jour {day} / 24</Text>
           <Text style={styles.title}>🔒 Pas encore disponible</Text>
           <Text style={styles.story}>Reviens le jour {day} pour tenter de récupérer ce fragment.</Text>
@@ -199,12 +209,14 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
       {backButton}
 
       {phase === 'intro' && (
-        <View style={styles.introContainer}>
+        <ScrollView style={styles.introScroll} contentContainerStyle={[styles.introContainer, styles.column]}>
           <Text style={styles.dayLabel}>
             Jour {day} / 24 · {getZoneForDay(day).icon} {getZoneForDay(day).name}
           </Text>
           <Text style={styles.title}>{fragmentIcon} {fragmentName}</Text>
           <Text style={styles.story}>{storyIntro}</Text>
+
+          {tutorial && <GameTutorial tutorial={tutorial} />}
 
           {isTestMode && (
             <View style={[styles.practiceBanner, styles.testBanner]}>
@@ -250,11 +262,17 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
               {isTestMode ? '▶ Tester' : isPractice ? "▶ S'entraîner" : dayState && dayState.attempts > 0 ? '↩ Rejouer' : '▶ Jouer maintenant'}
             </Text>
           </Pressable>
-        </View>
+        </ScrollView>
       )}
 
       {/* Toujours rendu pour pré-charger Phaser pendant l'intro, caché si pas encore joué */}
-      <View style={[styles.gameContainer, phase !== 'playing' && styles.hidden]}>
+      <View
+        style={
+          phase === 'playing'
+            ? [styles.gameContainer, styles.column]
+            : [styles.hidden, { top: gameTop, left: gameSide, right: gameSide }]
+        }
+      >
         {children({
           onGameEnd: handleGameEnd,
           hintsAvailable: hintsAllowed ? hints : testHintsAllowed ? testHintsLeft : 0,
@@ -264,7 +282,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
       </View>
 
       {phase === 'result' && result && (
-        <ScrollView style={styles.resultScroll} contentContainerStyle={styles.resultContainer} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.resultScroll} contentContainerStyle={[styles.resultContainer, styles.column]} keyboardShouldPersistTaps="handled">
           <Text style={styles.resultIcon}>{result.success ? '🎉' : '😔'}</Text>
           <Text style={styles.resultTitle}>
             {!result.success ? 'Pas cette fois...' : isPractice ? 'Bien joué !' : 'Fragment obtenu !'}
@@ -335,12 +353,17 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, child
 
 const TEST_HINTS_PER_GAME = 3;
 
+const CONTAINER_PADDING = 20;
+const HEADER_MARGIN = 4;
+const COLUMN_MAX_WIDTH = CONTENT_WIDTH + CONTAINER_PADDING * 2;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0c1521',
-    paddingHorizontal: 20,
   },
+  // Contenu centré à la largeur du calendrier (la page et sa barre de défilement restent pleine largeur)
+  column: pageColumn(CONTAINER_PADDING),
   dayLabel: {
     fontSize: 11,
     letterSpacing: 2,
@@ -359,9 +382,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     lineHeight: 20,
   },
-  introContainer: {
+  introScroll: {
     flex: 1,
+  },
+  introContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
+    paddingBottom: 24,
   },
   bestScore: {
     fontSize: 12,
@@ -390,12 +417,12 @@ const styles = StyleSheet.create({
   gameContainer: {
     flex: 1,
   },
+  // Même rectangle que la zone de jeu visible (left/right/top calculés au rendu), sous l'en-tête
   hidden: {
     position: 'absolute',
     opacity: 0,
     pointerEvents: 'none',
-    width: '100%',
-    height: '100%',
+    bottom: 0,
   },
   resultScroll: {
     flex: 1,
@@ -547,7 +574,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: HEADER_MARGIN,
   },
   headerBack: {
     alignSelf: 'flex-start',

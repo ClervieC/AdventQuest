@@ -34,6 +34,7 @@
       sendToReactNative({ type: 'GAME_READY' });
     }
 
+    let keys = null;
     let currentDifficulty = 'easy';
     window.addEventListener('message', (event) => {
       try {
@@ -108,6 +109,8 @@
       this.input.on('pointerup', () => {
         isPointerDown = false;
       });
+      // Sur ordi : ← → pour bouger, Espace (maintenu) pour tirer
+      keys = this.input.keyboard.createCursorKeys();
 
       this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
       this.waveText = this.add.text(width - 110, 20, 'Vague 1', { fontSize: '16px', color: '#f59e0b' });
@@ -175,8 +178,15 @@
       if (gameEnded || !started) return;
       layoutPlayer();
 
-      // Tir automatique tant que le doigt est appuyé
-      if (isPointerDown) tryShoot();
+      // Tir automatique tant que le doigt (ou Espace) est appuyé
+      if (isPointerDown || (keys && keys.space.isDown)) tryShoot();
+
+      // Clavier : les flèches déplacent le vaisseau (et remplacent la cible du doigt)
+      if (keys && (keys.left.isDown || keys.right.isDown)) {
+        const direction = keys.left.isDown ? -1 : 1;
+        player.x = Phaser.Math.Clamp(player.x + direction * PLAYER_SPEED * (delta / 1000), 20, scene.scale.width - 20);
+        pointerTargetX = null;
+      }
 
       // Mouvement du joueur vers la cible (souris/tap)
       if (pointerTargetX !== null) {

@@ -4,6 +4,7 @@ import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Platform, Pre
 import { ApiError } from '../../services/api';
 import { LegalKind, LegalLinks, LegalView } from '../Legal';
 import { useGameStore } from '../../store/gameStore';
+import { pageColumn } from '../../constants/layout';
 import { useSettingsStore } from '../../store/settingsStore';
 
 const USERNAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]{3,20}$/;
@@ -33,7 +34,7 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
   if (legal) return <LegalView kind={legal} onBack={() => setLegal(null)} />;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.scroll} contentContainerStyle={[styles.screen, pageColumn(24)]} keyboardShouldPersistTaps="handled">
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       {status === 'loading' && <ActivityIndicator size="large" color="#7c3aed" />}
       {status === 'error' && <ErrorPanel message={errorMessage} onRetry={init} />}

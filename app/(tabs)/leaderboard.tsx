@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { pageColumn } from '../../constants/layout';
 import {
   fetchFollowingIds,
   fetchLeaderboard,
@@ -78,6 +79,8 @@ export default function LeaderboardScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+      {/* En-tête centré à la largeur du calendrier ; la liste défile sur toute la largeur de l'écran */}
+      <View style={styles.column}>
       <Text style={styles.title}>🏆 Classement</Text>
       {entries?.some((e) => e.is_tester) && <Text style={styles.legend}>🧪 = testeur : une partie de ses points vient de jours testés en avance</Text>}
 
@@ -103,12 +106,13 @@ export default function LeaderboardScreen() {
           </Pressable>
         </View>
       )}
+      </View>
 
       {entries && (
         <FlatList
           data={entries}
           keyExtractor={(item) => item.user_id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, styles.column]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#7c3aed" />}
           ListEmptyComponent={
             <Text style={styles.empty}>
@@ -210,8 +214,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0c1521',
-    paddingHorizontal: 16,
   },
+  column: pageColumn(16),
   title: {
     fontSize: 22,
     fontWeight: '700',

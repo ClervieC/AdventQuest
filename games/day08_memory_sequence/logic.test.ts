@@ -1,6 +1,7 @@
 import {
     calculateSequenceScore,
     checkPlayerInput,
+    sequenceDelayMs,
     extendSequence,
     generateSequence,
     hasWon,
@@ -95,5 +96,14 @@ describe('hasWon', () => {
 
   test('gagné si au-dessus du seuil (cas limite improbable mais sûr)', () => {
     expect(hasWon(6, 5)).toBe(true);
+  });
+});
+describe('sequenceDelayMs', () => {
+  it('ralentit la première séquence puis revient à la vitesse normale', () => {
+    expect(sequenceDelayMs(650, 0)).toBe(975);
+    expect(sequenceDelayMs(650, 1)).toBeGreaterThan(650);
+    expect(sequenceDelayMs(650, 1)).toBeLessThan(975);
+    expect(sequenceDelayMs(650, 3)).toBe(650);
+    expect(sequenceDelayMs(650, 8)).toBe(650);
   });
 });

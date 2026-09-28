@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { DAYS_CONFIG } from '../../constants/days';
+import { CALENDAR_PADDING, WIDE_BREAKPOINT, WIDE_CELL_GAP, WIDE_CELL_SIZE } from '../../constants/layout';
 import { ZONES } from '../../constants/zones';
 import { playSfx } from '../../services/sfx';
 import { useGameStore } from '../../store/gameStore';
@@ -8,9 +9,11 @@ import { DayCell } from '../DayCell';
 
 export function Calendar() {
   const { currentDay, days, canTest } = useGameStore();
+  // Grand écran (ordi) : cases de taille fixe, les 5 jours d'une zone sur une ligne, centrés
+  const isWide = useWindowDimensions().width >= WIDE_BREAKPOINT;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isWide && styles.containerWide]}>
       {ZONES.map((zone) => {
         const zoneDays = DAYS_CONFIG.filter((config) => config.day >= zone.firstDay && config.day <= zone.lastDay);
         const isCurrentZone = currentDay >= zone.firstDay && currentDay <= zone.lastDay;
@@ -29,7 +32,7 @@ export function Calendar() {
               {isCurrentZone && <Text style={styles.zoneBanner}>{zone.banner}</Text>}
             </View>
 
-            <View style={styles.grid}>
+            <View style={[styles.grid, isWide && styles.gridWide]}>
               {zoneDays.map((config) => {
                 const dayState = days[config.day];
                 const status = dayState?.fragmentWon
@@ -43,7 +46,7 @@ export function Calendar() {
                   : 'locked';
 
                 return (
-                  <View key={config.day} style={styles.cellWrapper}>
+                  <View key={config.day} style={isWide ? styles.cellWrapperWide : styles.cellWrapper}>
                     <DayCell
                       day={config.day}
                       icon={config.fragmentIcon}
@@ -66,9 +69,13 @@ export function Calendar() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 12,
+    paddingHorizontal: CALENDAR_PADDING,
     paddingBottom: 24,
     gap: 18,
+  },
+  containerWide: {
+    width: '100%',
+    alignSelf: 'center',
   },
   zone: {
     gap: 8,
@@ -111,5 +118,12 @@ const styles = StyleSheet.create({
   },
   cellWrapper: {
     width: '23%', // 4 colonnes avec gap
+  },
+  gridWide: {
+    justifyContent: 'center',
+    gap: WIDE_CELL_GAP,
+  },
+  cellWrapperWide: {
+    width: WIDE_CELL_SIZE,
   },
 });

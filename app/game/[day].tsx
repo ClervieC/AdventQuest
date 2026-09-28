@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
 import { GameType, getDayConfig } from '../../constants/days';
+import { TUTORIALS } from '../../constants/tutorials';
 import { QuizGame } from '../../games/day01_quiz';
 import { SudokuGame } from '../../games/day03_sudoku';
 import { WhackAMoleGame } from '../../games/day16_whackamole';
@@ -94,12 +95,17 @@ export default function GameScreen() {
       fragmentName={config.fragmentName}
       fragmentIcon={config.fragmentIcon}
       storyIntro={config.storyIntro}
+      tutorial={TUTORIALS[config.game]}
     >
       {(gameProps) =>
         // Les jeux React Native démarrent (chrono, séquence...) dès leur montage : on ne les monte
         // qu'au clic sur Jouer, ce qui les recrée aussi à neuf à chaque "Rejouer"
         PRELOADED_GAMES.has(config.game) || gameProps.isStarted ? (
-          <GameComponent {...gameProps} difficulty={config.gameDifficulty ?? GAME_DIFFICULTY[config.difficulty]} />
+          <GameComponent
+            {...gameProps}
+            difficulty={config.gameDifficulty ?? GAME_DIFFICULTY[config.difficulty]}
+            saveId={`day${config.day}`}
+          />
         ) : null
       }
     </GameWrapper>

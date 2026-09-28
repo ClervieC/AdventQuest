@@ -1,14 +1,21 @@
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { NewGameButton } from '../../components/NewGameButton';
+import { useGameKeys } from '../../hooks/use-game-keys';
+import { useGameSaveLoad, useGameSaveWriter } from '../../services/gameSave';
 import { playSfx } from '../../services/sfx';
 import {
   calculateSudokuScore,
+  clearNotesAfterPlacement,
   completedNumbers,
+  emptyNotes,
   Grid,
+  Notes,
   isSolved,
   revealRandomCell,
   SudokuPuzzle,
+  toggleNote,
 } from './logic';
 import { generateSudokuPuzzle, SudokuDifficulty } from './puzzles';
 
@@ -16,12 +23,74 @@ interface SudokuGameProps extends GameComponentProps {
   difficulty?: SudokuDifficulty;
 }
 
-export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy' }: SudokuGameProps) {
-  const [puzzle, setPuzzle] = useState<SudokuPuzzle>(() => generateSudokuPuzzle(difficulty));
-  const [grid, setGrid] = useState<Grid>(() => puzzle.initialGrid.map((row) => [...row]));
+/** Partie en cours sauvegardée : on la retrouve en revenant sur le jour */
+interface SudokuSave {
+  puzzle: SudokuPuzzle;
+  grid: Grid;
+  notes: Notes;
+  hintsUsed: number;
+  elapsedSeconds: number;
+}
+
+const ARROW_DELTAS: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
+export function SudokuGame(props: SudokuGameProps) {
+  const saveId = props.saveId ?? `sudoku-${props.difficulty ?? 'easy'}`;
+  const load = useGameSaveLoad<SudokuSave>(saveId);
+  // Incrémenté à chaque « Nouvelle partie » : recrée la grille à neuf
+  const [round, setRound] = useState(0);
+
+  if (load.status === 'loading') {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color="#a78bfa" />
+      </View>
+    );
+  }
+  return (
+    <SudokuBoard
+      key={round}
+      {...props}
+      saveId={saveId}
+      saved={round === 0 ? load.saved : null}
+      onNewGame={() => setRound((r) => r + 1)}
+    />
+  );
+}
+
+function SudokuBoard({
+  onGameEnd,
+  hintsAvailable,
+  onUseHint,
+  difficulty = 'easy',
+  saveId,
+  saved,
+  onNewGame,
+}: SudokuGameProps & { saveId: string; saved: SudokuSave | null; onNewGame: () => void }) {
+  const [puzzle] = useState<SudokuPuzzle>(() => saved?.puzzle ?? generateSudokuPuzzle(difficulty));
+  const [grid, setGrid] = useState<Grid>(() => saved?.grid ?? puzzle.initialGrid.map((row) => [...row]));
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
-  const [hintsUsedThisGame, setHintsUsedThisGame] = useState(0);
-  const startTimeRef = useRef(Date.now());
+  const [hintsUsedThisGame, setHintsUsedThisGame] = useState(saved?.hintsUsed ?? 0);
+  // Mode notes : les chiffres s'écrivent en petit comme solutions possibles de la case
+  const [notesMode, setNotesMode] = useState(false);
+  const [notes, setNotes] = useState<Notes>(() => saved?.notes ?? emptyNotes(puzzle.gridSize));
+  // Le chrono reprend là où il s'était arrêté (le temps passé hors du jeu ne compte pas)
+  const startTimeRef = useRef(Date.now() - (saved?.elapsedSeconds ?? 0) * 1000);
+  const finishedRef = useRef(false);
+  const saver = useGameSaveWriter<SudokuSave>(saveId);
+
+  // Sauvegarde à chaque changement de la grille ou des notes
+  useEffect(() => {
+    if (finishedRef.current) return;
+    const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+    saver.write({ puzzle, grid, notes, hintsUsed: hintsUsedThisGame, elapsedSeconds });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grid, notes, hintsUsedThisGame]);
+
+  const handleNewGame = () => {
+    saver.clear();
+    onNewGame();
+  };
 
   const finished = completedNumbers(grid, puzzle.gridSize);
 
@@ -34,6 +103,9 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
 
   const checkAndFinish = (newGrid: Grid, hintsUsed: number) => {
     if (isSolved(newGrid, puzzle.gridSize)) {
+      // Grille gagnée : plus de sauvegarde, la prochaine fois ce sera une nouvelle grille
+      finishedRef.current = true;
+      saver.clear();
       const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
       const score = calculateSudokuScore(timeSpent, hintsUsed);
       onGameEnd({ success: true, score });
@@ -42,19 +114,74 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
 
   const handleNumberPress = (value: number) => {
     if (!selectedCell) return;
-    const newGrid = grid.map((row) => [...row]);
-    newGrid[selectedCell.row][selectedCell.col] = value;
+    const { row, col } = selectedCell;
+    if (notesMode) {
+      // Une note n'a de sens que dans une case encore vide
+      if (grid[row][col] !== null) return;
+      playSfx('tap');
+      setNotes(toggleNote(notes, row, col, value));
+      return;
+    }
+    const newGrid = grid.map((r) => [...r]);
+    newGrid[row][col] = value;
     playSfx('place');
     setGrid(newGrid);
+    setNotes(clearNotesAfterPlacement(notes, row, col, value, puzzle.gridSize));
     checkAndFinish(newGrid, hintsUsedThisGame);
   };
 
   const handleClearCell = () => {
     if (!selectedCell) return;
-    const newGrid = grid.map((row) => [...row]);
-    newGrid[selectedCell.row][selectedCell.col] = null;
+    const { row, col } = selectedCell;
     playSfx('tap');
+    if (grid[row][col] === null) {
+      // Case déjà vide : on efface ses notes
+      setNotes(notes.map((cells, r) => cells.map((cell, c) => (r === row && c === col ? [] : cell))));
+      return;
+    }
+    const newGrid = grid.map((r) => [...r]);
+    newGrid[row][col] = null;
     setGrid(newGrid);
+  };
+
+  // Sur ordi : flèches pour se déplacer, 1-9 pour écrire, Retour arrière / Suppr / 0 pour effacer, N pour les notes
+  useGameKeys((key) => {
+    const delta = ARROW_DELTAS[key];
+    if (delta) {
+      moveSelection(delta[0], delta[1]);
+      return;
+    }
+    const value = parseInt(key, 10);
+    if (value >= 1 && value <= 9) {
+      handleNumberPress(value);
+      return;
+    }
+    if (key === 'Backspace' || key === 'Delete' || key === '0') {
+      handleClearCell();
+      return;
+    }
+    if (key.toLowerCase() === 'n') {
+      setNotesMode((on) => !on);
+      return;
+    }
+    return false;
+  });
+
+  // Déplace la case choisie dans une direction, en sautant les cases de départ (non modifiables)
+  const moveSelection = (dRow: number, dCol: number) => {
+    const size = puzzle.gridSize;
+    let row = selectedCell?.row ?? 0;
+    let col = selectedCell?.col ?? -dCol; // sans sélection : on part du bord
+    if (!selectedCell && dCol === 0) row = dRow > 0 ? -1 : size;
+    for (let step = 0; step < size; step++) {
+      row += dRow;
+      col += dCol;
+      if (row < 0 || row >= size || col < 0 || col >= size) return;
+      if (!isOriginalCell(row, col)) {
+        setSelectedCell({ row, col });
+        return;
+      }
+    }
   };
 
   const handleHint = () => {
@@ -69,6 +196,7 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
     const newGrid = grid.map((row) => [...row]);
     newGrid[revealed.row][revealed.col] = revealed.value;
     setGrid(newGrid);
+    setNotes(clearNotesAfterPlacement(notes, revealed.row, revealed.col, revealed.value, puzzle.gridSize));
     checkAndFinish(newGrid, newHintsUsed);
   };
 
@@ -97,9 +225,19 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
                     isThickBottom && styles.thickBottomBorder,
                   ]}
                 >
-                  <Text style={[styles.cellText, isOriginal && styles.cellTextOriginal]}>
-                    {cell ?? ''}
-                  </Text>
+                  {cell === null && notes[rowIndex][colIndex].length > 0 ? (
+                    <View style={styles.notesGrid}>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                        <Text key={n} style={styles.noteText}>
+                          {notes[rowIndex][colIndex].includes(n) ? n : ''}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[styles.cellText, isOriginal && styles.cellTextOriginal]}>
+                      {cell ?? ''}
+                    </Text>
+                  )}
                 </Pressable>
               );
             })}
@@ -107,7 +245,21 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
         ))}
       </View>
 
-      <View style={styles.numberPad}>
+      <Pressable
+        style={[styles.notesToggle, notesMode && styles.notesToggleOn]}
+        onPress={() => setNotesMode((on) => !on)}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: notesMode }}
+      >
+        <Text style={[styles.notesToggleText, notesMode && styles.notesToggleTextOn]}>
+          ✏️ Notes : {notesMode ? 'activées' : 'désactivées'}
+        </Text>
+      </Pressable>
+      {notesMode && (
+        <Text style={styles.notesHelp}>Les chiffres s’écrivent en petit, comme solutions possibles de la case.</Text>
+      )}
+
+      <View style={[styles.numberPad, notesMode && styles.numberPadNotes]}>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
           // Chiffre posé 9 fois : grisé pour voir d'un coup d'œil lesquels sont finis
           const done = finished.has(num);
@@ -134,6 +286,9 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
       >
         <Text style={styles.hintButtonText}>💡 Révéler une case</Text>
       </Pressable>
+
+      <Text style={styles.savedNote}>Ta grille est sauvegardée : tu peux quitter et revenir plus tard.</Text>
+      <NewGameButton onConfirm={handleNewGame} />
     </ScrollView>
   );
 }
@@ -141,6 +296,18 @@ export function SudokuGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
 const CELL_SIZE = 36; // plus petit qu'en 4x4 pour que 9 colonnes tiennent à l'écran
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savedNote: {
+    marginTop: 18,
+    marginBottom: 8,
+    fontSize: 11,
+    color: '#8ea6c0',
+    textAlign: 'center',
+  },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -194,11 +361,61 @@ const styles = StyleSheet.create({
   cellTextOriginal: {
     color: '#b7c8da',
   },
+  notesGrid: {
+    width: CELL_SIZE - 2,
+    height: CELL_SIZE - 2,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  noteText: {
+    width: (CELL_SIZE - 2) / 3,
+    height: (CELL_SIZE - 2) / 3,
+    fontSize: 8,
+    lineHeight: (CELL_SIZE - 2) / 3,
+    textAlign: 'center',
+    color: '#fbbf24',
+    fontWeight: '600',
+  },
+  notesToggle: {
+    marginTop: 18,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#3a5a82',
+    backgroundColor: '#16233a',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  notesToggleOn: {
+    backgroundColor: '#3a2e08',
+    borderColor: '#fbbf24',
+  },
+  notesToggleText: {
+    color: '#b7c8da',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  notesToggleTextOn: {
+    color: '#fbbf24',
+  },
+  notesHelp: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#b7c8da',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
+  numberPadNotes: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+    borderStyle: 'dashed',
+    padding: 8,
+  },
   numberPad: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 20,
+    marginTop: 14,
     justifyContent: 'center',
     maxWidth: 320,
   },

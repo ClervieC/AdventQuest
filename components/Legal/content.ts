@@ -80,7 +80,7 @@ export const TERMS: LegalDocument = {
 
 export const PRIVACY: LegalDocument = {
   title: 'Politique de confidentialité',
-  updatedAt: '26 septembre 2026',
+  updatedAt: '28 septembre 2026',
   sections: [
     {
       title: '1. Qui est responsable de tes données ?',
@@ -95,6 +95,7 @@ export const PRIVACY: LegalDocument = {
         '• Ta progression : fragments gagnés, scores, nombre d’essais, hints.',
         '• Les joueurs que tu suis.',
         '• Si tu es testeur : les commentaires que tu envoies.',
+        '• Si tu réponds au sondage de fin de saison (facultatif) : ta note, tes jeux préférés, tes envies et tes commentaires pour l’année prochaine.',
         '• Des données techniques de connexion (jeton de session).',
         'Nous ne demandons ni nom, ni e-mail, ni numéro de téléphone, ni localisation.',
       ],
@@ -102,7 +103,7 @@ export const PRIVACY: LegalDocument = {
     {
       title: '3. Pourquoi ?',
       paragraphs: [
-        'Uniquement pour faire fonctionner le jeu : te connecter sur tes appareils, enregistrer ta progression, afficher le classement et les amis, empêcher la triche, et améliorer le jeu grâce aux retours des testeurs. Base légale : l’exécution du service que tu utilises.',
+        'Uniquement pour faire fonctionner le jeu : te connecter sur tes appareils, enregistrer ta progression, afficher le classement et les amis, empêcher la triche, et améliorer le jeu grâce aux retours des testeurs et au sondage de fin de saison. Base légale : l’exécution du service que tu utilises.',
       ],
     },
     {
@@ -110,21 +111,21 @@ export const PRIVACY: LegalDocument = {
       paragraphs: [
         '• Tous les joueurs voient ton pseudo, ton score total, ton nombre de fragments et ta série dans le classement, et peuvent te trouver par ton pseudo.',
         '• Ta progression détaillée, ton fuseau horaire et la liste des joueurs que tu suis ne sont visibles que par toi.',
-        '• Les administrateurs du jeu voient la liste des comptes (pseudo, rôle, score) et les commentaires des testeurs, pour gérer l’application.',
+        '• Les administrateurs du jeu voient la liste des comptes (pseudo, rôle, score) et les commentaires des testeurs et les réponses au sondage de fin de saison, pour gérer et améliorer l’application.',
         'Aucune donnée n’est vendue ni utilisée pour de la publicité. L’application ne contient pas de traceur publicitaire.',
       ],
     },
     {
       title: '5. Hébergement',
       paragraphs: [
-        'Les données du jeu (comptes, progression, classement, amis, retours) sont stockées par Supabase (base de données et authentification) dans l’Union européenne, région « Central EU » (Francfort, Allemagne).',
+        'Les données du jeu (comptes, progression, classement, amis, retours, sondage) sont stockées par Supabase (base de données et authentification) dans l’Union européenne, région « Central EU » (Francfort, Allemagne).',
         'Le site web est servi par Vercel, qui peut traiter des données techniques de connexion (comme l’adresse IP) le temps de délivrer les pages ; aucune donnée de jeu n’y est stockée.',
       ],
     },
     {
       title: '6. Combien de temps ?',
       paragraphs: [
-        'Tant que ton compte existe. Quand tu supprimes ton compte (onglet Profil), ton profil, ta progression, ton classement et tes abonnements sont effacés immédiatement et définitivement. Les commentaires de testeur déjà envoyés sont conservés de façon anonyme.',
+        'Tant que ton compte existe. Quand tu supprimes ton compte (onglet Profil), ton profil, ta progression, ton classement, tes abonnements et ta réponse au sondage sont effacés immédiatement et définitivement. Les commentaires de testeur déjà envoyés sont conservés de façon anonyme.',
       ],
     },
     {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
 import {
     calculateSequenceScore,
@@ -9,20 +10,23 @@ import {
     extendSequence,
     generateSequence,
     hasWon,
+    sequenceDelayMs,
     SymbolIndex,
 } from './logic';
 
 const SYMBOL_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308']; // rouge, bleu, vert, jaune
 const SYMBOL_LABELS = ['🔴', '🔵', '🟢', '🟡'];
 
-type GamePhase = 'showing' | 'waiting_input' | 'checking';
+type GamePhase = 'ready' | 'showing' | 'waiting_input' | 'checking';
+
 
 export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy' }: GameComponentProps) {
   const config = DIFFICULTY_CONFIGS[difficulty] ?? DIFFICULTY_CONFIGS.easy;
 
   const [sequence, setSequence] = useState<SymbolIndex[]>(() => generateSequence(config.startLength));
   const [playerInput, setPlayerInput] = useState<SymbolIndex[]>([]);
-  const [phase, setPhase] = useState<GamePhase>('showing');
+  // La première séquence attend que le joueur touche « Je suis prêt »
+  const [phase, setPhase] = useState<GamePhase>('ready');
   const [highlightedSymbol, setHighlightedSymbol] = useState<SymbolIndex | null>(null);
   const [hintsUsedThisGame, setHintsUsedThisGame] = useState(0);
 
@@ -34,32 +38,40 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
     setPlayerInput([]);
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
+    const delay = sequenceDelayMs(config.displayDelayMs, seqToPlay.length - config.startLength);
 
     seqToPlay.forEach((symbol, index) => {
       const showTimeout = setTimeout(() => {
         setHighlightedSymbol(symbol);
         playSfx(`note${symbol}`);
-      }, index * config.displayDelayMs);
+      }, index * delay);
 
       const hideTimeout = setTimeout(() => {
         setHighlightedSymbol(null);
-      }, index * config.displayDelayMs + config.displayDelayMs * 0.6);
+      }, index * delay + delay * 0.6);
 
       timeoutsRef.current.push(showTimeout, hideTimeout);
     });
 
     const endTimeout = setTimeout(() => {
       setPhase('waiting_input');
-    }, seqToPlay.length * config.displayDelayMs);
+    }, seqToPlay.length * delay);
     timeoutsRef.current.push(endTimeout);
   };
 
   useEffect(() => {
-    playSequence(sequence);
     return () => {
       timeoutsRef.current.forEach(clearTimeout);
     };
   }, []);
+
+  // « Je suis prêt » : petite pause puis la première séquence
+  const handleReady = () => {
+    if (phase !== 'ready') return;
+    playSfx('tap');
+    setPhase('showing');
+    timeoutsRef.current.push(setTimeout(() => playSequence(sequence), 500));
+  };
 
   const handleSymbolPress = (symbolIndex: SymbolIndex) => {
     if (phase !== 'waiting_input') return;
@@ -90,6 +102,17 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
     }
   };
 
+  // Sur ordi : touches 1 à 4 (1 2 en haut, 3 4 en bas, comme les cases)
+  useGameKeys((key, event) => {
+    if (phase === 'ready' && (key === ' ' || key === 'Enter')) {
+      handleReady();
+      return;
+    }
+    const index = '1234'.indexOf(key);
+    if (index < 0 || event.repeat) return false;
+    if (phase === 'waiting_input') handleSymbolPress(index as SymbolIndex);
+  });
+
   const handleHint = () => {
     if (hintsAvailable === 0 || phase !== 'waiting_input') return;
     onUseHint();
@@ -105,13 +128,23 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
       </Text>
       {/* Bandeau très visible : qui joue ? (retour testeur : "pas clair quand ce n'est plus à toi") */}
       <View style={[styles.turnBanner, phase === 'waiting_input' ? styles.turnBannerYou : styles.turnBannerWatch]}>
-        <Text style={styles.turnTitle}>{phase === 'waiting_input' ? '👉 À toi !' : '👀 Regarde bien…'}</Text>
+        <Text style={styles.turnTitle}>
+          {phase === 'waiting_input' ? '👉 À toi !' : phase === 'ready' ? '🎵 Prêt ?' : '👀 Regarde bien…'}
+        </Text>
         <Text style={styles.turnDetail}>
           {phase === 'waiting_input'
             ? `Reproduis la séquence : ${playerInput.length} / ${sequence.length}`
+            : phase === 'ready'
+            ? 'Les couleurs vont s’allumer une par une : retiens leur ordre'
             : 'Retiens l’ordre des couleurs'}
         </Text>
       </View>
+
+      {phase === 'ready' && (
+        <Pressable style={styles.readyButton} onPress={handleReady} accessibilityRole="button">
+          <Text style={styles.readyButtonText}>▶ Je suis prêt</Text>
+        </Pressable>
+      )}
 
       <View style={styles.symbolGrid}>
         {([0, 1, 2, 3] as SymbolIndex[]).map((symbolIndex) => (
@@ -144,6 +177,18 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
 }
 
 const styles = StyleSheet.create({
+  readyButton: {
+    backgroundColor: '#7c3aed',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    marginBottom: 16,
+  },
+  readyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',

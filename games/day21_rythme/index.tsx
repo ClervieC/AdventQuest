@@ -1,9 +1,10 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useGameKeys } from '../../hooks/use-game-keys';
 import { CHART_VALSE, getChart } from './charts';
 import {
   applyTap,
@@ -45,6 +46,9 @@ const FEEDBACK: Record<Judgement | 'empty', { text: string; color: string }> = {
 };
 
 // Ce composant n'est monté qu'au clic sur "Jouer" (voir app/game/[day].tsx) : le morceau démarre au montage
+// Touches du clavier pour chaque colonne (sur ordi)
+const LANE_KEYS = [['d', '1'], ['f', '2'], ['j', '3'], ['k', '4']];
+
 export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }: GameComponentProps) {
   const chart = useMemo(() => getChart(difficulty), [difficulty]);
   const lastNoteTime = chart.notes[chart.notes.length - 1].time;
@@ -114,6 +118,20 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
   useEffect(() => () => {
     setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
   }, []);
+
+  // En quittant le jeu en cours de morceau, la musique doit s'arrêter : sur le web, libérer le lecteur ne la coupe pas,
+  // elle continuait sur les autres pages (et le bouton 🔇 ne pouvait plus l'arrêter).
+  // useLayoutEffect : son nettoyage passe avant celui de useAudioPlayer, quand le lecteur existe encore.
+  useLayoutEffect(
+    () => () => {
+      try {
+        player.pause();
+      } catch {
+        // lecteur déjà libéré
+      }
+    },
+    [player]
+  );
 
   useEffect(() => {
     const mountedAt = performance.now();
@@ -200,6 +218,15 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sur ordi : D F J K (ou 1 2 3 4) pour les 4 colonnes
+  useGameKeys((key, event) => {
+    const lane = LANE_KEYS.findIndex((keys) => keys.includes(key.toLowerCase()));
+    if (lane < 0 || event.repeat) return false;
+    setPressedLane(lane as Lane);
+    setTimeout(() => setPressedLane((current) => (current === lane ? null : current)), 120);
+    handleTap(lane as Lane);
+  });
 
   const handleHint = () => {
     const t = currentTime();

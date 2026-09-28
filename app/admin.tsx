@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDayConfig } from '../constants/days';
 import {
   adminDeleteFeedback,
+  adminSetFeedbackResolved,
   adminDeleteUser,
   AdminUser,
   adminListFeedback,
+  adminListSeasonSurveys,
   adminListUsers,
   adminResetProgress,
   adminSetRole,
@@ -15,7 +17,10 @@ import {
   FeedbackEntry,
   getMyUserId,
   Role,
+  SeasonSurveyEntry,
 } from '../services/api';
+import { COME_BACK_LABELS, gameLabel } from '../constants/survey';
+import { pageColumn } from '../constants/layout';
 import { useGameStore } from '../store/gameStore';
 
 const ROLE_LABELS: Record<Role, string> = { player: '🎮 Joueur', tester: '🧪 Testeur', admin: '🛠️ Admin' };
@@ -26,10 +31,12 @@ const goBack = () => (router.canGoBack() ? router.back() : router.replace('/prof
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const role = useGameStore((state) => state.role);
-  const [tab, setTab] = useState<'users' | 'feedback'>('users');
+  const [tab, setTab] = useState<'users' | 'feedback' | 'survey'>('users');
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [feedback, setFeedback] = useState<FeedbackEntry[] | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
+  // null = pas encore chargé ; 'unavailable' = la table du sondage n'existe pas encore (SQL pas lancé)
+  const [surveys, setSurveys] = useState<SeasonSurveyEntry[] | 'unavailable' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -39,6 +46,8 @@ export default function AdminScreen() {
       setFeedback(entries);
       setMyId(me);
       setError(null);
+      // Chargé à part : si la migration du sondage n'est pas encore passée, le reste de l'admin marche quand même
+      setSurveys(await adminListSeasonSurveys().catch(() => 'unavailable' as const));
     } catch {
       setError('Chargement impossible. Vérifie ta connexion.');
     }
@@ -50,7 +59,7 @@ export default function AdminScreen() {
 
   if (role !== 'admin') {
     return (
-      <View style={[styles.screen, styles.centered, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.screen, styles.column, styles.centered, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.empty}>Cette page est réservée aux administrateurs.</Text>
         <Pressable style={styles.secondaryButton} onPress={goBack}>
           <Text style={styles.secondaryButtonText}>Retour</Text>
@@ -61,6 +70,8 @@ export default function AdminScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      {/* En-tête centré à la largeur du calendrier ; les listes défilent sur toute la largeur de l'écran */}
+      <View style={styles.column}>
       <Pressable onPress={goBack} hitSlop={12} style={styles.back}>
         <Text style={styles.backText}>‹ Profil</Text>
       </Pressable>
@@ -68,17 +79,29 @@ export default function AdminScreen() {
 
       <View style={styles.segmented}>
         <Pressable onPress={() => setTab('users')} style={[styles.segment, tab === 'users' && styles.segmentActive]}>
-          <Text style={[styles.segmentText, tab === 'users' && styles.segmentTextActive]}>👥 Utilisateurs ({users?.length ?? '…'})</Text>
+          <Text style={[styles.segmentText, tab === 'users' && styles.segmentTextActive]}>👥 Joueurs ({users?.length ?? '…'})</Text>
         </Pressable>
         <Pressable onPress={() => setTab('feedback')} style={[styles.segment, tab === 'feedback' && styles.segmentActive]}>
-          <Text style={[styles.segmentText, tab === 'feedback' && styles.segmentTextActive]}>💬 Retours ({feedback?.length ?? '…'})</Text>
+          <Text style={[styles.segmentText, tab === 'feedback' && styles.segmentTextActive]}>💬 Retours ({feedback ? feedback.filter((f) => !f.resolved_at).length : '…'})</Text>
+        </Pressable>
+        <Pressable onPress={() => setTab('survey')} style={[styles.segment, tab === 'survey' && styles.segmentActive]}>
+          <Text style={[styles.segmentText, tab === 'survey' && styles.segmentTextActive]}>
+            📊 Sondage ({Array.isArray(surveys) ? surveys.length : '…'})
+          </Text>
         </Pressable>
       </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
       {!users && !error && <ActivityIndicator style={styles.loader} color="#7c3aed" />}
+      </View>
       {users && tab === 'users' && <UsersTab users={users} myId={myId} onChanged={load} />}
       {feedback && tab === 'feedback' && <FeedbackTab entries={feedback} onChanged={load} />}
+      {tab === 'survey' && surveys === 'unavailable' && (
+        <View style={styles.column}>
+          <Text style={styles.empty}>Sondage indisponible : lance d’abord le SQL 20260929000000_season_survey.sql dans Supabase.</Text>
+        </View>
+      )}
+      {tab === 'survey' && Array.isArray(surveys) && <SurveyTab entries={surveys} />}
     </View>
   );
 }
@@ -262,25 +285,55 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
 
 // ---------- Retours des testeurs ----------
 
+type FeedbackView = 'todo' | 'archive';
+
 function FeedbackTab({ entries, onChanged }: { entries: FeedbackEntry[]; onChanged: () => void }) {
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const handleDelete = async (id: number) => {
-    setDeletingId(id);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  // À traiter / Archivés (retours déjà traités, gardés pour l'historique)
+  const [view, setView] = useState<FeedbackView>('todo');
+  const todo = entries.filter((f) => !f.resolved_at);
+  const archive = entries
+    .filter((f) => f.resolved_at)
+    .sort((a, b) => (b.resolved_at ?? '').localeCompare(a.resolved_at ?? ''));
+  const visible = view === 'todo' ? todo : archive;
+
+  const run = async (id: number, action: () => Promise<void>) => {
+    setBusyId(id);
     try {
-      await adminDeleteFeedback(id);
+      await action();
       onChanged();
     } catch {
       // l'élément reste affiché : l'admin peut réessayer
     }
-    setDeletingId(null);
+    setBusyId(null);
   };
+  const formatDate = (iso: string) => new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
     <FlatList
-      data={entries}
+      data={visible}
       keyExtractor={(f) => String(f.id)}
       contentContainerStyle={styles.list}
-      ListEmptyComponent={<Text style={styles.empty}>Aucun retour pour l’instant. Donne le rôle testeur à des joueurs pour en recevoir.</Text>}
+      ListHeaderComponent={
+        <View style={styles.feedbackViews}>
+          {(['todo', 'archive'] as FeedbackView[]).map((value) => (
+            <Pressable key={value} onPress={() => setView(value)} style={[styles.feedbackViewChip, view === value && styles.feedbackViewChipActive]}>
+              <Text style={[styles.feedbackViewText, view === value && styles.feedbackViewTextActive]}>
+                {value === 'todo' ? `📥 À traiter (${todo.length})` : `🗄️ Archivés (${archive.length})`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      }
+      ListEmptyComponent={
+        <Text style={styles.empty}>
+          {view === 'archive'
+            ? 'Aucun retour archivé. Marque un retour comme traité pour le retrouver ici.'
+            : entries.length === 0
+            ? 'Aucun retour pour l’instant. Donne le rôle testeur à des joueurs pour en recevoir.'
+            : 'Tout est traité 🎉'}
+        </Text>
+      }
       renderItem={({ item }) => {
         const config = getDayConfig(item.day);
         return (
@@ -292,13 +345,26 @@ function FeedbackTab({ entries, onChanged }: { entries: FeedbackEntry[]; onChang
               {item.rating !== null && <Text style={styles.feedbackStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</Text>}
             </View>
             <Text style={styles.feedbackMeta}>
-              {item.username} · {new Date(item.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+              {item.username} · {formatDate(item.created_at)}
             </Text>
             {item.liked !== '' && <Text style={styles.feedbackText}>👍 {item.liked}</Text>}
             {item.to_change !== '' && <Text style={styles.feedbackText}>🔧 {item.to_change}</Text>}
-            <Pressable onPress={() => handleDelete(item.id)} disabled={deletingId === item.id} hitSlop={6} style={styles.feedbackDelete}>
-              <Text style={styles.feedbackDeleteText}>{deletingId === item.id ? 'Suppression…' : 'Supprimer ce retour'}</Text>
-            </Pressable>
+            {item.resolved_at && <Text style={styles.feedbackResolved}>✅ Traité le {formatDate(item.resolved_at)}</Text>}
+            <View style={styles.feedbackActions}>
+              <Pressable
+                onPress={() => run(item.id, () => adminSetFeedbackResolved(item.id, !item.resolved_at))}
+                disabled={busyId === item.id}
+                hitSlop={6}
+                style={[styles.feedbackResolveButton, item.resolved_at && styles.feedbackReopenButton]}
+              >
+                <Text style={[styles.feedbackResolveText, item.resolved_at && styles.feedbackReopenText]}>
+                  {busyId === item.id ? '…' : item.resolved_at ? '↩ Remettre à traiter' : '✓ Marquer comme traité'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => run(item.id, () => adminDeleteFeedback(item.id))} disabled={busyId === item.id} hitSlop={6}>
+                <Text style={styles.feedbackDeleteText}>Supprimer</Text>
+              </Pressable>
+            </View>
           </View>
         );
       }}
@@ -306,12 +372,130 @@ function FeedbackTab({ entries, onChanged }: { entries: FeedbackEntry[]; onChang
   );
 }
 
+// ---------- Sondage de fin de saison ----------
+
+/** Compte les occurrences de chaque choix, du plus fréquent au moins fréquent */
+function countChoices(lists: string[][]): [string, number][] {
+  const counts = new Map<string, number>();
+  lists.flat().forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function SurveyTab({ entries }: { entries: SeasonSurveyEntry[] }) {
+  const ratings = entries.map((e) => e.rating).filter((r): r is number => r !== null);
+  const average = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+  const games = countChoices(entries.map((e) => e.favorite_games));
+  const wishes = countChoices(entries.map((e) => e.wishes));
+  const comeBack = (['yes', 'maybe', 'no'] as const).map((v) => [v, entries.filter((e) => e.come_back === v).length] as const);
+
+  const bars = (rows: [string, number][], label: (key: string) => string) =>
+    rows.map(([key, count]) => (
+      <View key={key} style={styles.surveyBarRow}>
+        <Text style={styles.surveyBarLabel} numberOfLines={1}>{label(key)}</Text>
+        <View style={styles.surveyBarTrack}>
+          <View style={[styles.surveyBarFill, { width: `${(count / entries.length) * 100}%` }]} />
+        </View>
+        <Text style={styles.surveyBarCount}>{count}</Text>
+      </View>
+    ));
+
+  return (
+    <FlatList
+      data={entries}
+      keyExtractor={(e) => e.user_id}
+      contentContainerStyle={styles.list}
+      ListEmptyComponent={<Text style={styles.empty}>Aucune réponse pour l’instant. Le sondage s’affiche à la fin du jour 24.</Text>}
+      ListHeaderComponent={
+        entries.length > 0 ? (
+          <View style={styles.surveySummary}>
+            <Text style={styles.surveySummaryTitle}>
+              {entries.length} réponse{entries.length > 1 ? 's' : ''}
+              {average !== null ? ` · note moyenne ${average.toFixed(1)} / 5 ★` : ''}
+            </Text>
+            <Text style={styles.surveySection}>Rejouera l’an prochain</Text>
+            <Text style={styles.feedbackText}>
+              {comeBack.map(([value, count]) => `${COME_BACK_LABELS[value]} ${count}`).join('   ')}
+            </Text>
+            {games.length > 0 && <Text style={styles.surveySection}>Jeux préférés</Text>}
+            {bars(games, gameLabel)}
+            {wishes.length > 0 && <Text style={styles.surveySection}>Envies pour l’an prochain</Text>}
+            {bars(wishes, (w) => w)}
+          </View>
+        ) : null
+      }
+      renderItem={({ item }) => (
+        <View style={styles.feedbackCard}>
+          <View style={styles.feedbackHeader}>
+            <Text style={styles.feedbackDay}>{item.username}</Text>
+            {item.rating !== null && <Text style={styles.feedbackStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</Text>}
+          </View>
+          <Text style={styles.feedbackMeta}>
+            {new Date(item.updated_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+            {item.come_back ? ` · Rejouera : ${COME_BACK_LABELS[item.come_back]}` : ''}
+          </Text>
+          {item.favorite_games.length > 0 && <Text style={styles.feedbackText}>🎮 {item.favorite_games.map(gameLabel).join(', ')}</Text>}
+          {item.liked !== '' && <Text style={styles.feedbackText}>👍 {item.liked}</Text>}
+          {item.wishes.length > 0 && <Text style={styles.feedbackText}>✨ {item.wishes.join(', ')}</Text>}
+          {item.next_year !== '' && <Text style={styles.feedbackText}>💡 {item.next_year}</Text>}
+        </View>
+      )}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
+  surveySummary: {
+    backgroundColor: '#1f1a0c',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#b45309',
+    padding: 12,
+    gap: 6,
+    marginBottom: 4,
+  },
+  surveySummaryTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  surveySection: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#c4b5fd',
+    marginTop: 6,
+  },
+  surveyBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  surveyBarLabel: {
+    width: 150,
+    fontSize: 12,
+    color: '#dbe6f1',
+  },
+  surveyBarTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#243a5a',
+    overflow: 'hidden',
+  },
+  surveyBarFill: {
+    height: '100%',
+    backgroundColor: '#fbbf24',
+  },
+  surveyBarCount: {
+    width: 24,
+    textAlign: 'right',
+    fontSize: 12,
+    color: '#b7c8da',
+  },
   screen: {
     flex: 1,
     backgroundColor: '#0c1521',
-    paddingHorizontal: 16,
   },
+  column: pageColumn(16),
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -363,6 +547,7 @@ const styles = StyleSheet.create({
   list: {
     gap: 8,
     paddingBottom: 32,
+    ...pageColumn(16),
   },
   input: {
     backgroundColor: '#16233a',
@@ -586,8 +771,59 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#8ea6c0',
   },
-  feedbackDelete: {
-    alignSelf: 'flex-end',
+  feedbackViews: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4,
+  },
+  feedbackViewChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2c4262',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  feedbackViewChipActive: {
+    backgroundColor: '#2e1f5e',
+    borderColor: '#7c3aed',
+  },
+  feedbackViewText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#b7c8da',
+  },
+  feedbackViewTextActive: {
+    color: '#fff',
+  },
+  feedbackResolved: {
+    fontSize: 11,
+    color: '#34d399',
+  },
+  feedbackActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  feedbackResolveButton: {
+    backgroundColor: '#0f3a2a',
+    borderWidth: 1,
+    borderColor: '#34d399',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  feedbackReopenButton: {
+    backgroundColor: '#16233a',
+    borderColor: '#3a5a82',
+  },
+  feedbackResolveText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34d399',
+  },
+  feedbackReopenText: {
+    color: '#b7c8da',
   },
   feedbackDeleteText: {
     fontSize: 11,

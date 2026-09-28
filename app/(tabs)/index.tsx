@@ -4,6 +4,8 @@ import { Calendar } from '../../components/Calendar';
 import { FragmentProgress } from '../../components/FragmentProgress';
 import { Snowfall } from '../../components/Snowfall';
 import { SoundToggle } from '../../components/SoundToggle';
+import { SurveyInvite } from '../../components/SurveyInvite';
+import { contentColumn } from '../../constants/layout';
 import { useGameStore } from '../../store/gameStore';
 
 export default function CalendarScreen() {
@@ -14,7 +16,7 @@ export default function CalendarScreen() {
     <View style={styles.container}>
       <Snowfall />
       <SoundToggle style={[styles.soundToggle, { top: insets.top + 10 }]} />
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingTop: insets.top + 12 }}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[{ paddingTop: insets.top + 12 }, contentColumn]}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>Avent magique · Décembre 2026</Text>
         <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
@@ -34,6 +36,8 @@ export default function CalendarScreen() {
           <Text style={styles.seasonText}>✨ L&apos;Avent est terminé ! Tu peux rejouer toutes les cases pour t&apos;entraîner.</Text>
         </View>
       )}
+
+      <SurveyInvite place="home" />
 
       <FragmentProgress fragments={totalFragments()} />
 

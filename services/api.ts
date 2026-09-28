@@ -58,12 +58,14 @@ export type ApiErrorCode =
   | 'not_admin'
   | 'not_tester'
   | 'empty_feedback'
+  | 'empty_survey'
+  | 'survey_closed'
   | 'network';
 
 const KNOWN_CODES: ApiErrorCode[] = [
   'not_authenticated', 'no_profile', 'profile_exists', 'invalid_username', 'username_taken',
   'day_not_playable', 'boss_locked', 'no_hint_boss', 'no_hint_left',
-  'invalid_credentials', 'weak_password', 'email_confirmation_enabled', 'not_admin', 'not_tester', 'empty_feedback',
+  'invalid_credentials', 'weak_password', 'email_confirmation_enabled', 'not_admin', 'not_tester', 'empty_feedback', 'empty_survey', 'survey_closed',
 ];
 
 export class ApiError extends Error {
@@ -263,6 +265,7 @@ export interface FeedbackEntry {
   to_change: string;
   rating: number | null;
   created_at: string;
+  resolved_at: string | null; // null = à traiter, sinon date à laquelle l'admin l'a marqué traité
 }
 
 export function adminListUsers(): Promise<AdminUser[]> {
@@ -290,6 +293,11 @@ export function adminDeleteFeedback(id: number): Promise<void> {
   return rpc<void>('admin_delete_feedback', { p_id: id });
 }
 
+/** Marque un retour comme traité (archivé) ou le remet à traiter */
+export function adminSetFeedbackResolved(id: number, resolved: boolean): Promise<void> {
+  return rpc<void>('admin_set_feedback_resolved', { p_id: id, p_resolved: resolved });
+}
+
 export function adminListFeedback(): Promise<FeedbackEntry[]> {
   return rpc<FeedbackEntry[]>('admin_list_feedback');
 }
@@ -300,4 +308,54 @@ export function adminListFeedback(): Promise<FeedbackEntry[]> {
 export async function deleteMyAccount(): Promise<void> {
   await rpc<void>('delete_my_account');
   await supabase.auth.signOut();
+}
+
+// ---------- Sondage de fin de saison ----------
+
+export type ComeBack = 'yes' | 'maybe' | 'no';
+
+export interface SeasonSurveyAnswers {
+  rating: number | null;
+  favoriteGames: string[];
+  liked: string;
+  wishes: string[];
+  nextYear: string;
+  comeBack: ComeBack | null;
+}
+
+export interface SeasonSurveyEntry {
+  user_id: string;
+  username: string;
+  rating: number | null;
+  favorite_games: string[];
+  liked: string;
+  wishes: string[];
+  next_year: string;
+  come_back: ComeBack | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function submitSeasonSurvey(answers: SeasonSurveyAnswers): Promise<void> {
+  return rpc<void>('submit_season_survey', {
+    p_rating: answers.rating,
+    p_favorite_games: answers.favoriteGames,
+    p_liked: answers.liked,
+    p_wishes: answers.wishes,
+    p_next_year: answers.nextYear,
+    p_come_back: answers.comeBack,
+  });
+}
+
+export interface SeasonSurveyStatus {
+  open: boolean; // ouvert à partir du 24 décembre 18 h (toujours pour testeurs et admins)
+  answered: boolean;
+}
+
+export function fetchSeasonSurveyStatus(): Promise<SeasonSurveyStatus> {
+  return rpc<SeasonSurveyStatus>('season_survey_status');
+}
+
+export function adminListSeasonSurveys(): Promise<SeasonSurveyEntry[]> {
+  return rpc<SeasonSurveyEntry[]>('admin_list_season_surveys');
 }

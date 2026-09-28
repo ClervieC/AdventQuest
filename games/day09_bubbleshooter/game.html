@@ -63,13 +63,15 @@
     }
 
     const COLORS = [0xef4444, 0x3b82f6, 0x22c55e, 0xeab308, 0xa78bfa];
-    const BUBBLE_RADIUS = 22;
+    // Taille des bulles adaptée à la largeur de l'écran (22 px max, 8 bulles par rangée doivent tenir)
+    let BUBBLE_RADIUS = 22;
     const COLS = 8;
+    const GRID_TOP = 66;
     const GAME_DURATION_MS = 90000;
 
     let scene;
     let grid = {};            // clé "row,col" -> { color, sprite } | undefined si vide
-    let maxRows = 12;         // limite avant game over si la grille descend trop
+    let maxRows = 12;         // limite avant game over si la grille descend trop (calculée selon la hauteur d'écran)
     let cannonAngle = 0;      // en radians, 0 = vers le haut
     let currentBubbleColor;
     let nextBubbleColor;
@@ -81,6 +83,7 @@
     let timeRemaining = GAME_DURATION_MS;
     let cannonX, cannonY;
     let aimLine = null;
+    let keys = null;
     let aiming = false;
     let loadedLabel = null;
     let nextLabel = null;
@@ -93,10 +96,38 @@
 
     function getBubbleX(row, col) {
       const offset = (row % 2 === 1) ? BUBBLE_RADIUS : 0;
-      return 30 + col * (BUBBLE_RADIUS * 2) + offset;
+      // Grille centrée dans la largeur de l'écran (avant : collée à 30 px du bord, la dernière bulle dépassait à droite)
+      const gridLeft = Math.max(0, (scene.scale.width - COLS * BUBBLE_RADIUS * 2) / 2);
+      return gridLeft + BUBBLE_RADIUS + col * (BUBBLE_RADIUS * 2) + offset;
     }
     function getBubbleY(row) {
-      return 60 + row * (BUBBLE_RADIUS * 1.75);
+      return GRID_TOP + row * (BUBBLE_RADIUS * 1.75);
+    }
+
+    // Géométrie selon la taille de l'écran : canon toujours visible en bas, et la grille ne peut jamais
+    // descendre jusqu'à lui (le nombre de rangées avant « perdu » dépend de la hauteur disponible)
+    function computeLayout() {
+      const width = scene.scale.width;
+      const height = scene.scale.height;
+      cannonX = width / 2;
+      cannonY = Math.round(height - (BUBBLE_RADIUS + 64));
+      const lowestAllowedY = cannonY - BUBBLE_RADIUS * 3.2;
+      maxRows = Math.max(settings.initialRows + 2, Math.floor((lowestAllowedY - GRID_TOP) / (BUBBLE_RADIUS * 1.75)) + 1);
+    }
+
+    // L'écran change de taille en cours de partie (barre de Safari qui apparaît, rotation...) :
+    // on replace le canon, les bulles chargées et la grille
+    function relayout() {
+      if (!scene || !cannonSprite) return;
+      computeLayout();
+      cannonSprite.setPosition(cannonX, cannonY);
+      if (currentBubbleSprite) currentBubbleSprite.setPosition(cannonX, cannonY);
+      if (nextBubbleSprite) nextBubbleSprite.setPosition(scene.scale.width - 40, cannonY);
+      if (loadedLabel) loadedLabel.setPosition(cannonX, cannonY + BUBBLE_RADIUS + 10);
+      if (nextLabel) nextLabel.setPosition(scene.scale.width - 40, cannonY + BUBBLE_RADIUS + 10);
+      if (timerText) timerText.setX(scene.scale.width - 20);
+      Object.values(grid).forEach((bubble) => bubble && bubble.sprite.setPosition(getBubbleX(bubble.row, bubble.col), getBubbleY(bubble.row)));
+      hideAimLine();
     }
 
     function randomColor() {
@@ -106,17 +137,25 @@
     function create() {
       scene = this;
       const width = this.scale.width;
-      const height = this.scale.height;
-      cannonX = width / 2;
-      cannonY = height - 80;
+      computeLayout();
 
       scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
-      timerText = this.add.text(width - 90, 50, '', { fontSize: '14px', color: '#f59e0b' });
+      // Chrono sur la ligne du score, à droite (plus caché derrière la première rangée de bulles)
+      timerText = this.add.text(width - 20, 22, '', { fontSize: '16px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0);
 
       // Viser en glissant le doigt (la ligne pointillée montre la trajectoire), tirer en relâchant
       this.input.on('pointerdown', (pointer) => { aiming = true; updateAim(pointer.x, pointer.y); });
       this.input.on('pointermove', (pointer) => { if (aiming || !pointer.wasTouch) updateAim(pointer.x, pointer.y); });
       this.input.on('pointerup', () => { if (!aiming) return; aiming = false; hideAimLine(); shootBubble(); });
+      // Sur ordi : ← → pour viser, Espace ou ↑ pour tirer
+      keys = this.input.keyboard.createCursorKeys();
+      ['SPACE', 'UP'].forEach((key) => this.input.keyboard.on('keydown-' + key, (event) => {
+        if (event.repeat) return;
+        hideAimLine();
+        shootBubble();
+      }));
+
+      this.scale.on('resize', relayout);
 
       notifyReady();
     }
@@ -168,10 +207,14 @@
       gameEnded = false;
       timeRemaining = GAME_DURATION_MS;
       cannonAngle = -Math.PI / 2;
-      cannonX = width / 2;
-      cannonY = scene.scale.height - 120;
+      // Bulles plus petites sur les écrans étroits ou courts : les 8 colonnes tiennent toujours en largeur,
+      // et en hauteur il reste au moins 3 rangées libres entre la grille de départ et le canon
+      const byWidth = Math.floor(width / (COLS * 2));
+      const byHeight = Math.floor((scene.scale.height - 124) / (4.2 + (settings.initialRows + 3) * 1.75));
+      BUBBLE_RADIUS = Math.max(12, Math.min(22, byWidth, byHeight));
+      computeLayout();
       scoreText.setText('Score: 0');
-      timerText.setText('').setX(width - 90);
+      timerText.setText('').setX(width - 20);
 
       // Génère la grille initiale avec les bons settings de difficulté
       for (let row = 0; row < settings.initialRows; row++) {
@@ -225,7 +268,19 @@
       drawLoadedBubbles();
     }
 
+    // Visée au clavier : tourne le canon (sans jamais viser à l'horizontale)
+    const KEY_AIM_SPEED = 1.6; // radians par seconde
+    function aimWithKeys(dt) {
+      if (!keys || gameEnded || !cannonSprite) return;
+      const direction = keys.left.isDown ? -1 : keys.right.isDown ? 1 : 0;
+      if (direction === 0) return;
+      cannonAngle = Phaser.Math.Clamp(cannonAngle + direction * KEY_AIM_SPEED * dt, -Math.PI + 0.15, -0.15);
+      cannonSprite.rotation = cannonAngle + Math.PI / 2;
+      drawAimLine();
+    }
+
     function update(time, delta) {
+      aimWithKeys(delta / 1000);
       if (gameEnded || !flyingBubble) return;
 
       const dt = delta / 1000;

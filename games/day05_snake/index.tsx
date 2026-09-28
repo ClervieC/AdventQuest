@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
 import {
     advanceSnake,
@@ -16,6 +17,7 @@ const GRID_SIZE = 10;
 const TICK_SLOW_MS = 240;
 const TICK_FAST_MS = 80;
 const GAME_DURATION_SECONDS = 45;
+const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 const CELL_PIXEL_SIZE = 28;
 
 function getTickInterval(timeLeft: number): number {
@@ -74,6 +76,13 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
     if (isOppositeDirection(directionRef.current, newDirection)) return; // empêche le demi-tour
     directionRef.current = newDirection;
   }, []);
+
+  // Sur ordi : les flèches changent de direction
+  useGameKeys((key) => {
+    const direction = ARROW_DIRECTIONS[key];
+    if (!direction) return false;
+    changeDirection(direction);
+  });
 
   // Détection de swipe pour changer de direction
   const panGesture = Gesture.Pan().runOnJS(true).onEnd((event) => {

@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { GameComponentProps } from '../../components/GameWrapper/types';
+import { NewGameButton } from '../../components/NewGameButton';
+import { useGameSaveLoad, useGameSaveWriter } from '../../services/gameSave';
 import { playSfx } from '../../services/sfx';
 import {
   applyMove,
@@ -123,16 +125,71 @@ const sameSource = (a: MoveSource | null, b: MoveSource | null) =>
 
 // ---------- Composant ----------
 
-export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponentProps) {
-  const [state, setState] = useState<GameState>(dealSolvableGame);
+/** Partie en cours sauvegardée : on la retrouve en revenant sur le jour */
+interface SolitaireSave {
+  state: GameState;
+  previous: GameState | null;
+  hintsUsed: number;
+  elapsedSeconds: number;
+}
+
+export function SolitaireGame(props: GameComponentProps) {
+  const saveId = props.saveId ?? 'solitaire';
+  const load = useGameSaveLoad<SolitaireSave>(saveId);
+  // Incrémenté à chaque « Nouvelle partie » : nouvelle donne
+  const [round, setRound] = useState(0);
+
+  if (load.status === 'loading') {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color="#a78bfa" />
+      </View>
+    );
+  }
+  return (
+    <SolitaireBoard
+      key={round}
+      {...props}
+      saveId={saveId}
+      saved={round === 0 ? load.saved : null}
+      onNewGame={() => setRound((r) => r + 1)}
+    />
+  );
+}
+
+function SolitaireBoard({
+  onGameEnd,
+  hintsAvailable,
+  onUseHint,
+  saveId,
+  saved,
+  onNewGame,
+}: GameComponentProps & { saveId: string; saved: SolitaireSave | null; onNewGame: () => void }) {
+  const [state, setState] = useState<GameState>(() => saved?.state ?? dealSolvableGame());
   // Annulation d'un seul coup : on ne garde que la position d'avant le dernier coup
-  const [previous, setPrevious] = useState<GameState | null>(null);
+  const [previous, setPrevious] = useState<GameState | null>(saved?.previous ?? null);
   const [selection, setSelection] = useState<MoveSource | null>(null);
   const [dragging, setDragging] = useState<{ source: MoveSource; cards: Card[] } | null>(null);
   const [hint, setHint] = useState<HintMove | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
-  const startTimeRef = useRef(Date.now());
-  const hintsUsedRef = useRef(0);
+  // Le chrono reprend là où il s'était arrêté (le temps passé hors du jeu ne compte pas)
+  const startTimeRef = useRef(Date.now() - (saved?.elapsedSeconds ?? 0) * 1000);
+  const hintsUsedRef = useRef(saved?.hintsUsed ?? 0);
+  const finishedRef = useRef(false);
+  const saver = useGameSaveWriter<SolitaireSave>(saveId);
+
+  // Sauvegarde après chaque coup (et chaque annulation)
+  useEffect(() => {
+    if (finishedRef.current) return;
+    const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+    saver.write({ state, previous, hintsUsed: hintsUsedRef.current, elapsedSeconds });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, previous]);
+
+  const handleNewGame = () => {
+    saver.clear();
+    onNewGame();
+  };
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Le geste lit l'état via des refs (callbacks exécutés hors du rendu React)
@@ -158,6 +215,9 @@ export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComp
     setSelection(null);
     setHint(null);
     if (isGameWon(next)) {
+      // Partie gagnée : plus de sauvegarde, la prochaine fois ce sera une nouvelle donne
+      finishedRef.current = true;
+      saver.clear();
       const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
       const score = calculateSolitaireScore(52, timeSpent, hintsUsedRef.current);
       setTimeout(() => onGameEnd({ success: true, score }), 400);
@@ -420,11 +480,22 @@ export function SolitaireGame({ onGameEnd, hintsAvailable, onUseHint }: GameComp
           <Text style={styles.hintButtonText}>💡 Indice : montre un coup</Text>
         </Pressable>
       </View>
+      <View style={styles.newGameRow}>
+        <NewGameButton onConfirm={handleNewGame} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  newGameRow: {
+    marginTop: 8,
+  },
   container: {
     flex: 1,
     paddingTop: 12,

@@ -91,9 +91,18 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   );
 }
 
+const GAME_AREA_BACKGROUND = '#111e31';
+
 const styles = StyleSheet.create({
+  // Zone de jeu encadrée et un peu plus claire que la page : on voit où l'écran de jeu s'arrête
   container: {
     flex: 1,
+    backgroundColor: GAME_AREA_BACKGROUND,
+    borderWidth: 2,
+    borderColor: '#3a5a82',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
   webview: {
     flex: 1,
@@ -107,7 +116,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0c1521',
+    backgroundColor: GAME_AREA_BACKGROUND,
     zIndex: 10,
   },
 });
