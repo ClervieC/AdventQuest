@@ -183,6 +183,17 @@ export function subscribeLeaderboard(onChange: () => void): () => void {
   };
 }
 
+/** Appelle `onChange` quand mon profil change (rôle, jours de test donnés par l'admin). Renvoie la fonction de désabonnement. */
+export function subscribeMyProfile(userId: string, onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`profile-${userId}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, onChange)
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
 /** Fuseau horaire du téléphone (ex. "Europe/Paris"), figé côté serveur à la création du profil */
 export function getDeviceTimezone(): string {
   try {

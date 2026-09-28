@@ -1,7 +1,7 @@
 import { usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError } from '../../services/api';
+import { ApiError, getMyUserId, subscribeMyProfile } from '../../services/api';
 import { LegalKind, LegalLinks, LegalView } from '../Legal';
 import { useGameStore } from '../../store/gameStore';
 import { pageColumn } from '../../constants/layout';
@@ -28,6 +28,21 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
     });
     return () => subscription.remove();
   }, [refresh]);
+
+  // Rôle ou jours de test changés par l'admin : on recharge tout de suite (le joueur voit ses jours de test sans relancer)
+  const username = useGameStore((s) => s.username);
+  useEffect(() => {
+    if (status !== 'ready') return;
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+    getMyUserId().then((userId) => {
+      if (userId && !cancelled) unsubscribe = subscribeMyProfile(userId, refresh);
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [status, username, refresh]);
 
   // Les pages légales restent lisibles sans compte (liens demandés par les stores)
   if (status === 'ready' || pathname?.startsWith('/legal')) return <>{children}</>;
