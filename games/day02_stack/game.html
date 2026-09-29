@@ -39,10 +39,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           configureDifficulty(currentDifficulty);
         }
@@ -63,6 +65,16 @@
 
     let settings = DIFFICULTY_SETTINGS.easy;
 
+    // Objectif atteint : on peut continuer d'empiler, 15 blocs bonus au plus. Chaque bloc bonus rapporte
+    // 50 points de plus et le bloc suivant va 6 % plus vite (≈ 2× plus vite au dernier).
+    const BONUS_MAX_FLOORS = 15;
+    const POINTS_PER_FLOOR = 100;
+    const BONUS_POINTS_PER_FLOOR = 50;
+    const BONUS_SPEEDUP_PER_FLOOR = 0.06;
+    // Précision : en fin de partie, jusqu'à 500 points selon la largeur qu'il reste au dernier bloc posé
+    // (100 % = aucun décalage de toute la partie). Plus on empile proprement, plus ça rapporte.
+    const WIDTH_BONUS_MAX = 500;
+
     function configureDifficulty(difficulty) {
       settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
       startGame();
@@ -79,6 +91,7 @@
       cameraOffsetY = 0;
       scene.cameras.main.scrollY = 0;
       gameEnded = false;
+      if (stopButton) { stopButton.destroy(); stopButton = null; }
 
       // La taille finale de la WebView n'est connue qu'ici, pas dans create
       const baseLeft = Math.round((scene.scale.width - INITIAL_BLOCK_WIDTH) / 2);
@@ -104,6 +117,7 @@
     let cameraOffsetY = 0;
     let gameEnded = false;
     let progressText = null;
+    let stopButton = null;
 
     function preload() {}
 
@@ -113,14 +127,22 @@
       this.cameras.main.setRoundPixels(true);
 
       progressText = this.add.text(this.scale.width / 2, 24, '', {
-        fontSize: '18px',
+        fontSize: '15px',
+        align: 'center',
         fontFamily: 'monospace',
         color: '#ffffff',
         alpha: 0.75,
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(10);
       updateProgressText();
 
-      this.input.on('pointerdown', handleTap);
+      this.input.on('pointerdown', (pointer) => {
+        // Bouton « Terminer » du bonus : on garde le score sans lâcher de bloc
+        if (stopButton && stopButton.getBounds().contains(pointer.x, pointer.y)) {
+          finishGame(true);
+          return;
+        }
+        handleTap();
+      });
       // Sur ordi : Espace, Entrée ou ↓ pour lâcher le bloc
       ['SPACE', 'ENTER', 'DOWN'].forEach((key) => this.input.keyboard.on('keydown-' + key, (event) => { if (!event.repeat) handleTap(); }));
 
@@ -131,7 +153,7 @@
       if (gameEnded || !currentBlock) return;
 
       // Vitesse en px/s, indépendante du nombre d'images par seconde
-      currentBlock.pos += movingDirection * settings.speed * Math.min(delta, 50) / 1000;
+      currentBlock.pos += movingDirection * currentSpeed() * Math.min(delta, 50) / 1000;
 
       const minLeft = EDGE_MARGIN;
       const maxLeft = scene.scale.width - EDGE_MARGIN - currentBlock.width;
@@ -145,13 +167,72 @@
       currentBlock.sprite.x = Math.round(currentBlock.pos);
     }
 
+    // Onglet Jeux : pas d'objectif, on empile sans fin (chaque bloc compte comme un bloc bonus)
+    function targetFloors() {
+      return arcadeMode ? 0 : settings.targetFloors;
+    }
+
+    function bonusFloors() {
+      return Math.max(0, floorsBuilt - targetFloors());
+    }
+
+    function currentSpeed() {
+      // Sans fin : +4 % par bloc, jusqu'à 3× la vitesse de départ
+      if (arcadeMode) return settings.speed * Math.min(3, 1 + 0.04 * floorsBuilt);
+      return settings.speed * (1 + BONUS_SPEEDUP_PER_FLOOR * bonusFloors());
+    }
+
+    // Part de la largeur de départ qu'il reste au dernier bloc posé (1 = rien n'a été coupé)
+    function widthRatio() {
+      const last = blocks[blocks.length - 1];
+      return last ? last.width / INITIAL_BLOCK_WIDTH : 1;
+    }
+
+    function widthBonus() {
+      return floorsBuilt > 0 ? Math.round(WIDTH_BONUS_MAX * widthRatio()) : 0;
+    }
+
+    function currentScore() {
+      return floorsBuilt * POINTS_PER_FLOOR + bonusFloors() * BONUS_POINTS_PER_FLOOR + widthBonus();
+    }
+
     function updateProgressText() {
       if (!progressText) return;
-      const remaining = settings.targetFloors - floorsBuilt;
+      const width = Math.round(widthRatio() * 100);
+      if (arcadeMode) {
+        progressText.setText(T(
+          `${floorsBuilt} bloc${floorsBuilt > 1 ? 's' : ''} · largeur ${width} %\n${currentScore()} pts`,
+          `${floorsBuilt} block${floorsBuilt === 1 ? '' : 's'} · width ${width}%\n${currentScore()} pts`
+        )).setColor('#ffffff');
+        return;
+      }
+      if (floorsBuilt >= targetFloors()) {
+        progressText.setText(T(
+          `Bonus +${bonusFloors()} / ${BONUS_MAX_FLOORS} · largeur ${width} %\n${currentScore()} pts`,
+          `Bonus +${bonusFloors()} / ${BONUS_MAX_FLOORS} · width ${width}%\n${currentScore()} pts`
+        )).setColor('#fbbf24');
+        return;
+      }
+      const remaining = targetFloors() - floorsBuilt;
       progressText.setText(T(
-        `${remaining} bloc${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}`,
-        `${remaining} block${remaining === 1 ? '' : 's'} left`
-      ));
+        `${remaining} bloc${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''} · largeur ${width} %`,
+        `${remaining} block${remaining === 1 ? '' : 's'} left · width ${width}%`
+      )).setColor('#ffffff');
+    }
+
+    // Objectif atteint : fragment gagné, on peut continuer pour des points bonus
+    function startBonus() {
+      sfx('perfect');
+      const width = scene.scale.width;
+      const banner = scene.add.text(width / 2, 120, T('🎉 Objectif atteint !\nContinue pour des points bonus\n(ça va accélérer !)', '🎉 Goal reached!\nKeep going for bonus points\n(it’ll speed up!)'), {
+        fontSize: '17px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+        wordWrap: { width: width - 24 },
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 2200, duration: 700, onComplete: () => banner.destroy() });
+      // Sous le texte de progression (qui passe sur deux lignes en bonus)
+      stopButton = scene.add.text(width - 16, 72, T('✓ Terminer', '✓ Finish'), {
+        fontSize: '15px', color: '#ffffff', fontStyle: 'bold', backgroundColor: '#7c3aed', padding: { x: 10, y: 6 },
+      }).setOrigin(1, 0).setScrollFactor(0).setDepth(20);
     }
 
     const EDGE_MARGIN = 10;
@@ -200,9 +281,9 @@
       const newWidth = newRight - newLeft;
 
       if (newWidth <= 0) {
-        // Aucun chevauchement : game over
+        // Aucun chevauchement : fin de partie (gagnée si l'objectif était déjà atteint)
         sfx('hurt');
-        finishGame(false);
+        finishGame(floorsBuilt >= targetFloors());
         return;
       }
 
@@ -216,14 +297,15 @@
       floorsBuilt += 1;
       updateProgressText();
 
-      if (floorsBuilt >= settings.targetFloors) {
+      if (!arcadeMode && floorsBuilt >= targetFloors() + BONUS_MAX_FLOORS) {
         finishGame(true);
         return;
       }
+      if (!arcadeMode && floorsBuilt === targetFloors()) startBonus();
 
       if (newWidth < 15) {
-        // Trop étroit pour continuer
-        finishGame(true); // on garde quand même la victoire si on a atteint un score correct
+        // Trop étroit pour continuer : gagné seulement si l'objectif est atteint
+        finishGame(floorsBuilt >= targetFloors());
         return;
       }
 
@@ -254,8 +336,9 @@
     }
 
     function finishGame(success) {
+      if (gameEnded) return;
       gameEnded = true;
-      const score = floorsBuilt * 100;
+      const score = currentScore();
       // petite pause visuelle avant de transmettre le résultat
       scene.time.delayedCall(400, () => {
         endGame(success && floorsBuilt > 0, score);

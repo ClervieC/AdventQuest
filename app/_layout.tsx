@@ -31,6 +31,14 @@ export default function RootLayout() {
             animation: 'slide_from_right',
           }}
         />
+        <Stack.Screen
+          name="arcade/[id]"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+            animation: 'slide_from_right',
+          }}
+        />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="legal/terms" options={{ headerShown: false, animation: 'slide_from_right' }} />

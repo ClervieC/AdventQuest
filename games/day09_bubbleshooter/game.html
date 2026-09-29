@@ -39,10 +39,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           configureDifficulty(currentDifficulty);
         }
@@ -195,9 +197,45 @@
 
     // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
     function startGame() {
-      const width = scene.scale.width;
+      // Remise à zéro (la taille finale de la WebView n'est connue qu'ici, pas dans create) : voir buildBoard
+      score = 0;
+      gameEnded = false;
+      timeRemaining = GAME_DURATION_MS;
+      if (arcadeMode) {
+        level = 1;
+        settings = arcadeLevelSettings(level);
+      }
+      buildBoard();
+    }
 
-      // Remise à zéro (la taille finale de la WebView n'est connue qu'ici, pas dans create)
+    // Onglet Jeux : des niveaux. Grille vidée = niveau suivant, avec plus de couleurs, plus de rangées
+    // et une grille qui descend de plus en plus vite. La partie s'arrête quand la grille touche le canon.
+    let level = 1;
+    function arcadeLevelSettings(n) {
+      return {
+        colorsCount: Math.min(5, 3 + Math.floor((n - 1) / 2)),
+        initialRows: Math.min(8, 3 + n),
+        descendIntervalMs: n === 1 ? null : Math.max(5000, 14000 - n * 1000),
+      };
+    }
+
+    function nextLevel() {
+      level += 1;
+      settings = arcadeLevelSettings(level);
+      const bonus = 200 * (level - 1);
+      score += bonus;
+      scoreText.setText('Score: ' + score);
+      sfx('powerup');
+      const banner = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.4, T('🎉 Niveau ', '🎉 Level ') + level + '\n+' + bonus, {
+        fontSize: '22px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 1400, duration: 600, onComplete: () => banner.destroy() });
+      buildBoard();
+    }
+
+    // Grille de départ, canon et bulles chargées (début de partie, ou nouveau niveau)
+    function buildBoard() {
+      const width = scene.scale.width;
       Object.values(grid).forEach((bubble) => bubble && bubble.sprite.destroy());
       grid = {};
       if (flyingBubble) flyingBubble.sprite.destroy();
@@ -207,9 +245,6 @@
       if (descendEvent) descendEvent.remove();
       countdownEvent = null;
       descendEvent = null;
-      score = 0;
-      gameEnded = false;
-      timeRemaining = GAME_DURATION_MS;
       cannonAngle = -Math.PI / 2;
       // Bulles plus petites sur les écrans étroits ou courts : les 8 colonnes tiennent toujours en largeur,
       // et en hauteur il reste au moins 3 rangées libres entre la grille de départ et le canon
@@ -218,7 +253,7 @@
       BUBBLE_RADIUS = Math.max(12, Math.min(22, byWidth, byHeight));
       computeLayout();
       scoreText.setText('Score: 0');
-      timerText.setText('').setX(width - 20);
+      timerText.setText(arcadeMode ? T('Niveau ', 'Level ') + level : '').setX(width - 20);
 
       // Génère la grille initiale avec les bons settings de difficulté
       for (let row = 0; row < settings.initialRows; row++) {
@@ -407,9 +442,10 @@
         finishGame(false);
       }
 
-      // Vérifie victoire : plus aucune bulle dans la grille
-      if (Object.keys(grid).length === 0) {
-        finishGame(true);
+      // Vérifie victoire : plus aucune bulle dans la grille (onglet Jeux : niveau suivant)
+      if (Object.keys(grid).length === 0 && !gameEnded) {
+        if (arcadeMode) nextLevel();
+        else finishGame(true);
       }
     }
 
@@ -470,7 +506,7 @@
     }
 
     function tickCountdown() {
-      if (gameEnded) return;
+      if (gameEnded || arcadeMode) return; // onglet Jeux : pas de chrono, seulement des niveaux
       timeRemaining -= 1000;
       if (settings.descendIntervalMs === null) {
         const secondsLeft = Math.max(0, Math.ceil(timeRemaining / 1000));

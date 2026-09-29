@@ -42,10 +42,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
           configureDifficulty(currentDifficulty);
@@ -72,6 +74,9 @@
       startGame();
     }
 
+    // Après la durée de la partie : bonus de 60 s au plus. Les projectiles tombent de plus en plus vite et
+    // de plus en plus souvent, jusqu'au premier coup reçu (le fragment reste gagné) ou la fin du bonus.
+    const BONUS_MAX_MS = 60000;
     const PLAYER_RADIUS = 15;          // hitbox volontairement plus petite que l'emoji
     const PLAYER_MAX_SPEED = 900;      // px/s, le personnage rattrape le doigt sans téléporter
     const MULTIPLIER_STEP_MS = 15000;  // le multiplicateur augmente toutes les 15 s
@@ -102,6 +107,8 @@
     let nextSpawnMs = 0;
     let shieldActive = false;
     let hintsLeft = 0;
+    let bonusMode = false;
+    let stopButton = null;
     let keys;
 
     let scoreText, timeText, multText, hintButton, hintText, messageText;
@@ -191,13 +198,16 @@
       shieldActive = false;
       running = false;
       gameEnded = false;
+      bonusMode = false;
+      if (stopButton) { stopButton.destroy(); stopButton = null; }
+      timeText.setColor('#f59e0b');
       playerX = width / 2;
       targetX = width / 2;
       playerSprite.setPosition(playerX, playerY).setAlpha(1).setAngle(0);
       shieldSprite.setVisible(false);
       scoreText.setText('Score: 0');
       multText.setText('×1');
-      timeText.setText(Math.ceil(settings.durationMs / 1000) + 's');
+      timeText.setText(arcadeMode ? '⏱ 0s' : Math.ceil(settings.durationMs / 1000) + 's');
       updateHintButton();
     }
 
@@ -211,6 +221,13 @@
 
     function progress() {
       return Math.min(1, elapsedMs / settings.durationMs);
+    }
+
+    // Onglet Jeux : pas de fin de chrono ; après la durée normale, l'accélération continue encore 2 min
+    // (même montée qu'en bonus), et la partie dure jusqu'au premier coup reçu
+    function bonusProgress() {
+      const rampMs = arcadeMode ? 120000 : BONUS_MAX_MS;
+      return Phaser.Math.Clamp((elapsedMs - settings.durationMs) / rampMs, 0, 1);
     }
 
     function currentMultiplier() {
@@ -229,6 +246,10 @@
       // Le hint ne se déclenche qu'au tap, jamais en glissant le doigt dessus
       if (hintButton.getBounds().contains(pointer.x, pointer.y)) {
         useHint();
+        return;
+      }
+      if (stopButton && stopButton.getBounds().contains(pointer.x, pointer.y)) {
+        finishGame(true);
         return;
       }
       moveTo(pointer.x);
@@ -256,7 +277,7 @@
     function pickType() {
       if (Math.random() < GIFT_CHANCE) return 'gift';
       // Les projectiles spéciaux arrivent progressivement
-      if (Math.random() < settings.specialChance * (0.4 + progress())) {
+      if (Math.random() < settings.specialChance * (0.4 + progress() + bonusProgress())) {
         return Math.random() < 0.5 ? 'comet' : 'ghost';
       }
       return 'snowball';
@@ -266,7 +287,8 @@
       const kind = pickType();
       const type = PROJECTILE_TYPES[kind];
       const x = Phaser.Math.Between(type.radius + 4, width - type.radius - 4);
-      const baseSpeed = settings.speedStart + (settings.speedEnd - settings.speedStart) * progress();
+      // En bonus : jusqu'à +40 % de vitesse
+      const baseSpeed = (settings.speedStart + (settings.speedEnd - settings.speedStart) * progress()) * (1 + 0.4 * bonusProgress());
       const sprite = scene.add.text(x, topY, type.emoji, { fontSize: type.size + 'px' }).setOrigin(0.5).setDepth(3);
       projectiles.push({
         kind, type, sprite,
@@ -291,7 +313,8 @@
       nextSpawnMs -= dtMs;
       if (nextSpawnMs <= 0) {
         spawnProjectile();
-        nextSpawnMs = settings.spawnStartMs + (settings.spawnEndMs - settings.spawnStartMs) * progress();
+        // En bonus : jusqu'à 45 % de délai en moins entre deux projectiles
+        nextSpawnMs = (settings.spawnStartMs + (settings.spawnEndMs - settings.spawnStartMs) * progress()) * (1 - 0.45 * bonusProgress());
       }
 
       updateProjectiles(dt);
@@ -300,10 +323,33 @@
       score += POINTS_PER_SECOND * currentMultiplier() * dt;
       scoreText.setText('Score: ' + Math.floor(score));
       multText.setText('×' + currentMultiplier());
-      const secondsLeft = Math.max(0, Math.ceil((settings.durationMs - elapsedMs) / 1000));
-      timeText.setText(secondsLeft + 's');
+      if (arcadeMode) {
+        timeText.setText('⏱ ' + Math.floor(elapsedMs / 1000) + 's');
+      } else if (!bonusMode) {
+        const secondsLeft = Math.max(0, Math.ceil((settings.durationMs - elapsedMs) / 1000));
+        timeText.setText(secondsLeft + 's');
+        if (elapsedMs >= settings.durationMs) startBonus();
+      } else {
+        const bonusLeft = Math.max(0, Math.ceil((settings.durationMs + BONUS_MAX_MS - elapsedMs) / 1000));
+        timeText.setText('Bonus ' + bonusLeft + 's');
+        if (bonusLeft <= 0) finishGame(true);
+      }
+    }
 
-      if (elapsedMs >= settings.durationMs) finishGame(true);
+    // Temps tenu : fragment gagné, on continue pour des points en plus
+    function startBonus() {
+      bonusMode = true;
+      sfx('powerup');
+      timeText.setColor('#fbbf24');
+      const banner = scene.add.text(width / 2, height * 0.4, T('🎉 Objectif atteint !\nContinue pour des points bonus\n(ça va accélérer !)', '🎉 Goal reached!\nKeep going for bonus points\n(it’ll speed up!)'), {
+        fontSize: '17px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+        wordWrap: { width: width - 24 },
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 2200, duration: 700, onComplete: () => banner.destroy() });
+      // En haut au centre : la droite est prise par le chrono et le bouclier
+      stopButton = scene.add.text(width / 2, 18, T('✓ Terminer', '✓ Finish'), {
+        fontSize: '15px', color: '#ffffff', fontStyle: 'bold', backgroundColor: '#7c3aed', padding: { x: 10, y: 6 },
+      }).setOrigin(0.5, 0).setDepth(20);
     }
 
     function updatePlayer(dt) {
@@ -361,7 +407,8 @@
       scene.cameras.main.shake(250, 0.015);
       playerSprite.setText('💫');
       flashFeedback(playerX, playerY - 50, T('Touché !', 'Hit!'), '#ef4444');
-      finishGame(false);
+      // En bonus, l'objectif est déjà atteint : la partie s'arrête avec le score
+      finishGame(bonusMode || arcadeMode);
     }
 
     function flashFeedback(x, y, text, color) {

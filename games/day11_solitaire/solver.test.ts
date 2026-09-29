@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { applyMove, createDeck, createSeededRandom, dealNewGame, drawFromStock, GameState, isGameWon, MoveSource, MoveTarget, shuffleDeck } from './logic';
+import { applyMove, createDeck, createSeededRandom, dealNewGame, drawFromStock, GameState, isGameWon, isStuck, MoveSource, MoveTarget, shuffleDeck } from './logic';
 import { SOLVABLE_SEEDS } from './solvableSeeds';
 import { solve, SolverMove } from './solver';
 
@@ -9,9 +9,10 @@ const dealSeed = (seed: number) => dealNewGame(shuffleDeck(createDeck(), createS
  * Rejoue une solution du solveur avec les VRAIES règles du jeu (pioche carte par carte, applyMove...).
  * Si le solveur trichait sur les règles, la partie ne serait pas gagnée à la fin.
  */
-function replay(initial: GameState, moves: SolverMove[]): GameState {
+function replay(initial: GameState, moves: SolverMove[], onState?: (state: GameState) => void): GameState {
   let state = initial;
   for (const move of moves) {
+    onState?.(state);
     let source: MoveSource;
     if (move.from === 'talon') {
       // Piocher jusqu'à ce que la carte voulue soit sur la défausse (au plus 2 tours complets)
@@ -90,5 +91,16 @@ describe('Solitaire - donnes utilisées par le jeu', () => {
       expect(result.solved).toBe(true);
       expect(isGameWon(replay(game, result.moves))).toBe(true);
     }
+  });
+});
+
+describe('Solitaire - détection de partie bloquée', () => {
+  test('aucune position sur le chemin d’une victoire n’est déclarée bloquée', () => {
+    SOLVABLE_SEEDS.slice(0, 5).forEach((seed) => {
+      const game = dealSeed(seed);
+      const result = solve(game);
+      expect(result.solved).toBe(true);
+      replay(game, result.moves, (state) => expect(isStuck(state)).toBe(false));
+    });
   });
 });

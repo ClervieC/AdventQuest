@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { GameTutorial as Tutorial } from '../../constants/tutorials';
+import { Image, ImageSourcePropType, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GameTutorial as Tutorial, TutorialStep } from '../../constants/tutorials';
 import { useI18n } from '../../services/i18n';
 
 // Les captures font 393×796 : on garde ce ratio pour les afficher comme de petits écrans de téléphone
@@ -9,10 +9,12 @@ const THUMB_HEIGHT = 170;
 
 /** Bouton « Comment jouer ? » de l'intro : déplie une carte avec capture(s) du jeu + règles en quelques étapes */
 export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
-  const { tr, l } = useI18n();
+  const { tr, l, lang } = useI18n();
   const [open, setOpen] = useState(false);
-  const [zoomed, setZoomed] = useState<number | null>(null);
+  const [zoomed, setZoomed] = useState<ImageSourcePropType | null>(null);
   const single = tutorial.images.length === 1;
+  const sections = tutorial.sections ?? [];
+  const hasImages = tutorial.images.length > 0 || sections.length > 0;
   // Plusieurs épreuves : vignettes un peu plus petites pour qu'elles tiennent côte à côte
   const thumbHeight = tutorial.images.length > 2 ? 140 : THUMB_HEIGHT;
 
@@ -21,13 +23,13 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
       {tutorial.images.map((image, index) => (
         <Pressable
           key={index}
-          onPress={() => setZoomed(index)}
+          onPress={() => setZoomed(image.source[lang])}
           accessibilityRole="imagebutton"
           accessibilityLabel={tr('Agrandir la capture', 'Enlarge the screenshot') + (image.caption ? ` : ${l(image.caption)}` : '')}
           style={styles.thumbItem}
         >
           <Image
-            source={image.source}
+            source={image.source[lang]}
             style={[styles.thumb, { height: thumbHeight, width: thumbHeight * SHOT_RATIO }]}
             resizeMode="cover"
           />
@@ -37,9 +39,9 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
     </View>
   );
 
-  const steps = (
+  const renderSteps = (list: TutorialStep[]) => (
     <View style={styles.steps}>
-      {tutorial.steps.map((step, index) => (
+      {list.map((step, index) => (
         <View key={index} style={styles.step}>
           <Text style={styles.stepIcon}>{step.icon}</Text>
           <Text style={styles.stepText}>{l(step.text)}</Text>
@@ -47,6 +49,25 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
       ))}
     </View>
   );
+  const steps = renderSteps(tutorial.steps);
+
+  // Marathons : chaque épreuve présentée comme un jeu simple (capture à gauche, ses règles à droite)
+  const sectionBlocks = sections.map((section, index) => (
+    <View key={index} style={styles.section}>
+      <Text style={styles.sectionTitle}>{l(section.title)}</Text>
+      <View style={styles.row}>
+        <Pressable
+          onPress={() => setZoomed(section.image[lang])}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={tr('Agrandir la capture', 'Enlarge the screenshot') + ` : ${l(section.title)}`}
+          style={styles.thumbItem}
+        >
+          <Image source={section.image[lang]} style={[styles.thumb, { height: THUMB_HEIGHT, width: THUMB_HEIGHT * SHOT_RATIO }]} resizeMode="cover" />
+        </Pressable>
+        {renderSteps(section.steps)}
+      </View>
+    </View>
+  ));
 
   if (!open) {
     return (
@@ -62,14 +83,19 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
         <Text style={styles.title}>{tr('📖 Comment jouer', '📖 How to play')}</Text>
         <Text style={styles.close}>{tr('Masquer ✕', 'Hide ✕')}</Text>
       </Pressable>
-      {single ? (
+      {sections.length > 0 ? (
+        <>
+          {sectionBlocks}
+          {steps}
+        </>
+      ) : single ? (
         <View style={styles.row}>
           {thumbs}
           {steps}
         </View>
       ) : (
         <>
-          {thumbs}
+          {tutorial.images.length > 0 && thumbs}
           {steps}
         </>
       )}
@@ -82,13 +108,11 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
           </Text>
         </View>
       )}
-      <Text style={styles.zoomHint}>{tr('Touche une image pour l’agrandir', 'Tap an image to enlarge it')}</Text>
+      {hasImages && <Text style={styles.zoomHint}>{tr('Touche une image pour l’agrandir', 'Tap an image to enlarge it')}</Text>}
 
       <Modal visible={zoomed !== null} transparent animationType="fade" onRequestClose={() => setZoomed(null)}>
         <Pressable style={styles.overlay} onPress={() => setZoomed(null)} accessibilityLabel={tr('Fermer l’image', 'Close the image')}>
-          {zoomed !== null && (
-            <Image source={tutorial.images[zoomed].source} style={styles.zoomImage} resizeMode="contain" />
-          )}
+          {zoomed !== null && <Image source={zoomed} style={styles.zoomImage} resizeMode="contain" />}
           <Text style={styles.overlayClose}>{tr('Touche pour fermer', 'Tap to close')}</Text>
         </Pressable>
       </Modal>
@@ -134,6 +158,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#c4b5fd',
+  },
+  section: {
+    gap: 6,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2c4262',
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fbbf24',
   },
   row: {
     flexDirection: 'row',

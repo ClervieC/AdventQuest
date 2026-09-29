@@ -39,10 +39,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           configureDifficulty(currentDifficulty);
         }
@@ -69,7 +71,10 @@
 
     const GRID_COLS = 3;
     const GRID_ROWS = 3;
+    // 45 s de partie, puis un bonus de 45 s au plus : les gobelins sortent encore plus vite et les faux
+    // fragments se multiplient, jusqu'à la dernière vie perdue ou la fin du bonus
     const GAME_DURATION_MS = 45000;
+    const BONUS_MAX_MS = 45000;
     const HOLE_RADIUS = 45;
     const MAX_LIVES = 3;
 
@@ -83,6 +88,9 @@
     let scoreText;
     let livesText;
     let timeRemaining = GAME_DURATION_MS;
+    let elapsedMs = 0;
+    let bonusMode = false;
+    let stopButton = null;
 
     function preload() {}
 
@@ -141,10 +149,14 @@
       score = 0;
       lives = MAX_LIVES;
       timeRemaining = GAME_DURATION_MS;
+      elapsedMs = 0;
+      bonusMode = false;
+      if (stopButton) { stopButton.destroy(); stopButton = null; }
+      countdownText.setColor('#f59e0b').setX(scene.scale.width - 100);
       gameEnded = false;
       scoreText.setText('Score: 0');
       livesText.setText(getLivesString());
-      countdownText.setText(Math.ceil(GAME_DURATION_MS / 1000) + 's');
+      countdownText.setText(arcadeMode ? '⏱ 0s' : Math.ceil(GAME_DURATION_MS / 1000) + 's');
 
       scheduleNextSpawn();
       countdownEvent = scene.time.addEvent({
@@ -160,9 +172,21 @@
       return '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
     }
 
+    function bonusProgress() {
+      return Phaser.Math.Clamp((elapsedMs - GAME_DURATION_MS) / BONUS_MAX_MS, 0, 1);
+    }
+
+    // Durées multipliées par ce ratio : 1 au début, 0.30 à la fin des 45 s, puis 0.18 à la fin du bonus
+    // Onglet Jeux : pas de chrono ; ça accélère jusqu'à 0.18 en 2 min et la partie dure jusqu'à la dernière vie
+    const ARCADE_RAMP_MS = 120000;
+    function arcadeProgress() {
+      return Math.min(1, elapsedMs / ARCADE_RAMP_MS);
+    }
+
     function getSpeedRatio() {
-      const elapsed = GAME_DURATION_MS - timeRemaining;
-      return 1 - 0.70 * (elapsed / GAME_DURATION_MS);
+      if (arcadeMode) return 1 - 0.82 * arcadeProgress();
+      if (bonusMode) return 0.30 - 0.12 * bonusProgress();
+      return 1 - 0.70 * Math.min(1, elapsedMs / GAME_DURATION_MS);
     }
 
     function scheduleNextSpawn() {
@@ -181,7 +205,7 @@
       if (freeHoles.length === 0) return;
 
       const hole = freeHoles[Math.floor(Math.random() * freeHoles.length)];
-      const isFake = Math.random() < settings.fakeFragmentChance;
+      const isFake = Math.random() < (arcadeMode ? settings.fakeFragmentChance + 0.3 * arcadeProgress() : bonusMode ? Math.max(0.15, settings.fakeFragmentChance) * (1 + bonusProgress()) : settings.fakeFragmentChance);
 
       hole.occupied = true;
       hole.isFake = isFake;
@@ -221,6 +245,10 @@
 
     function handlePointerDown(pointer) {
       if (gameEnded) return;
+      if (stopButton && stopButton.getBounds().contains(pointer.x, pointer.y)) {
+        finishGame();
+        return;
+      }
 
       for (const hole of holes) {
         if (!hole.occupied) continue;
@@ -256,13 +284,36 @@
 
     function tickCountdown() {
       if (gameEnded) return;
+      elapsedMs += 1000;
+      if (arcadeMode) {
+        countdownText.setText('⏱ ' + Math.round(elapsedMs / 1000) + 's');
+        return;
+      }
       timeRemaining -= 1000;
       const secondsLeft = Math.max(0, Math.ceil(timeRemaining / 1000));
-      countdownText.setText(secondsLeft + 's');
+      countdownText.setText((bonusMode ? 'Bonus ' : '') + secondsLeft + 's');
 
       if (timeRemaining <= 0) {
-        finishGame();
+        if (bonusMode) finishGame();
+        else startBonus();
       }
+    }
+
+    // 45 s tenues : on continue pour des points en plus
+    function startBonus() {
+      bonusMode = true;
+      timeRemaining = BONUS_MAX_MS;
+      sfx('powerup');
+      const width = scene.scale.width;
+      countdownText.setText('Bonus ' + Math.round(BONUS_MAX_MS / 1000) + 's').setColor('#fbbf24').setX(width - 130);
+      const banner = scene.add.text(width / 2, 120, T('🎉 Objectif atteint !\nContinue pour des points bonus\n(ça va accélérer !)', '🎉 Goal reached!\nKeep going for bonus points\n(it’ll speed up!)'), {
+        fontSize: '16px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+        wordWrap: { width: width - 24 },
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 2200, duration: 700, onComplete: () => banner.destroy() });
+      stopButton = scene.add.text(width - 20, 52, T('✓ Terminer', '✓ Finish'), {
+        fontSize: '15px', color: '#ffffff', fontStyle: 'bold', backgroundColor: '#7c3aed', padding: { x: 10, y: 6 },
+      }).setOrigin(1, 0).setDepth(20);
     }
 
     function finishGame() {

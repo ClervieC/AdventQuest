@@ -3,15 +3,18 @@ export type SymbolIndex = 0 | 1 | 2 | 3; // 4 symboles/couleurs possibles
 export interface SequenceConfig {
   startLength: number;     // longueur de départ de la séquence
   maxLength: number;       // longueur à atteindre pour gagner
+  capLength: number;       // au-delà de l'objectif, on continue en bonus jusqu'à cette longueur au plus
   displayDelayMs: number;  // délai entre chaque symbole affiché
 }
 
 export const DIFFICULTY_CONFIGS: Record<string, SequenceConfig> = {
-  easy: { startLength: 3, maxLength: 5, displayDelayMs: 800 },
-  medium: { startLength: 4, maxLength: 7, displayDelayMs: 650 },
-  hard: { startLength: 5, maxLength: 10, displayDelayMs: 450 },
-  very_hard: { startLength: 6, maxLength: 12, displayDelayMs: 380 },
+  easy: { startLength: 3, maxLength: 5, capLength: 10, displayDelayMs: 800 },
+  medium: { startLength: 4, maxLength: 7, capLength: 14, displayDelayMs: 650 },
+  hard: { startLength: 5, maxLength: 10, capLength: 18, displayDelayMs: 450 },
+  very_hard: { startLength: 6, maxLength: 12, capLength: 20, displayDelayMs: 380 },
 };
+
+export const BONUS_POINTS_PER_COLOR = 100;
 
 /** Génère une séquence aléatoire de la longueur demandée */
 export function generateSequence(length: number): SymbolIndex[] {
@@ -46,11 +49,15 @@ export function checkPlayerInput(
   return 'correct_so_far';
 }
 
-/** Calcule le score selon la longueur de séquence atteinte et les hints utilisés */
-export function calculateSequenceScore(sequenceLengthReached: number, hintsUsed: number): number {
+/**
+ * Calcule le score selon la longueur de séquence atteinte et les hints utilisés.
+ * Chaque couleur au-delà de l'objectif (`goalLength`) rapporte des points bonus en plus.
+ */
+export function calculateSequenceScore(sequenceLengthReached: number, hintsUsed: number, goalLength: number = Infinity): number {
   const baseScore = sequenceLengthReached * 150;
+  const bonus = Math.max(0, sequenceLengthReached - goalLength) * BONUS_POINTS_PER_COLOR;
   const hintPenalty = hintsUsed * 80;
-  return Math.max(baseScore - hintPenalty, 50);
+  return Math.max(baseScore + bonus - hintPenalty, 50);
 }
 
 /** Le joueur a-t-il atteint la longueur maximale pour gagner ? */
@@ -64,4 +71,13 @@ export function hasWon(currentLength: number, maxLength: number): boolean {
 export function sequenceDelayMs(baseDelayMs: number, round: number): number {
   const slowdown = 1 + 0.5 * Math.max(0, 1 - round / 3);
   return Math.round(baseDelayMs * slowdown);
+}
+
+/**
+ * En bonus (séquences plus longues que l'objectif), les couleurs défilent de plus en plus vite :
+ * −12 % par manche bonus, sans descendre sous 220 ms.
+ */
+export function bonusDelayMs(delayMs: number, bonusRounds: number): number {
+  if (bonusRounds <= 0) return delayMs;
+  return Math.max(220, Math.round(delayMs * 0.88 ** bonusRounds));
 }

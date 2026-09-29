@@ -42,10 +42,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
           configureDifficulty(currentDifficulty);
@@ -278,8 +280,56 @@
       updateHintButton();
     }
 
+    // Onglet Jeux : des niveaux. Mur brisé = niveau suivant, avec plus de rangées, plus de glace épaisse
+    // et une balle plus rapide. La partie s'arrête quand la balle tombe ou que le temps du niveau est écoulé.
+    let level = 1;
+    function arcadeLevelSettings(n) {
+      return {
+        rows: Math.min(8, 3 + n),
+        cols: n < 3 ? 7 : 8,
+        ballSpeed: Math.min(580, 380 + 25 * n),
+        durationMs: 100000,
+        strongChance: Math.min(0.5, 0.1 * (n - 1)),
+        powerChance: 0.2,
+        malusChance: Math.min(0.45, 0.2 + 0.04 * n),
+      };
+    }
+
+    function nextLevel() {
+      level += 1;
+      settings = arcadeLevelSettings(level);
+      balls.forEach((b) => b.sprite.destroy());
+      capsules.forEach((c) => c.sprite.destroy());
+      balls = [];
+      capsules = [];
+      combo = 0;
+      elapsedMs = 0;
+      bonusTimeMs = 0;
+      wideUntil = 0;
+      invertUntil = 0;
+      fastUntil = 0;
+      layout();
+      buildBricks();
+      paddle.x = width / 2;
+      syncPaddle();
+      createBall(paddle.x, paddleY - PADDLE_H / 2 - BALL_RADIUS, 0, 0, true);
+      comboText.setText('');
+      effectText.setText('');
+      sfx('powerup');
+      const banner = scene.add.text(width / 2, height * 0.45, T('🎉 Niveau ', '🎉 Level ') + level, {
+        fontSize: '24px', color: '#fbbf24', fontStyle: 'bold', stroke: '#0c1521', strokeThickness: 5,
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 1200, duration: 600, onComplete: () => banner.destroy() });
+      launchAt = scene.time.now + AUTO_LAUNCH_MS;
+      running = true;
+    }
+
     // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
     function startGame() {
+      if (arcadeMode) {
+        level = 1;
+        settings = arcadeLevelSettings(level);
+      }
       resetState();
       running = true;
       launchAt = scene.time.now + AUTO_LAUNCH_MS;
@@ -391,7 +441,7 @@
       updateEffectText();
 
       const msLeft = settings.durationMs + bonusTimeMs - elapsedMs;
-      timeText.setText(Math.max(0, Math.ceil(msLeft / 1000)) + 's');
+      timeText.setText((arcadeMode ? T('Niv. ', 'Lvl ') + level + ' · ' : '') + Math.max(0, Math.ceil(msLeft / 1000)) + 's');
       if (msLeft <= 0) finishGame(false);
     }
 
@@ -579,6 +629,12 @@
       score += secondsLeft * TIME_BONUS_PER_SECOND;
       scoreText.setText('Score: ' + score);
       flashFeedback(width / 2, height / 2, T('Glace brisée ! +', 'Ice broken! +') + secondsLeft * TIME_BONUS_PER_SECOND, '#34d399');
+      if (arcadeMode) {
+        // Pause le temps de voir le mur tomber, puis niveau suivant (hors de la boucle des balles)
+        running = false;
+        scene.time.delayedCall(900, nextLevel);
+        return;
+      }
       finishGame(true);
     }
 

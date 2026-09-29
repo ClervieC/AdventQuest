@@ -1,6 +1,7 @@
 import { ComponentType, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Localized, useI18n } from '../../services/i18n';
+import { useRecordsStore } from '../../store/recordsStore';
 import { GameComponentProps, GameResult } from '../GameWrapper/types';
 import { applyStageResult, continueMarathon, initialMarathonState, isFinished, MarathonState, totalScore } from './logic';
 
@@ -12,6 +13,7 @@ export interface MarathonStage {
   // false pour les jeux React Native qui démarrent leur chrono au montage : sinon le temps
   // passé sur l'écran d'entracte compterait dans leur score. Les jeux Phaser, eux, attendent INIT.
   preload?: boolean;
+  recordKey?: string; // le score de l'épreuve compte aussi pour le record de ce jeu (onglet Jeux)
 }
 
 interface MarathonGameProps extends GameComponentProps {
@@ -37,6 +39,8 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
   const handleStageEnd = (result: GameResult) => {
     const next = applyStageResult(stateRef.current, result, stages.length);
     if (next === stateRef.current) return;
+    const recordKey = stages[stateRef.current.stageIndex]?.recordKey;
+    if (recordKey) useRecordsStore.getState().submit(recordKey, result.score);
     stateRef.current = next;
     setState(next);
     if (isFinished(next)) {
@@ -76,6 +80,8 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
           // Pendant l'entracte, l'épreuve suivante se charge en arrière-plan (même taille : pas de redimensionnement)
           const isPreloading = i === state.stageIndex + 1 && state.status === 'interlude' && stage.preload !== false;
           if (!isActive && !isPreloading) return null;
+          // Épreuve React Native en première position : son chrono démarre au montage, on attend « Jouer »
+          if (isActive && !isStarted && stage.preload === false) return null;
 
           const Stage = stage.component;
           return (

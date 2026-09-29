@@ -1,40 +1,62 @@
 import { ImageSourcePropType } from 'react-native';
 import type { Localized } from '../services/i18n';
 import { GameType } from './days';
+import type { ExtraGameType } from './extraGames';
 
 // Tutoriels affichés avant de jouer : une capture du jeu en cours de partie + les règles en 3 étapes.
-// Les captures (assets/tutorials) sont prises dans le navigateur, jeu lancé, en 393×796.
+// Les captures (assets/tutorials) sont prises dans le navigateur, jeu lancé, en 393×796 : tuto-<jeu>.jpg en
+// français, tuto-<jeu>.en.jpg en anglais (le tutoriel montre celle de la langue du joueur).
 
 export interface TutorialStep {
   icon: string;
   text: Localized;
 }
 
-export interface GameTutorial {
-  images: { source: ImageSourcePropType; caption?: Localized }[];
+// Une épreuve d'un marathon : sa capture à côté de ses propres règles (comme un jeu simple)
+// Capture du jeu dans chaque langue (textes du jeu en français ou en anglais)
+export interface ShotSource {
+  fr: ImageSourcePropType;
+  en: ImageSourcePropType;
+}
+
+export interface TutorialSection {
+  title: Localized;
+  image: ShotSource;
   steps: TutorialStep[];
+}
+
+export interface GameTutorial {
+  images: { source: ShotSource; caption?: Localized }[];
+  sections?: TutorialSection[]; // marathons : une section par épreuve, dans l'ordre
+  steps: TutorialStep[]; // marathons : règles communes, affichées après les épreuves
   keyboard?: Localized; // commandes au clavier, affichées seulement sur ordi
 }
 
-const IMAGES = {
-  quiz: require('../assets/tutorials/tuto-quiz.jpg'),
-  stack: require('../assets/tutorials/tuto-stack.jpg'),
-  sudoku: require('../assets/tutorials/tuto-sudoku.jpg'),
-  spaceinvaders: require('../assets/tutorials/tuto-spaceinvaders.jpg'),
-  snake: require('../assets/tutorials/tuto-snake.jpg'),
-  dessinconnecte: require('../assets/tutorials/tuto-dessinconnecte.jpg'),
-  fruitninja: require('../assets/tutorials/tuto-fruitninja.jpg'),
-  memory_sequence: require('../assets/tutorials/tuto-memory_sequence.jpg'),
-  bubbleshooter: require('../assets/tutorials/tuto-bubbleshooter.jpg'),
-  pipepuzzle: require('../assets/tutorials/tuto-pipepuzzle.jpg'),
-  solitaire: require('../assets/tutorials/tuto-solitaire.jpg'),
-  runner: require('../assets/tutorials/tuto-runner.jpg'),
-  labyrinthe: require('../assets/tutorials/tuto-labyrinthe.jpg'),
-  nonogram: require('../assets/tutorials/tuto-nonogram.jpg'),
-  whackamole: require('../assets/tutorials/tuto-whackamole.jpg'),
-  dodgeball: require('../assets/tutorials/tuto-dodgeball.jpg'),
-  cassebriques: require('../assets/tutorials/tuto-cassebriques.jpg'),
-  rythme: require('../assets/tutorials/tuto-rythme.jpg'),
+const IMAGES: Record<string, ShotSource> = {
+  quiz: { fr: require('../assets/tutorials/tuto-quiz.jpg'), en: require('../assets/tutorials/tuto-quiz.en.jpg') },
+  stack: { fr: require('../assets/tutorials/tuto-stack.jpg'), en: require('../assets/tutorials/tuto-stack.en.jpg') },
+  sudoku: { fr: require('../assets/tutorials/tuto-sudoku.jpg'), en: require('../assets/tutorials/tuto-sudoku.en.jpg') },
+  spaceinvaders: { fr: require('../assets/tutorials/tuto-spaceinvaders.jpg'), en: require('../assets/tutorials/tuto-spaceinvaders.en.jpg') },
+  snake: { fr: require('../assets/tutorials/tuto-snake.jpg'), en: require('../assets/tutorials/tuto-snake.en.jpg') },
+  dessinconnecte: { fr: require('../assets/tutorials/tuto-dessinconnecte.jpg'), en: require('../assets/tutorials/tuto-dessinconnecte.en.jpg') },
+  fruitninja: { fr: require('../assets/tutorials/tuto-fruitninja.jpg'), en: require('../assets/tutorials/tuto-fruitninja.en.jpg') },
+  memory_sequence: { fr: require('../assets/tutorials/tuto-memory_sequence.jpg'), en: require('../assets/tutorials/tuto-memory_sequence.en.jpg') },
+  bubbleshooter: { fr: require('../assets/tutorials/tuto-bubbleshooter.jpg'), en: require('../assets/tutorials/tuto-bubbleshooter.en.jpg') },
+  pipepuzzle: { fr: require('../assets/tutorials/tuto-pipepuzzle.jpg'), en: require('../assets/tutorials/tuto-pipepuzzle.en.jpg') },
+  solitaire: { fr: require('../assets/tutorials/tuto-solitaire.jpg'), en: require('../assets/tutorials/tuto-solitaire.en.jpg') },
+  runner: { fr: require('../assets/tutorials/tuto-runner.jpg'), en: require('../assets/tutorials/tuto-runner.en.jpg') },
+  labyrinthe: { fr: require('../assets/tutorials/tuto-labyrinthe.jpg'), en: require('../assets/tutorials/tuto-labyrinthe.en.jpg') },
+  nonogram: { fr: require('../assets/tutorials/tuto-nonogram.jpg'), en: require('../assets/tutorials/tuto-nonogram.en.jpg') },
+  whackamole: { fr: require('../assets/tutorials/tuto-whackamole.jpg'), en: require('../assets/tutorials/tuto-whackamole.en.jpg') },
+  dodgeball: { fr: require('../assets/tutorials/tuto-dodgeball.jpg'), en: require('../assets/tutorials/tuto-dodgeball.en.jpg') },
+  cassebriques: { fr: require('../assets/tutorials/tuto-cassebriques.jpg'), en: require('../assets/tutorials/tuto-cassebriques.en.jpg') },
+  rythme: { fr: require('../assets/tutorials/tuto-rythme.jpg'), en: require('../assets/tutorials/tuto-rythme.en.jpg') },
+  slidingpuzzle: { fr: require('../assets/tutorials/tuto-slidingpuzzle.jpg'), en: require('../assets/tutorials/tuto-slidingpuzzle.en.jpg') },
+  match3: { fr: require('../assets/tutorials/tuto-match3.jpg'), en: require('../assets/tutorials/tuto-match3.en.jpg') },
+  flappy: { fr: require('../assets/tutorials/tuto-flappy.jpg'), en: require('../assets/tutorials/tuto-flappy.en.jpg') },
+  pairs: { fr: require('../assets/tutorials/tuto-pairs.jpg'), en: require('../assets/tutorials/tuto-pairs.en.jpg') },
+  wordsearch: { fr: require('../assets/tutorials/tuto-wordsearch.jpg'), en: require('../assets/tutorials/tuto-wordsearch.en.jpg') },
+  game2048: { fr: require('../assets/tutorials/tuto-game2048.jpg'), en: require('../assets/tutorials/tuto-game2048.en.jpg') },
 };
 
 const STEPS = {
@@ -46,7 +68,7 @@ const STEPS = {
   stack: [
     { icon: '👆', text: { fr: 'Touche l’écran pour lâcher le bloc qui se balance.', en: 'Tap the screen to drop the swinging block.' } },
     { icon: '✂️', text: { fr: 'Ce qui dépasse de la tour est coupé : le bloc suivant est plus petit.', en: 'Whatever overhangs the tower is cut off: the next block is smaller.' } },
-    { icon: '🎯', text: { fr: 'Bien aligné, le bloc garde sa taille. Monte le plus haut possible !', en: 'Line it up well and the block keeps its size. Build as high as you can!' } },
+    { icon: '🎯', text: { fr: 'Bien aligné, le bloc garde sa taille. Plus ton dernier bloc est large, plus tu gagnes de points ; objectif atteint, continue pour des points bonus !', en: 'Line it up well and the block keeps its size. The wider your last block, the more points; goal reached? Keep going for bonus points!' } },
   ],
   sudoku: [
     { icon: '👆', text: { fr: 'Choisis une case vide, puis touche un chiffre en bas.', en: 'Pick an empty square, then tap a number at the bottom.' } },
@@ -54,13 +76,13 @@ const STEPS = {
     { icon: '✏️', text: { fr: 'Mode Notes : écris des chiffres en petit pour garder les solutions possibles d’une case.', en: 'Notes mode: write small numbers to keep track of a square’s possible answers.' } },
   ],
   spaceinvaders: [
-    { icon: '👉', text: { fr: 'Garde le doigt appuyé et glisse pour déplacer ton vaisseau.', en: 'Keep your finger down and slide to move your ship.' } },
-    { icon: '🔫', text: { fr: 'Il tire tout seul tant que tu appuies.', en: 'It fires on its own as long as you hold.' } },
-    { icon: '👾', text: { fr: 'Détruis toutes les vagues avant que les ennemis n’arrivent en bas.', en: 'Destroy every wave before the enemies reach the bottom.' } },
+    { icon: '🚀', text: { fr: 'Garde le doigt appuyé et glisse pour déplacer ta fusée : elle tire des boules de neige toute seule.', en: 'Keep your finger down and slide to move your rocket: it fires snowballs on its own.' } },
+    { icon: '🧊', text: { fr: 'Abrite-toi derrière les blocs de glace. Tu as 3 vies ❤️ ; les lutins du haut rapportent le plus.', en: 'Take cover behind the ice blocks. You have 3 lives ❤️; the top elves are worth the most.' } },
+    { icon: '🛷', text: { fr: 'Touche le traîneau de Grimnoir quand il passe : +300 ! 💡 Le tir triple dure 6 s.', en: 'Hit Grimnoir’s sleigh when it flies by: +300! 💡 The triple shot lasts 6 s.' } },
   ],
   snake: [
     { icon: '👉', text: { fr: 'Glisse le doigt dans une direction pour faire tourner la guirlande.', en: 'Swipe in a direction to turn the garland.' } },
-    { icon: '🍎', text: { fr: 'Mange un maximum de pommes en 45 secondes.', en: 'Eat as many apples as you can in 45 seconds.' } },
+    { icon: '🍎', text: { fr: 'Mange au moins 15 pommes pour gagner, puis continue pour des points bonus : chaque pomme accélère la guirlande.', en: 'Eat at least 15 apples to win, then keep going for bonus points: every apple speeds the garland up.' } },
     { icon: '💥', text: { fr: 'Tu traverses les bords, mais ne te mords pas la queue !', en: 'You can go through the edges, but don’t bite your own tail!' } },
   ],
   dessinconnecte: [
@@ -100,8 +122,8 @@ const STEPS = {
   ],
   labyrinthe: [
     { icon: '👉', text: { fr: 'Glisse dans une direction : tu avances jusqu’au prochain croisement.', en: 'Swipe in a direction: you move to the next junction.' } },
-    { icon: '🧭', text: { fr: 'Trouve le chemin jusqu’à la sortie.', en: 'Find your way to the exit.' } },
-    { icon: '🔥', text: { fr: 'Dépêche-toi avant que la torche ne s’éteigne.', en: 'Hurry before the torch goes out.' } },
+    { icon: '🌑', text: { fr: 'Il fait noir : ta torche n’éclaire qu’autour de toi. Trouve le chemin jusqu’au 🎁.', en: 'It’s dark: your torch only lights up around you. Find your way to the 🎁.' } },
+    { icon: '🔥', text: { fr: 'La torche se consume : ramasse les 🔥 en chemin pour +10 s avant qu’elle s’éteigne.', en: 'The torch burns down: grab the 🔥 on the way for +10 s before it goes out.' } },
   ],
   nonogram: [
     { icon: '🔢', text: { fr: 'Chaque chiffre est un groupe de cases pleines qui se suivent, dans l’ordre de la ligne ou de la colonne.', en: 'Each number is a group of consecutive filled squares, in the order of the row or column.' } },
@@ -116,7 +138,7 @@ const STEPS = {
   dodgeball: [
     { icon: '👉', text: { fr: 'Garde le doigt appuyé et glisse pour déplacer ton personnage.', en: 'Keep your finger down and slide to move your character.' } },
     { icon: '☄️', text: { fr: 'Esquive les boules de neige, comètes et fantômes.', en: 'Dodge the snowballs, comets and ghosts.' } },
-    { icon: '🛡️', text: { fr: 'Attrape les boucliers et survis 60 secondes.', en: 'Grab the shields and survive 60 seconds.' } },
+    { icon: '🎁', text: { fr: 'Attrape les cadeaux pour des points en plus et survis jusqu’au bout du temps. 💡 Le bouclier arrête un projectile.', en: 'Catch the presents for extra points and survive until time runs out. 💡 The shield stops one projectile.' } },
   ],
   cassebriques: [
     { icon: '👉', text: { fr: 'Glisse le doigt pour déplacer la raquette.', en: 'Slide your finger to move the paddle.' } },
@@ -135,7 +157,7 @@ const KEYBOARD = {
   quiz: { fr: 'touches 1 à 4 (ou A à D) pour répondre.', en: 'keys 1 to 4 (or A to D) to answer.' },
   stack: { fr: 'Espace, Entrée ou ↓ pour lâcher le bloc.', en: 'Space, Enter or ↓ to drop the block.' },
   sudoku: { fr: 'flèches pour choisir la case, 1 à 9 pour écrire, Retour arrière pour effacer, N pour les notes.', en: 'arrows to pick a square, 1 to 9 to write, Backspace to erase, N for notes.' },
-  spaceinvaders: { fr: '← → pour bouger, Espace (maintenu) pour tirer.', en: '← → to move, hold Space to shoot.' },
+  spaceinvaders: { fr: '← → pour bouger, Espace (maintenu) pour tirer, H pour le tir triple.', en: '← → to move, hold Space to shoot, H for the triple shot.' },
   snake: { fr: 'les flèches pour tourner.', en: 'arrow keys to turn.' },
   dessinconnecte: { fr: 'maintiens le clic de la souris et passe sur les points.', en: 'hold the mouse button and go over the dots.' },
   fruitninja: { fr: 'maintiens le clic de la souris et glisse sur les friandises.', en: 'hold the mouse button and swipe across the treats.' },
@@ -155,6 +177,68 @@ const KEYBOARD = {
 type SimpleGame = keyof typeof STEPS;
 
 const simple = (game: SimpleGame): GameTutorial => ({ images: [{ source: IMAGES[game] }], steps: STEPS[game], keyboard: KEYBOARD[game] });
+
+const CHAIN_STEP: TutorialStep = {
+  icon: '❗',
+  text: { fr: 'Les épreuves s’enchaînent : un seul échec et tout est à refaire.', en: 'The trials follow each other: fail once and you start over.' },
+};
+
+const NEW_GAMES: Record<ExtraGameType, GameTutorial> = {
+  slidingpuzzle: {
+    images: [{ source: IMAGES.slidingpuzzle }],
+    steps: [
+      { icon: '🧩', text: { fr: 'Taquin : touche une pièce voisine de la case vide pour la faire glisser.', en: 'Sliding puzzle: tap a piece next to the empty square to slide it.' } },
+      { icon: '🖼️', text: { fr: 'Remets les pièces 1 à 8 dans l’ordre pour reconstituer l’image.', en: 'Put pieces 1 to 8 back in order to rebuild the picture.' } },
+      { icon: '⏱️', text: { fr: 'Avant la fin du temps. 💡 L’indice joue le bon coup à ta place.', en: 'Before time runs out. 💡 The hint plays the right move for you.' } },
+    ],
+    keyboard: { fr: 'les flèches font glisser une pièce vers la case vide.', en: 'arrow keys slide a piece into the empty square.' },
+  },
+  match3: {
+    images: [{ source: IMAGES.match3 }],
+    steps: [
+      { icon: '🍬', text: { fr: 'Friandises (comme Candy Crush) : échange deux friandises voisines pour en aligner 3 ou plus.', en: 'Treats (like Candy Crush): swap two neighbouring treats to line up 3 or more.' } },
+      { icon: '⛓️', text: { fr: 'Les réactions en chaîne rapportent de plus en plus de points.', en: 'Chain reactions earn more and more points.' } },
+      { icon: '🎯', text: { fr: 'Atteins le score demandé avant la fin des 25 échanges.', en: 'Reach the target score within 25 swaps.' } },
+    ],
+    keyboard: { fr: 'clique sur une friandise puis sur sa voisine.', en: 'click a treat, then its neighbour.' },
+  },
+  flappy: {
+    images: [{ source: IMAGES.flappy }],
+    steps: [
+      { icon: '🦌', text: { fr: 'Envol du renne : touche l’écran pour battre des ailes et passe entre les colonnes de glace.', en: 'Reindeer flight: tap the screen to flap and fly between the ice columns.' } },
+      { icon: '✨', text: { fr: 'Attrape les étoiles pour des points en plus. Ne touche ni les colonnes ni le sol.', en: 'Grab the stars for extra points. Don’t touch the columns or the ground.' } },
+      { icon: '🎉', text: { fr: 'Objectif atteint ? Continue pour des points bonus. 💡 Le bouclier encaisse un choc.', en: 'Goal reached? Keep going for bonus points. 💡 The shield takes one hit.' } },
+    ],
+    keyboard: { fr: 'Espace ou ↑ pour battre des ailes.', en: 'Space or ↑ to flap.' },
+  },
+  pairs: {
+    images: [{ source: IMAGES.pairs }],
+    steps: [
+      { icon: '🃏', text: { fr: 'Paires : retourne deux cartes ; identiques, elles restent visibles.', en: 'Pairs: turn over two cards; if they match, they stay face up.' } },
+      { icon: '🧠', text: { fr: 'Retiens où sont les cartes déjà vues.', en: 'Remember where the cards you’ve seen are.' } },
+      { icon: '⏱️', text: { fr: 'Trouve toutes les paires avant la fin du temps. 💡 L’indice montre toutes les cartes un instant.', en: 'Find every pair before time runs out. 💡 The hint shows all the cards for a moment.' } },
+    ],
+    keyboard: { fr: 'clique sur les cartes.', en: 'click the cards.' },
+  },
+  wordsearch: {
+    images: [{ source: IMAGES.wordsearch }],
+    steps: [
+      { icon: '🔤', text: { fr: 'Mots mêlés : glisse de la première à la dernière lettre d’un mot.', en: 'Word search: swipe from the first to the last letter of a word.' } },
+      { icon: '↘️', text: { fr: 'Les mots sont en ligne, en colonne ou en diagonale (parfois à l’envers).', en: 'Words go across, down or diagonally (sometimes backwards).' } },
+      { icon: '⏱️', text: { fr: 'Trouve tous les mots de la liste avant la fin du temps.', en: 'Find every word in the list before time runs out.' } },
+    ],
+    keyboard: { fr: 'maintiens le clic de la première à la dernière lettre.', en: 'hold the mouse button from the first to the last letter.' },
+  },
+  game2048: {
+    images: [{ source: IMAGES.game2048 }],
+    steps: [
+      { icon: '👉', text: { fr: '2048 : glisse pour pousser toutes les tuiles dans une direction.', en: '2048: swipe to push every tile in one direction.' } },
+      { icon: '❄️', text: { fr: 'Deux objets identiques fusionnent : ❄️ → ⛄ → 🍪 → 🍭 → 🧦 → 🔔 → 🎄…', en: 'Two identical items merge: ❄️ → ⛄ → 🍪 → 🍭 → 🧦 → 🔔 → 🎄…' } },
+      { icon: '🎯', text: { fr: 'Atteins l’objet demandé avant que la grille soit bloquée, puis continue pour le record.', en: 'Reach the target item before the grid locks up, then keep going for your record.' } },
+    ],
+    keyboard: { fr: 'les flèches pour pousser les tuiles.', en: 'arrow keys to push the tiles.' },
+  },
+};
 
 export const TUTORIALS: Record<GameType, GameTutorial> = {
   quiz: simple('quiz'),
@@ -176,41 +260,54 @@ export const TUTORIALS: Record<GameType, GameTutorial> = {
   cassebriques: simple('cassebriques'),
   rythme: simple('rythme'),
   // Marathons et boss : une image par épreuve, dans l'ordre
+  // Mini-jeux des épreuves 22 à 24
+  ...NEW_GAMES,
+  // Marathons et boss : les règles de chaque épreuve, dans l'ordre
   marathon_22: {
-    images: [
-      { source: IMAGES.spaceinvaders, caption: { fr: '1. Space Invaders', en: '1. Space Invaders' } },
-      { source: IMAGES.bubbleshooter, caption: { fr: '2. Bubble Shooter', en: '2. Bubble Shooter' } },
+    images: [],
+    sections: [
+      { title: { fr: 'Épreuve 1 · Taquin', en: 'Trial 1 · Sliding puzzle' }, image: IMAGES.slidingpuzzle, steps: NEW_GAMES.slidingpuzzle.steps },
+      { title: { fr: 'Épreuve 2 · Friandises', en: 'Trial 2 · Treats' }, image: IMAGES.match3, steps: NEW_GAMES.match3.steps },
     ],
-    steps: [
-      { icon: '👾', text: { fr: 'Épreuve 1 : glisse pour déplacer le vaisseau, il tire tout seul.', en: 'Trial 1: slide to move the ship, it fires on its own.' } },
-      { icon: '🫧', text: { fr: 'Épreuve 2 : vise en glissant, relâche pour tirer, éclate les bulles par 3.', en: 'Trial 2: slide to aim, let go to shoot, pop the bubbles in threes.' } },
-      { icon: '❗', text: { fr: 'Les deux épreuves s’enchaînent : un seul échec et tout est à refaire.', en: 'The two trials follow each other: fail once and you start over.' } },
-    ],
-    keyboard: { fr: 'Space Invaders : ← → et Espace pour tirer · Bubble Shooter : ← → pour viser, Espace pour tirer.', en: 'Space Invaders: ← → and Space to shoot · Bubble Shooter: ← → to aim, Space to shoot.' },
+    steps: [CHAIN_STEP],
+    keyboard: {
+      fr: 'Taquin : flèches · Friandises : clic sur deux friandises voisines.',
+      en: 'Sliding puzzle: arrows · Treats: click two neighbouring treats.',
+    },
   },
   marathon_23: {
-    images: [
-      { source: IMAGES.dodgeball, caption: { fr: '1. Dodge Ball', en: '1. Dodge Ball' } },
-      { source: IMAGES.nonogram, caption: { fr: '2. Nonogram', en: '2. Nonogram' } },
+    images: [],
+    sections: [
+      { title: { fr: 'Épreuve 1 · Envol du renne', en: 'Trial 1 · Reindeer flight' }, image: IMAGES.flappy, steps: NEW_GAMES.flappy.steps },
+      { title: { fr: 'Épreuve 2 · Paires', en: 'Trial 2 · Pairs' }, image: IMAGES.pairs, steps: NEW_GAMES.pairs.steps },
+      { title: { fr: 'Épreuve 3 · Mots mêlés', en: 'Trial 3 · Word search' }, image: IMAGES.wordsearch, steps: NEW_GAMES.wordsearch.steps },
     ],
-    steps: [
-      { icon: '🛡️', text: { fr: 'Épreuve 1 : glisse pour esquiver les projectiles pendant 60 secondes.', en: 'Trial 1: slide to dodge the projectiles for 60 seconds.' } },
-      { icon: '🎄', text: { fr: 'Épreuve 2 : noircis les cases grâce aux chiffres pour révéler le sapin.', en: 'Trial 2: use the numbers to fill in squares and reveal the fir tree.' } },
-      { icon: '❗', text: { fr: 'Les deux épreuves s’enchaînent : un seul échec et tout est à refaire.', en: 'The two trials follow each other: fail once and you start over.' } },
-    ],
-    keyboard: { fr: 'Dodge Ball : ← → pour te déplacer · Nonogram : clique sur les cases.', en: 'Dodge Ball: ← → to move · Nonogram: click the squares.' },
+    steps: [CHAIN_STEP],
+    keyboard: {
+      fr: 'Renne : Espace ou ↑ · Paires et mots mêlés : à la souris.',
+      en: 'Reindeer: Space or ↑ · Pairs and word search: with the mouse.',
+    },
   },
   boss: {
-    images: [
-      { source: IMAGES.stack, caption: { fr: '1. Stack', en: '1. Stack' } },
-      { source: IMAGES.cassebriques, caption: { fr: '2. Casse-briques', en: '2. Brick Breaker' } },
-      { source: IMAGES.quiz, caption: { fr: '3. Quiz final', en: '3. Final quiz' } },
+    images: [],
+    sections: [
+      { title: { fr: 'Épreuve 1 · Casse-briques', en: 'Trial 1 · Brick Breaker' }, image: IMAGES.cassebriques, steps: STEPS.cassebriques },
+      {
+        title: { fr: 'Épreuve 2 · 2048', en: 'Trial 2 · 2048' },
+        image: IMAGES.game2048,
+        steps: [
+          NEW_GAMES.game2048.steps[0],
+          NEW_GAMES.game2048.steps[1],
+          { icon: '🎄', text: { fr: 'Atteins le sapin 🎄 (128) avant que la grille soit bloquée.', en: 'Reach the tree 🎄 (128) before the grid locks up.' } },
+        ],
+      },
+      {
+        title: { fr: 'Épreuve 3 · Quiz final', en: 'Trial 3 · Final quiz' },
+        image: IMAGES.quiz,
+        steps: [STEPS.quiz[0], STEPS.quiz[1], { icon: '🚫', text: { fr: 'Aucun indice contre Grimnoir !', en: 'No hints against Grimnoir!' } }],
+      },
     ],
-    steps: [
-      { icon: '🧱', text: { fr: 'Épreuve 1 : touche pour empiler les blocs de la tour du Cœur.', en: 'Trial 1: tap to stack the blocks of the Heart’s tower.' } },
-      { icon: '🧊', text: { fr: 'Épreuve 2 : casse l’armure de glace avec la balle et la raquette.', en: 'Trial 2: break the ice armour with the ball and paddle.' } },
-      { icon: '❓', text: { fr: 'Épreuve 3 : réponds aux questions de Grimnoir. Aucun indice, aucune erreur permise !', en: 'Trial 3: answer Grimnoir’s questions. No hints, no mistakes allowed!' } },
-    ],
-    keyboard: { fr: 'Stack : Espace · Casse-briques : ← → et Espace · Quiz : touches 1 à 4.', en: 'Stack: Space · Brick Breaker: ← → and Space · Quiz: keys 1 to 4.' },
+    steps: [CHAIN_STEP],
+    keyboard: { fr: 'Casse-briques : ← → et Espace · 2048 : flèches · Quiz : touches 1 à 4.', en: 'Brick Breaker: ← → and Space · 2048: arrows · Quiz: keys 1 to 4.' },
   },
 };

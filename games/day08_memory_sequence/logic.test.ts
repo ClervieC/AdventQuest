@@ -1,5 +1,7 @@
 import {
+    bonusDelayMs,
     calculateSequenceScore,
+    DIFFICULTY_CONFIGS,
     checkPlayerInput,
     sequenceDelayMs,
     extendSequence,
@@ -105,5 +107,23 @@ describe('sequenceDelayMs', () => {
     expect(sequenceDelayMs(650, 1)).toBeLessThan(975);
     expect(sequenceDelayMs(650, 3)).toBe(650);
     expect(sequenceDelayMs(650, 8)).toBe(650);
+  });
+});
+
+describe('bonus au-delà de l’objectif', () => {
+  test('chaque couleur au-delà de l’objectif rapporte 100 points de plus', () => {
+    expect(calculateSequenceScore(7, 0, 7)).toBe(1050);
+    expect(calculateSequenceScore(9, 0, 7)).toBe(9 * 150 + 200);
+  });
+
+  test('les couleurs défilent plus vite à chaque manche bonus, avec un plancher', () => {
+    expect(bonusDelayMs(650, 0)).toBe(650);
+    expect(bonusDelayMs(650, 1)).toBeLessThan(650);
+    expect(bonusDelayMs(650, 3)).toBeLessThan(bonusDelayMs(650, 2));
+    expect(bonusDelayMs(650, 50)).toBe(220);
+  });
+
+  test('la longueur maximale dépasse toujours l’objectif', () => {
+    Object.values(DIFFICULTY_CONFIGS).forEach((c) => expect(c.capLength).toBeGreaterThan(c.maxLength));
   });
 });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; touch-action: none; }
     #game-container { width: 100%; height: 100%; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
@@ -37,28 +37,37 @@
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });
     }
+    function notifyHintUsed() {
+      sendToReactNative({ type: 'REQUEST_HINT_USE' });
+    }
 
-    let keys = null;
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
+          hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
           configureDifficulty(currentDifficulty);
         }
       } catch (e) {}
     });
 
     // ============================================
-    // CONFIG SPÉCIFIQUE SPACE INVADERS
+    // CONFIG SPÉCIFIQUE SPACE INVADERS DE NOËL
     // ============================================
 
+    // Les lutins de Grimnoir descendent par vagues. On les abat à coups de boules de neige depuis la fusée,
+    // abrité derrière des blocs de glace qui s'usent. 3 vies. Les rangées du haut rapportent plus.
+    // Onglet Jeux : vagues sans fin, chacune plus rapide et plus agressive.
+    // enemySpeed en px/s ; shootEveryMs = délai moyen entre deux tirs ennemis
     const DIFFICULTY_SETTINGS = {
-      easy:      { wavesCount: 2, enemySpeed: 25, enemyShootChance: 0.0015, descendStep: 18 },
-      medium:    { wavesCount: 3, enemySpeed: 35, enemyShootChance: 0.0025, descendStep: 22 },
-      hard:      { wavesCount: 4, enemySpeed: 45, enemyShootChance: 0.0035, descendStep: 26 },
-      very_hard: { wavesCount: 4, enemySpeed: 55, enemyShootChance: 0.0045, descendStep: 30 },
+      easy:      { wavesCount: 3, rows: 3, enemySpeed: 28, shootEveryMs: 1400, descendStep: 16 },
+      medium:    { wavesCount: 4, rows: 3, enemySpeed: 36, shootEveryMs: 1100, descendStep: 20 },
+      hard:      { wavesCount: 5, rows: 4, enemySpeed: 44, shootEveryMs: 900,  descendStep: 22 },
+      very_hard: { wavesCount: 5, rows: 4, enemySpeed: 52, shootEveryMs: 750,  descendStep: 26 },
     };
 
     let settings = DIFFICULTY_SETTINGS.easy;
@@ -67,40 +76,84 @@
       startGame();
     }
 
-    const ENEMY_ROWS = 3;
-    const ENEMY_COLS = 5;
-    const PLAYER_SPEED = 280;
+    // Rangées du haut vers le bas : plus c'est haut, plus ça rapporte
+    const ENEMY_TYPES = [
+      { emoji: '🦇', points: 40 },
+      { emoji: '👾', points: 30 },
+      { emoji: '👺', points: 20 },
+      { emoji: '👺', points: 20 },
+    ];
+    const ENEMY_COLS = 6;
+    const ENEMY_SIZE = 30;
+    const MAX_LIVES = 3;
+    const PLAYER_SPEED = 300;
+    const SHOT_COOLDOWN_MS = 330;
+    const BULLET_SPEED = 460;
+    const ENEMY_BULLET_SPEED = 250;
+    const INVULNERABLE_MS = 1300;
+    const TRIPLE_SHOT_MS = 6000;
+    const SLEIGH_POINTS = 300;
+    const WAVE_BONUS_PER_LIFE = 100;
+    const SHIELD_CELL = 7;
+    const SHIELD_COLS = 7;
+    const SHIELD_ROWS = 3;
 
     let scene;
+    let width, height, groundY, playerY, topY;
     let player;
-    let playerX;
-    let enemies = [];          // { sprite, alive }
-    let enemyDirection = 1;
-    let playerBullets = [];
-    let enemyBullets = [];
+    let enemies = [];        // { sprite, x, y, points, alive }
+    let formation = { x: 0, dir: 1 };
+    let playerBullets = [];  // { sprite, x, y, vx }
+    let enemyBullets = [];   // { sprite, x, y }
+    let shieldCells = [];    // { sprite, x, y, alive }
+    let snow = [];
+    let sleigh = null;       // { sprite, x, y, vx }
     let score = 0;
+    let lives = MAX_LIVES;
     let currentWave = 1;
+    let waveEnemyCount = 0;
     let gameEnded = false;
-    let started = false; // la boucle ne doit rien faire avant INIT (sinon le jeu se joue tout seul pendant l'intro)
+    let started = false;
+    let hintsLeft = 0;
+    let tripleUntil = 0;
+    let invulnerableUntil = 0;
+    let nextEnemyShotAt = 0;
+    let nextSleighAt = 0;
+    let wobble = 0;
+    let lastShotTime = 0;
     let pointerTargetX = null;
     let isPointerDown = false;
     let dragStartPointerX = 0;
     let dragStartPlayerX = 0;
-    let lastShotTime = 0;
-    const SHOT_COOLDOWN_MS = 350;
+    let keys;
+
+    let scoreText, waveText, livesText, hintButton, hintText, messageText;
+    let bgObjects = [];
 
     function preload() {}
 
     function create() {
       scene = this;
-      const width = this.scale.width;
-      const height = this.scale.height;
+      player = this.add.text(0, 0, '🚀', { fontSize: '34px' }).setOrigin(0.5).setAngle(-45).setDepth(5);
 
-      playerX = width / 2;
-      player = this.add.triangle(playerX, height - 60, 0, 30, 15, 0, 30, 30, 0x7c3aed);
+      scoreText = this.add.text(16, 14, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setDepth(10);
+      livesText = this.add.text(16, 38, '', { fontSize: '15px' }).setDepth(10);
+      waveText = this.add.text(0, 14, '', { fontSize: '15px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(10);
+      hintButton = this.add.rectangle(0, 38, 132, 30, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
+      hintText = this.add.text(0, 53, '', { fontSize: '12px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
+      messageText = this.add.text(0, 0, '', {
+        fontSize: '30px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 6,
+      }).setOrigin(0.5).setDepth(20).setAlpha(0);
 
-      // Contrôle "glisser" : le vaisseau suit le mouvement du doigt (pas de téléportation à l'endroit touché)
+      layout();
+      this.scale.on('resize', layout);
+
+      // Glisser : la fusée suit le mouvement du doigt (pas de téléportation) et tire tant qu'on appuie
       this.input.on('pointerdown', (pointer) => {
+        if (started && hintButton.getBounds().contains(pointer.x, pointer.y)) {
+          useHint();
+          return;
+        }
         dragStartPointerX = pointer.x;
         dragStartPlayerX = player.x;
         pointerTargetX = player.x;
@@ -110,196 +163,417 @@
         if (!isPointerDown) return;
         pointerTargetX = dragStartPlayerX + (pointer.x - dragStartPointerX);
       });
-      this.input.on('pointerup', () => {
-        isPointerDown = false;
-      });
-      // Sur ordi : ← → pour bouger, Espace (maintenu) pour tirer
+      this.input.on('pointerup', () => { isPointerDown = false; });
+      // Sur ordi : ← → pour bouger, Espace (maintenu) pour tirer, H pour le tir triple
       keys = this.input.keyboard.createCursorKeys();
-
-      this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
-      this.waveText = this.add.text(width - 110, 20, T('Vague 1', 'Wave 1'), { fontSize: '16px', color: '#f59e0b' });
+      this.input.keyboard.on('keydown-H', useHint);
 
       notifyReady();
+
+      if (!window.ReactNativeWebView) {
+        hintsLeft = 3;
+        scene.time.delayedCall(300, () => configureDifficulty('medium'));
+      }
     }
 
-    // INIT peut être reçu à chaque "Rejouer" : on repart toujours d'une partie propre
-    function startGame() {
+    // La WebView change de taille entre l'intro et la partie : décor et positions recalculés
+    function layout() {
+      width = scene.scale.width;
+      height = scene.scale.height;
+      topY = 90;
+      groundY = height - 34;
+      playerY = groundY - 34;
+      drawBackground();
+      player.setPosition(player.x || width / 2, playerY);
+      waveText.setX(width - 16);
+      hintButton.setX(width - 16);
+      hintText.setX(width - 82);
+      messageText.setPosition(width / 2, height * 0.42);
+    }
+
+    function drawBackground() {
+      bgObjects.forEach((o) => o.destroy());
+      bgObjects = [];
+      const add = (obj) => { bgObjects.push(obj); return obj; };
+      for (let i = 0; i < 60; i++) {
+        const star = add(scene.add.circle(Math.random() * width, Math.random() * groundY, Math.random() * 1.4 + 0.4, 0xffffff, Math.random() * 0.5 + 0.2));
+        // Les étoiles scintillent doucement
+        scene.tweens.add({ targets: star, alpha: 0.1, duration: 800 + Math.random() * 1600, yoyo: true, repeat: -1, delay: Math.random() * 1500 });
+      }
+      add(scene.add.circle(width * 0.84, 130, 22, 0xfef3c7, 0.8));
+      add(scene.add.rectangle(0, groundY, width, height - groundY, 0x0a1420).setOrigin(0, 0).setDepth(1));
+      add(scene.add.rectangle(0, groundY, width, 4, 0xdbeafe).setOrigin(0, 0).setDepth(1));
+      snow.forEach((f) => f.sprite.destroy());
+      snow = [];
+      for (let i = 0; i < 40; i++) {
+        snow.push({ sprite: scene.add.circle(Math.random() * width, Math.random() * height, Math.random() * 1.8 + 0.8, 0xffffff, 0.55).setDepth(0), speed: 20 + Math.random() * 40, drift: Math.random() * 2 * Math.PI });
+      }
+    }
+
+    // ---------- Partie ----------
+
+    function clearObjects() {
       enemies.forEach((e) => e.sprite.destroy());
-      playerBullets.forEach((b) => b.destroy());
-      enemyBullets.forEach((b) => b.destroy());
+      playerBullets.forEach((b) => b.sprite.destroy());
+      enemyBullets.forEach((b) => b.sprite.destroy());
+      shieldCells.forEach((c) => c.sprite.destroy());
+      if (sleigh) sleigh.sprite.destroy();
       enemies = [];
       playerBullets = [];
       enemyBullets = [];
-      score = 0;
-      currentWave = 1;
-      enemyDirection = 1;
-      gameEnded = false;
-      started = true;
-      pointerTargetX = null;
-      isPointerDown = false;
-      scene.scoreText.setText('Score: 0');
-      scene.waveText.setText(T('Vague 1', 'Wave 1'));
-      layoutPlayer();
-      player.x = scene.scale.width / 2;
-      spawnWave();
+      shieldCells = [];
+      sleigh = null;
     }
 
-    // La WebView peut changer de taille après le chargement : le vaisseau reste toujours en bas
-    function layoutPlayer() {
-      player.y = scene.scale.height - 60;
-      scene.waveText.x = scene.scale.width - 110;
+    // INIT peut être reçu à chaque « Rejouer » : on repart toujours d'une partie propre
+    function startGame() {
+      clearObjects();
+      score = 0;
+      lives = MAX_LIVES;
+      currentWave = 1;
+      gameEnded = false;
+      started = true;
+      tripleUntil = 0;
+      invulnerableUntil = 0;
+      pointerTargetX = null;
+      isPointerDown = false;
+      player.setText('🚀').setAlpha(1).setPosition(width / 2, playerY);
+      buildShields();
+      spawnWave();
+      nextSleighAt = scene.time.now + Phaser.Math.Between(14000, 22000);
+      updateHud();
+    }
+
+    // Blocs de glace devant la fusée, faits de petits cubes qui cassent un par un
+    function buildShields() {
+      const count = width < 360 ? 3 : 4;
+      const blockW = SHIELD_COLS * SHIELD_CELL;
+      const gap = (width - count * blockW) / (count + 1);
+      const shieldTop = playerY - 78;
+      for (let s = 0; s < count; s++) {
+        const left = gap + s * (blockW + gap);
+        for (let r = 0; r < SHIELD_ROWS; r++) {
+          for (let c = 0; c < SHIELD_COLS; c++) {
+            // Coins du haut arrondis
+            if (r === 0 && (c === 0 || c === SHIELD_COLS - 1)) continue;
+            const x = left + c * SHIELD_CELL + SHIELD_CELL / 2;
+            const y = shieldTop + r * SHIELD_CELL + SHIELD_CELL / 2;
+            const sprite = scene.add.rectangle(x, y, SHIELD_CELL - 1, SHIELD_CELL - 1, 0x93c5fd, 0.85).setDepth(3);
+            shieldCells.push({ sprite, x, y, alive: true });
+          }
+        }
+      }
     }
 
     function spawnWave() {
+      enemies.forEach((e) => e.sprite.destroy());
       enemies = [];
-      const width = scene.scale.width;
-      const startX = width * 0.15;
-      const spacingX = (width * 0.7) / (ENEMY_COLS - 1);
-      const startY = 80;
-      const spacingY = 50;
-
-      for (let row = 0; row < ENEMY_ROWS; row++) {
+      const spacingX = Math.min(52, (width - 60) / ENEMY_COLS);
+      const formationW = spacingX * (ENEMY_COLS - 1);
+      formation = { x: (width - formationW) / 2, dir: 1, spacingX };
+      for (let row = 0; row < settings.rows; row++) {
+        const type = ENEMY_TYPES[row];
         for (let col = 0; col < ENEMY_COLS; col++) {
-          const x = startX + col * spacingX;
-          const y = startY + row * spacingY;
-          const sprite = scene.add.circle(x, y, 16, 0xef4444);
-          enemies.push({ sprite, alive: true, x, y });
+          const sprite = scene.add.text(0, 0, type.emoji, { fontSize: ENEMY_SIZE + 'px' }).setOrigin(0.5).setDepth(4);
+          enemies.push({ sprite, col, row, x: 0, y: topY + 20 + row * 44, points: type.points, alive: true });
         }
       }
+      waveEnemyCount = enemies.length;
+      placeEnemies();
+      nextEnemyShotAt = scene.time.now + 1500;
+      announce(T('Vague ', 'Wave ') + currentWave);
+      updateHud();
     }
+
+    function placeEnemies() {
+      enemies.forEach((e) => {
+        e.x = formation.x + e.col * formation.spacingX;
+        e.sprite.setPosition(e.x, e.y);
+      });
+    }
+
+    function announce(text) {
+      messageText.setText(text).setAlpha(1).setScale(0.6);
+      scene.tweens.add({ targets: messageText, scale: 1, duration: 350, ease: 'Back.easeOut' });
+      scene.tweens.add({ targets: messageText, alpha: 0, delay: 1100, duration: 500 });
+    }
+
+    function updateHud() {
+      scoreText.setText('Score: ' + score);
+      livesText.setText('❤️'.repeat(lives) + '🖤'.repeat(Math.max(0, MAX_LIVES - lives)));
+      waveText.setText(T('Vague ', 'Wave ') + currentWave + (arcadeMode ? '' : ' / ' + settings.wavesCount));
+      const tripleActive = scene.time.now < tripleUntil;
+      hintText.setText(tripleActive ? T('🔱 Tir triple !', '🔱 Triple shot!') : T('💡 Tir triple (', '💡 Triple shot (') + hintsLeft + ')');
+      hintButton.setAlpha(hintsLeft > 0 || tripleActive ? 1 : 0.4);
+    }
+
+    function useHint() {
+      if (!started || gameEnded || hintsLeft <= 0 || scene.time.now < tripleUntil) return;
+      hintsLeft -= 1;
+      tripleUntil = scene.time.now + TRIPLE_SHOT_MS;
+      sfx('powerup');
+      notifyHintUsed();
+      floatText(player.x, playerY - 50, T('🔱 Tir triple 6 s', '🔱 Triple shot 6 s'), '#c4b5fd');
+      updateHud();
+      scene.time.delayedCall(TRIPLE_SHOT_MS, updateHud);
+    }
+
+    // ---------- Tirs ----------
 
     function tryShoot() {
-      const now = Date.now();
+      const now = scene.time.now;
       if (now - lastShotTime < SHOT_COOLDOWN_MS) return;
       lastShotTime = now;
-
-      const bullet = scene.add.rectangle(player.x, player.y - 20, 4, 14, 0x6ee7b7);
+      const spreads = now < tripleUntil ? [-120, 0, 120] : [0];
+      spreads.forEach((vx) => {
+        const sprite = scene.add.circle(player.x, playerY - 22, 5, 0xffffff).setStrokeStyle(2, 0x7dd3fc).setDepth(4);
+        playerBullets.push({ sprite, x: player.x, y: playerY - 22, vx });
+      });
       sfx('shoot');
-      playerBullets.push(bullet);
     }
 
-    function update(time, delta) {
-      if (gameEnded || !started) return;
-      layoutPlayer();
+    function enemyShoot() {
+      // Un lutin du bas d'une colonne tire un glaçon
+      const bottoms = {};
+      enemies.forEach((e) => {
+        if (e.alive && (!bottoms[e.col] || e.row > bottoms[e.col].row)) bottoms[e.col] = e;
+      });
+      const shooters = Object.values(bottoms);
+      if (shooters.length === 0) return;
+      // Plutôt ceux qui sont au-dessus du joueur
+      shooters.sort((a, b) => Math.abs(a.x - player.x) - Math.abs(b.x - player.x));
+      const shooter = Math.random() < 0.55 ? shooters[0] : shooters[Math.floor(Math.random() * shooters.length)];
+      const sprite = scene.add.triangle(shooter.x, shooter.y + 18, 0, 0, 10, 0, 5, 18, 0x7dd3fc).setDepth(4);
+      enemyBullets.push({ sprite, x: shooter.x, y: shooter.y + 18 });
+    }
 
-      // Tir automatique tant que le doigt (ou Espace) est appuyé
+    // ---------- Boucle ----------
+
+    function update(time, delta) {
+      const dt = Math.min(delta, 50) / 1000;
+      // La neige tombe tout le temps, même avant la partie
+      snow.forEach((f) => {
+        f.sprite.y += f.speed * dt;
+        f.sprite.x += Math.sin(time / 900 + f.drift) * 0.3;
+        if (f.sprite.y > height) { f.sprite.y = -4; f.sprite.x = Math.random() * width; }
+      });
+      if (gameEnded || !started) return;
+
+      movePlayer(dt);
       if (isPointerDown || (keys && keys.space.isDown)) tryShoot();
 
-      // Clavier : les flèches déplacent le vaisseau (et remplacent la cible du doigt)
+      moveEnemies(dt, time);
+      if (gameEnded) return;
+
+      if (time >= nextEnemyShotAt) {
+        enemyShoot();
+        // Chaque vague tire plus souvent (+10 % ; onglet Jeux : +15 %, jusqu'à 3×)
+        const factor = arcadeMode ? Math.min(3, 1 + 0.15 * (currentWave - 1)) : 1 + 0.1 * (currentWave - 1);
+        nextEnemyShotAt = time + (settings.shootEveryMs / factor) * Phaser.Math.FloatBetween(0.6, 1.4);
+      }
+
+      updateSleigh(dt, time);
+      updatePlayerBullets(dt);
+      updateEnemyBullets(dt, time);
+      player.setAlpha(time < invulnerableUntil ? (Math.floor(time / 100) % 2 ? 0.3 : 1) : 1);
+
+      if (!gameEnded && enemies.every((e) => !e.alive)) waveCleared();
+    }
+
+    function movePlayer(dt) {
       if (keys && (keys.left.isDown || keys.right.isDown)) {
-        const direction = keys.left.isDown ? -1 : 1;
-        player.x = Phaser.Math.Clamp(player.x + direction * PLAYER_SPEED * (delta / 1000), 20, scene.scale.width - 20);
+        player.x += (keys.left.isDown ? -1 : 1) * PLAYER_SPEED * dt;
         pointerTargetX = null;
       }
-
-      // Mouvement du joueur vers la cible (souris/tap)
       if (pointerTargetX !== null) {
         const diff = pointerTargetX - player.x;
-        const moveStep = Math.sign(diff) * Math.min(Math.abs(diff), PLAYER_SPEED * (delta / 1000));
-        player.x += moveStep;
-        player.x = Phaser.Math.Clamp(player.x, 20, scene.scale.width - 20);
+        player.x += Math.sign(diff) * Math.min(Math.abs(diff), PLAYER_SPEED * 1.6 * dt);
       }
+      player.x = Phaser.Math.Clamp(player.x, 22, width - 22);
+      player.y = playerY;
+    }
 
-      // Déplacement des ennemis (mouvement latéral collectif)
-      let hitEdge = false;
-      enemies.forEach((enemy) => {
-        if (!enemy.alive) return;
-        enemy.x += enemyDirection * settings.enemySpeed * (delta / 1000);
-        enemy.sprite.x = enemy.x;
-        // On ne change de sens que si on va VERS le bord : après un redimensionnement, un ennemi
-        // déjà hors limite déclencherait sinon un demi-tour + une descente à chaque image
-        if ((enemy.x < 30 && enemyDirection < 0) || (enemy.x > scene.scale.width - 30 && enemyDirection > 0)) hitEdge = true;
-
-        // Tir ennemi aléatoire
-        if (Math.random() < settings.enemyShootChance) {
-          const eBullet = scene.add.rectangle(enemy.x, enemy.y + 16, 4, 14, 0xf87171);
-          enemyBullets.push(eBullet);
-        }
+    function moveEnemies(dt, time) {
+      const alive = enemies.filter((e) => e.alive);
+      if (alive.length === 0) return;
+      // Comme dans l'original : moins il en reste, plus ils vont vite (jusqu'à ×2,5 pour le dernier).
+      // Chaque vague est aussi plus rapide (+10 % ; onglet Jeux : +12 %, jusqu'à 2,5×)
+      const thinning = 1 - alive.length / waveEnemyCount;
+      const waveBoost = arcadeMode ? Math.min(2.5, 1 + 0.12 * (currentWave - 1)) : 1 + 0.1 * (currentWave - 1);
+      const speed = settings.enemySpeed * waveBoost * (1 + 1.5 * thinning);
+      formation.x += formation.dir * speed * dt;
+      const minX = Math.min(...alive.map((e) => e.col)) * formation.spacingX + formation.x;
+      const maxX = Math.max(...alive.map((e) => e.col)) * formation.spacingX + formation.x;
+      if ((maxX > width - 22 && formation.dir > 0) || (minX < 22 && formation.dir < 0)) {
+        formation.dir *= -1;
+        enemies.forEach((e) => { e.y += settings.descendStep; });
+      }
+      // Petit dandinement, comme les pas des envahisseurs d'origine
+      wobble = Math.sin(time / 180) * 10;
+      enemies.forEach((e) => {
+        if (!e.alive) return;
+        e.x = formation.x + e.col * formation.spacingX;
+        e.sprite.setPosition(e.x, e.y).setAngle(wobble);
+        // Un lutin qui touche la glace la détruit ; s'il atteint la fusée, c'est perdu
+        shieldCells.forEach((c) => {
+          if (c.alive && Math.abs(c.x - e.x) < ENEMY_SIZE / 2 && Math.abs(c.y - e.y) < ENEMY_SIZE / 2) destroyCell(c);
+        });
       });
+      if (alive.some((e) => e.y > playerY - 26)) {
+        lives = 0;
+        updateHud();
+        finishGame(false);
+      }
+    }
 
-      if (hitEdge) {
-        enemyDirection *= -1;
-        enemies.forEach((enemy) => {
-          if (enemy.alive) {
-            enemy.y += settings.descendStep;
-            enemy.sprite.y = enemy.y;
-          }
+    function updatePlayerBullets(dt) {
+      playerBullets = playerBullets.filter((b) => {
+        b.y -= BULLET_SPEED * dt;
+        b.x += b.vx * dt;
+        b.sprite.setPosition(b.x, b.y);
+        if (b.y < topY - 40 || b.x < 0 || b.x > width) { b.sprite.destroy(); return false; }
+        // Glace : la boule de neige s'y écrase
+        const cell = shieldCells.find((c) => c.alive && Math.abs(c.x - b.x) < SHIELD_CELL && Math.abs(c.y - b.y) < SHIELD_CELL);
+        if (cell) { destroyCell(cell); b.sprite.destroy(); return false; }
+        // Traîneau de Grimnoir
+        if (sleigh && Math.abs(sleigh.x - b.x) < 26 && Math.abs(sleigh.y - b.y) < 18) {
+          hitSleigh();
+          b.sprite.destroy();
+          return false;
+        }
+        const enemy = enemies.find((e) => e.alive && Math.abs(e.x - b.x) < ENEMY_SIZE / 2 + 2 && Math.abs(e.y - b.y) < ENEMY_SIZE / 2 + 2);
+        if (enemy) {
+          killEnemy(enemy);
+          b.sprite.destroy();
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function updateEnemyBullets(dt, time) {
+      const speed = ENEMY_BULLET_SPEED * (arcadeMode ? Math.min(1.8, 1 + 0.06 * (currentWave - 1)) : 1);
+      enemyBullets = enemyBullets.filter((b) => {
+        b.y += speed * dt;
+        b.sprite.setPosition(b.x, b.y);
+        if (b.y > groundY) { b.sprite.destroy(); return false; }
+        const cell = shieldCells.find((c) => c.alive && Math.abs(c.x - b.x) < SHIELD_CELL && Math.abs(c.y - b.y) < SHIELD_CELL);
+        if (cell) { destroyCell(cell); b.sprite.destroy(); return false; }
+        if (time >= invulnerableUntil && Math.abs(b.x - player.x) < 16 && Math.abs(b.y - playerY) < 18) {
+          b.sprite.destroy();
+          hitPlayer(time);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function destroyCell(cell) {
+      cell.alive = false;
+      cell.sprite.destroy();
+    }
+
+    function killEnemy(enemy) {
+      enemy.alive = false;
+      score += enemy.points;
+      sfx('explode');
+      shatter(enemy.x, enemy.y, 0xbae6fd);
+      floatText(enemy.x, enemy.y, '+' + enemy.points, '#fbbf24');
+      enemy.sprite.destroy();
+      updateHud();
+    }
+
+    // Éclats de glace qui volent
+    function shatter(x, y, color) {
+      for (let i = 0; i < 9; i++) {
+        const shard = scene.add.rectangle(x, y, 3 + Math.random() * 4, 3 + Math.random() * 4, color).setDepth(6);
+        const a = Math.random() * Math.PI * 2;
+        const d = 20 + Math.random() * 30;
+        scene.tweens.add({
+          targets: shard, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, angle: Math.random() * 360, alpha: 0,
+          duration: 350 + Math.random() * 250, ease: 'Quad.easeOut', onComplete: () => shard.destroy(),
         });
       }
+    }
 
-      // Vérifie si un ennemi a atteint le joueur (game over)
-      const enemyReachedBottom = enemies.some((e) => e.alive && e.y > player.y - 40);
-      if (enemyReachedBottom) {
+    function floatText(x, y, text, color) {
+      const t = scene.add.text(Phaser.Math.Clamp(x, 90, width - 90), y, text, { fontSize: '15px', color, fontStyle: 'bold', stroke: '#0c1521', strokeThickness: 3 }).setOrigin(0.5).setDepth(12);
+      scene.tweens.add({ targets: t, y: y - 36, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+    }
+
+    function hitPlayer(time) {
+      lives -= 1;
+      sfx('hurt');
+      scene.cameras.main.shake(260, 0.014);
+      scene.cameras.main.flash(180, 239, 68, 68);
+      shatter(player.x, playerY, 0xef4444);
+      enemyBullets.forEach((b) => b.sprite.destroy());
+      enemyBullets = [];
+      invulnerableUntil = time + INVULNERABLE_MS;
+      updateHud();
+      if (lives <= 0) {
+        player.setText('💥');
         finishGame(false);
+      } else {
+        floatText(player.x, playerY - 40, T('Touché !', 'Hit!'), '#ef4444');
+      }
+    }
+
+    // ---------- Traîneau bonus ----------
+
+    function updateSleigh(dt, time) {
+      if (!sleigh && time >= nextSleighAt) {
+        const fromLeft = Math.random() < 0.5;
+        const sprite = scene.add.text(0, 0, '🛷', { fontSize: '30px' }).setOrigin(0.5).setDepth(4).setFlipX(!fromLeft);
+        sleigh = { sprite, x: fromLeft ? -30 : width + 30, y: topY - 22, vx: fromLeft ? 110 : -110 };
+        sfx('powerup');
+      }
+      if (!sleigh) return;
+      sleigh.x += sleigh.vx * dt;
+      sleigh.sprite.setPosition(sleigh.x, sleigh.y + Math.sin(time / 200) * 4);
+      if (sleigh.x < -40 || sleigh.x > width + 40) {
+        sleigh.sprite.destroy();
+        sleigh = null;
+        nextSleighAt = time + Phaser.Math.Between(15000, 25000);
+      }
+    }
+
+    function hitSleigh() {
+      score += SLEIGH_POINTS;
+      sfx('coin');
+      shatter(sleigh.x, sleigh.y, 0xfbbf24);
+      floatText(sleigh.x, sleigh.y + 20, T('Traîneau de Grimnoir ! +', 'Grimnoir’s sleigh! +') + SLEIGH_POINTS, '#fbbf24');
+      sleigh.sprite.destroy();
+      sleigh = null;
+      nextSleighAt = scene.time.now + Phaser.Math.Between(15000, 25000);
+      updateHud();
+    }
+
+    // ---------- Fin de vague / de partie ----------
+
+    function waveCleared() {
+      const bonus = lives * WAVE_BONUS_PER_LIFE;
+      score += bonus;
+      sfx('powerup');
+      floatText(width / 2, height * 0.52, T('Vague terminée ! +', 'Wave cleared! +') + bonus, '#34d399');
+      if (!arcadeMode && currentWave >= settings.wavesCount) {
+        updateHud();
+        finishGame(true);
         return;
       }
-
-      // Déplace les projectiles du joueur
-      playerBullets = playerBullets.filter((bullet) => {
-        bullet.y -= 400 * (delta / 1000);
-        if (bullet.y < 0) {
-          bullet.destroy();
-          return false;
-        }
-        return true;
-      });
-
-      // Déplace les projectiles ennemis
-      enemyBullets = enemyBullets.filter((bullet) => {
-        bullet.y += 300 * (delta / 1000);
-        if (bullet.y > scene.scale.height) {
-          bullet.destroy();
-          return false;
-        }
-        // collision avec le joueur
-        const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y);
-        if (dist < 20) {
-          bullet.destroy();
-          finishGame(false);
-          return false;
-        }
-        return true;
-      });
-
-      // Collision projectiles joueur <-> ennemis
-      playerBullets.forEach((bullet, bIndex) => {
-        enemies.forEach((enemy) => {
-          if (!enemy.alive) return;
-          const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, enemy.x, enemy.y);
-          if (dist < 20) {
-            enemy.alive = false;
-            enemy.sprite.destroy();
-            sfx('explode');
-            bullet.destroy();
-            playerBullets.splice(bIndex, 1);
-            score += 50;
-            scene.scoreText.setText('Score: ' + score);
-          }
-        });
-      });
-
-      // Vague terminée : tous les ennemis détruits
-      const remainingEnemies = enemies.filter((e) => e.alive).length;
-      if (remainingEnemies === 0) {
-        if (currentWave >= settings.wavesCount) {
-          finishGame(true);
-        } else {
-          currentWave += 1;
-          sfx('powerup');
-          scene.waveText.setText(T('Vague ', 'Wave ') + currentWave);
-          enemyDirection = 1;
-          spawnWave();
-        }
-      }
+      currentWave += 1;
+      playerBullets.forEach((b) => b.sprite.destroy());
+      enemyBullets.forEach((b) => b.sprite.destroy());
+      playerBullets = [];
+      enemyBullets = [];
+      spawnWave();
     }
 
     function finishGame(success) {
       if (gameEnded) return;
-      if (!success) sfx('hurt');
       gameEnded = true;
-      scene.time.delayedCall(300, () => {
-        endGame(success, score);
-      });
+      if (!success) sfx('hurt');
+      scene.time.delayedCall(success ? 500 : 900, () => endGame(success, score));
     }
 
     const config = {

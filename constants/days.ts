@@ -1,6 +1,7 @@
 import type { Localized } from '../services/i18n';
+import type { ExtraGameType } from './extraGames';
 
-export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23' | 'boss' | 'rythme';
+export type GameType = 'quiz' | 'stack' | 'sudoku' | 'snake' | 'memory_sequence' | 'whackamole' | 'solitaire' | 'bubbleshooter' | 'labyrinthe' | 'pipepuzzle' | 'spaceinvaders' | 'dessinconnecte' | 'fruitninja' | 'nonogram' | 'runner' | 'dodgeball' | 'cassebriques' | 'marathon_22' | 'marathon_23' | 'boss' | 'rythme' | ExtraGameType;
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'very_hard' | 'boss';
 
 
@@ -68,8 +69,8 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: { fr: 'Guirlande enchantée', en: "Enchanted Garland" },
     fragmentIcon: '🎀',
     storyIntro: {
-      fr: "Au marché de Noël, une guirlande enchantée ondule entre les étals, affamée. Guide-la vers les pommes pendant 45 secondes pour qu'elle recrache le fragment.",
-      en: "At the Christmas market, a hungry enchanted garland slithers between the stalls. Guide it to the apples for 45 seconds so it spits out the shard.",
+      fr: "Au marché de Noël, une guirlande enchantée ondule entre les étals, affamée. Fais-lui manger au moins 15 pommes pour qu'elle recrache le fragment, puis continue tant qu'elle ne se mord pas la queue !",
+      en: "At the Christmas market, a hungry enchanted garland slithers between the stalls. Feed it at least 15 apples so it spits out the shard, then keep going until it bites its own tail!",
     },
   },
   {
@@ -259,8 +260,8 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: { fr: 'Corde du pont', en: "Bridge Rope" },
     fragmentIcon: '🪢',
     storyIntro: {
-      fr: "Au milieu du pont, deux épreuves t'attendent. Repousse les envahisseurs, puis fais éclater les bulles de givre, sans échouer une seule fois !",
-      en: "Halfway across the bridge, two trials await you. Fight off the invaders, then pop the frost bubbles, without failing a single time!",
+      fr: "Au milieu du pont, Grimnoir a déchiré une image de Noël et ensorcelé les friandises du village. Reconstitue l'image, puis aligne les friandises pour briser le sort. Deux épreuves, sans échouer une seule fois !",
+      en: "Halfway across the bridge, Grimnoir has torn up a Christmas picture and bewitched the village treats. Rebuild the picture, then match the treats to break the spell. Two trials, without failing a single time!",
     },
   },
   {
@@ -270,8 +271,8 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: { fr: 'Dernière planche', en: "Last Plank" },
     fragmentIcon: '💠',
     storyIntro: {
-      fr: "Au bout du pont, Grimnoir tente un dernier barrage. Esquive sa pluie de projectiles, puis garde ton sang-froid pour révéler le sapin caché dans la grille magique !",
-      en: "At the end of the bridge, Grimnoir tries one last blockade. Dodge his hail of projectiles, then keep your cool to reveal the fir tree hidden in the magic grid!",
+      fr: "Au bout du pont, Grimnoir tente un dernier barrage. Fais voler un renne entre ses colonnes de glace, retrouve les paires de son jeu de cartes truqué, puis déchiffre les mots de Noël qu'il a cachés. Trois épreuves, sans droit à l'erreur !",
+      en: "At the end of the bridge, Grimnoir tries one last blockade. Fly a reindeer between his ice columns, find the pairs in his rigged card game, then uncover the Christmas words he has hidden. Three trials, no room for error!",
     },
   },
   {
@@ -281,8 +282,8 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: { fr: 'Le Cœur de Noël', en: "The Heart of Christmas" },
     fragmentIcon: '❤️‍🔥',
     storyIntro: {
-      fr: "Grimnoir t'attend dans la Salle du Cœur. Reconstruis la tour du Cœur, brise son armure de glace, puis réponds à ses dernières questions. Trois épreuves, aucun hint, aucune erreur permise !",
-      en: "Grimnoir awaits you in the Hall of the Heart. Rebuild the Heart’s tower, break his ice armour, then answer his final questions. Three trials, no hints, no mistakes allowed!",
+      fr: "Grimnoir t'attend dans la Salle du Cœur. Brise son armure de glace, rassemble les éclats du Cœur jusqu'au sapin 🎄, puis réponds à ses dernières questions. Trois épreuves, aucun hint, aucune erreur permise !",
+      en: "Grimnoir awaits you in the Hall of the Heart. Break his ice armour, merge the Heart’s pieces up to the tree 🎄, then answer his final questions. Three trials, no hints, no mistakes allowed!",
     },
   },
 ];

@@ -7,6 +7,7 @@ import { LanguageToggle } from '../LanguageToggle';
 import { LegalKind, LegalLinks, LegalView } from '../Legal';
 import { useGameStore } from '../../store/gameStore';
 import { pageColumn } from '../../constants/layout';
+import { dayRecordKey, useRecordsStore } from '../../store/recordsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 
 const USERNAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]{3,20}$/;
@@ -45,6 +46,20 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
       unsubscribe?.();
     };
   }, [status, username, refresh]);
+
+  // Records personnels du joueur connecté (onglet Jeux). Les meilleurs scores des vraies parties du calendrier
+  // y sont reportés, pour les classements entre amis par jeu.
+  useEffect(() => {
+    if (status !== 'ready') return;
+    useRecordsStore
+      .getState()
+      .load(username)
+      .then(() => {
+        Object.entries(useGameStore.getState().days).forEach(([day, state]) => {
+          useRecordsStore.getState().submit(dayRecordKey(Number(day)), state.bestScore);
+        });
+      });
+  }, [status, username]);
 
   // Web : langue de la page (lecteurs d'écran, traduction automatique du navigateur)
   const lang = useSettingsStore((s) => s.lang);

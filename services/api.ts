@@ -300,6 +300,38 @@ export function adminResetProgress(userId: string): Promise<void> {
   return rpc<void>('admin_reset_progress', { p_user: userId });
 }
 
+/** Nouvelle saison : efface la progression de tous, les testeurs redeviennent joueurs. Renvoie le nombre de comptes. */
+export function adminResetSeason(): Promise<number> {
+  return rpc<number>('admin_reset_season');
+}
+
+// ---------- Records personnels (onglet Jeux) ----------
+
+export interface ArcadeRecordRow {
+  record_key: string;
+  score: number;
+}
+
+export interface FriendRecord {
+  user_id: string;
+  username: string;
+  score: number;
+  is_me: boolean;
+}
+
+export function submitArcadeRecord(key: string, score: number): Promise<void> {
+  return rpc<void>('submit_arcade_record', { p_key: key, p_score: Math.round(score) });
+}
+
+export async function fetchMyArcadeRecords(): Promise<ArcadeRecordRow[]> {
+  return (await rpc<ArcadeRecordRow[] | null>('my_arcade_records')) ?? [];
+}
+
+/** Classement d'un jeu entre moi et les joueurs que je suis (meilleur score parmi les clés données) */
+export async function fetchFriendsArcadeRecords(keys: string[]): Promise<FriendRecord[]> {
+  return (await rpc<FriendRecord[] | null>('friends_arcade_records', { p_keys: keys })) ?? [];
+}
+
 export function adminDeleteFeedback(id: number): Promise<void> {
   return rpc<void>('admin_delete_feedback', { p_id: id });
 }

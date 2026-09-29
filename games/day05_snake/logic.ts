@@ -11,6 +11,24 @@ export interface SnakeState {
   score: number;
   gridSize: number;
   isDead: boolean;
+  isFull: boolean; // le serpent remplit toute la grille : plus de place pour une pomme, partie parfaite
+}
+
+// Pas de chrono : on joue jusqu'à se mordre la queue. Il faut au moins MIN_APPLES pommes pour gagner le fragment,
+// chaque pomme accélère le serpent (de 240 ms à 80 ms par case, atteint à 20 pommes).
+export const MIN_APPLES = 15;
+export const TICK_SLOW_MS = 240;
+export const TICK_FAST_MS = 80;
+const TICK_SPEEDUP_PER_APPLE = 8;
+
+/** Délai entre deux pas du serpent selon le nombre de pommes mangées */
+export function getTickInterval(applesEaten: number): number {
+  return Math.max(TICK_FAST_MS, TICK_SLOW_MS - applesEaten * TICK_SPEEDUP_PER_APPLE);
+}
+
+/** Fragment gagné avec au moins MIN_APPLES pommes */
+export function isSnakeSuccess(applesEaten: number): boolean {
+  return applesEaten >= MIN_APPLES;
 }
 
 /** Calcule la prochaine position de la tête selon la direction, en traversant les murs (wrap-around) */
@@ -68,7 +86,7 @@ export function isEatingApple(newHead: Position, apple: Position): boolean {
 }
 
 export function advanceSnake(state: SnakeState): SnakeState {
-  if (state.isDead) return state;
+  if (state.isDead || state.isFull) return state;
 
   const newHead = getNextHeadPosition(state.snake[0], state.direction, state.gridSize);
   const ateApple = isEatingApple(newHead, state.apple);
@@ -81,12 +99,16 @@ export function advanceSnake(state: SnakeState): SnakeState {
     (seg) => seg.row === newHead.row && seg.col === newHead.col
   );
 
+  // Grille pleine : plus aucune case libre pour une nouvelle pomme (sinon la recherche tournerait à l'infini)
+  const isFull = !isDead && newSnake.length >= state.gridSize * state.gridSize;
+
   return {
     ...state,
     snake: newSnake,
-    apple: ateApple ? generateApplePosition(newSnake, state.gridSize) : state.apple,
+    apple: ateApple && !isFull ? generateApplePosition(newSnake, state.gridSize) : state.apple,
     score: ateApple ? state.score + 1 : state.score,
     isDead,
+    isFull,
   };
 }
 
@@ -100,10 +122,21 @@ export function createInitialState(gridSize: number): SnakeState {
     score: 0,
     gridSize,
     isDead: false,
+    isFull: false,
   };
 }
 
 /** Calcule le score final transmis au GameWrapper (pommes mangées = score direct) */
 export function calculateFinalScore(applesEaten: number): number {
   return applesEaten * 100;
+}
+/**
+ * File des virages demandés entre deux pas du serpent (au plus 2, pour enchaîner un virage rapide en « U »).
+ * Chaque virage est comparé au dernier de la file (ou à la direction réellement suivie) : jamais de demi-tour
+ * direct, même avec deux appuis très rapides entre deux pas (↑ puis ← puis ↓ quand on va vers le haut).
+ */
+export function queueTurn(queue: Direction[], currentDirection: Direction, turn: Direction, maxQueued = 2): Direction[] {
+  const last = queue.length > 0 ? queue[queue.length - 1] : currentDirection;
+  if (turn === last || isOppositeDirection(last, turn) || queue.length >= maxQueued) return queue;
+  return [...queue, turn];
 }

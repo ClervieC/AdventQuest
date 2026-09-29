@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; touch-action: none; }
+    #game-container { width: 100%; height: 100%; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <script>
+    // ============================================
+    // PONT DE COMMUNICATION — ne pas modifier
+    // ============================================
+    function sendToReactNative(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      } else {
+        console.log('[DEV MODE]', message);
+      }
+    }
+    // Bruitage (moteur injecté par l'app, silencieux si le son est coupé)
+    function sfx(name) {
+      if (window.GameSounds) window.GameSounds.play(name);
+    }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
+    function endGame(success, score) {
+      sendToReactNative({ type: 'GAME_OVER', success, score });
+    }
+    function notifyReady() {
+      sendToReactNative({ type: 'GAME_READY' });
+    }
+    function notifyHintUsed() {
+      sendToReactNative({ type: 'REQUEST_HINT_USE' });
+    }
+
+    let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
+          currentDifficulty = data.difficulty;
+          hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
+          configureDifficulty(currentDifficulty);
+        }
+      } catch (e) {}
+    });
+
+    // ============================================
+    // CONFIG SPÉCIFIQUE FLAPPY RENNE
+    // ============================================
+
+    // Toucher l'écran : le renne donne un coup d'ailes. Il faut passer entre les colonnes de glace.
+    // Objectif : passer `goal` colonnes. Ensuite, bonus de 60 s au plus : ça accélère et les passages se resserrent,
+    // jusqu'à la première collision (le fragment reste gagné) ou la fin du bonus.
+    // gap = hauteur du passage (px), speed = défilement (px/s), spacing = écart entre deux colonnes (px)
+    const DIFFICULTY_SETTINGS = {
+      easy:      { goal: 12, gap: 190, speed: 150, spacing: 260 },
+      medium:    { goal: 15, gap: 175, speed: 165, spacing: 250 },
+      hard:      { goal: 18, gap: 160, speed: 180, spacing: 240 },
+      very_hard: { goal: 15, gap: 160, speed: 180, spacing: 240 },
+    };
+
+    let settings = DIFFICULTY_SETTINGS.easy;
+
+    function configureDifficulty(difficulty) {
+      settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.easy;
+      startGame();
+    }
+
+    const GRAVITY = 1500;
+    const FLAP_VELOCITY = -430;
+    const PLAYER_RADIUS = 15;
+    const PILLAR_WIDTH = 58;
+    const POINTS_PER_PILLAR = 100;
+    const BONUS_POINTS_PER_PILLAR = 150;
+    const STAR_POINTS = 50;
+    const BONUS_MAX_MS = 60000;
+
+    let scene;
+    let width, height, groundY, playerX;
+    let player = { y: 0, vy: 0 };
+    let playerSprite, shieldSprite;
+    let pillars = [];   // { x, gapY, gap, passed, graphics }
+    let stars = [];     // { x, y, sprite }
+
+    let running = false;   // partie lancée (INIT reçu)
+    let flying = false;    // le renne attend le premier toucher avant de tomber
+    let gameEnded = false;
+    let score = 0;
+    let passedCount = 0;
+    let bonusMode = false;
+    let bonusElapsedMs = 0;
+    let shieldActive = false;
+    let hintsLeft = 0;
+    let stopButton = null;
+
+    let scoreText, goalText, hintButton, hintText, messageText;
+    let bgObjects = [];
+
+    function preload() {}
+
+    function create() {
+      scene = this;
+
+      // L'emoji 🦌 regarde vers la gauche : retourné pour voler vers la droite, dans le sens du jeu
+      playerSprite = this.add.text(0, 0, '🦌', { fontSize: '38px' }).setOrigin(0.5).setDepth(5).setFlipX(true);
+      shieldSprite = this.add.circle(0, 0, 26, 0x7dd3fc, 0.18).setStrokeStyle(2, 0x7dd3fc).setDepth(4).setVisible(false);
+
+      scoreText = this.add.text(20, 18, 'Score: 0', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setDepth(10);
+      goalText = this.add.text(20, 44, '', { fontSize: '14px', color: '#f59e0b', fontStyle: 'bold' }).setDepth(10);
+      hintButton = this.add.rectangle(0, 18, 124, 34, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
+      hintText = this.add.text(0, 35, '', { fontSize: '13px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
+      messageText = this.add.text(0, 0, T('Touche l’écran pour battre des ailes\nPasse entre les colonnes de glace', 'Tap the screen to flap\nFly between the ice columns'), {
+        fontSize: '15px', color: '#dbeafe', align: 'center', stroke: '#0c1521', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(10);
+
+      layout();
+      this.scale.on('resize', layout);
+
+      this.input.on('pointerdown', handlePointerDown);
+      // Clavier (ordi) : Espace ou ↑
+      this.input.keyboard.on('keydown-SPACE', flap);
+      this.input.keyboard.on('keydown-UP', flap);
+
+      resetState();
+      notifyReady();
+
+      if (!window.ReactNativeWebView) {
+        hintsLeft = 3;
+        scene.time.delayedCall(300, () => configureDifficulty('easy'));
+      }
+    }
+
+    function layout() {
+      width = scene.scale.width;
+      height = scene.scale.height;
+      groundY = height - 40;
+      playerX = Math.round(width * 0.28);
+      drawBackground();
+      hintButton.setX(width - 16);
+      hintText.setX(width - 78);
+      messageText.setPosition(width / 2, height * 0.3);
+      playerSprite.setPosition(playerX, player.y || height * 0.45);
+    }
+
+    function drawBackground() {
+      bgObjects.forEach((o) => o.destroy());
+      bgObjects = [];
+      const add = (obj) => { bgObjects.push(obj); return obj; };
+      for (let i = 0; i < 50; i++) {
+        add(scene.add.circle(Math.random() * width, Math.random() * groundY, Math.random() * 1.5 + 0.5, 0xffffff, Math.random() * 0.5 + 0.2));
+      }
+      add(scene.add.circle(width * 0.8, height * 0.18, 26, 0xfef3c7, 0.85)); // la lune
+      add(scene.add.rectangle(0, groundY, width, height - groundY, 0x0a1420).setOrigin(0, 0).setDepth(6));
+      add(scene.add.rectangle(0, groundY, width, 5, 0xdbeafe).setOrigin(0, 0).setDepth(6));
+    }
+
+    function resetState() {
+      pillars.forEach((p) => p.graphics.destroy());
+      stars.forEach((s) => s.sprite.destroy());
+      pillars = [];
+      stars = [];
+      player = { y: height * 0.45, vy: 0 };
+      score = 0;
+      passedCount = 0;
+      bonusMode = false;
+      bonusElapsedMs = 0;
+      shieldActive = false;
+      running = false;
+      flying = false;
+      gameEnded = false;
+      if (stopButton) { stopButton.destroy(); stopButton = null; }
+      playerSprite.setPosition(playerX, player.y).setAngle(0).setText('🦌');
+      shieldSprite.setVisible(false);
+      scoreText.setText('Score: 0');
+      updateGoalText();
+      updateHintButton();
+    }
+
+    function startGame() {
+      resetState();
+      // Onglet Jeux : pas d'objectif, on vole en « bonus » dès le départ, sans limite de temps
+      if (arcadeMode) bonusMode = true;
+      running = true;
+      messageText.setAlpha(1);
+    }
+
+    function updateGoalText() {
+      if (arcadeMode) {
+        goalText.setText(T('Colonnes : ', 'Columns: ') + passedCount).setColor('#f59e0b');
+      } else if (bonusMode) {
+        const left = Math.max(0, Math.ceil((BONUS_MAX_MS - bonusElapsedMs) / 1000));
+        goalText.setText('Bonus ' + left + 's').setColor('#fbbf24');
+      } else {
+        goalText.setText(T('Colonnes : ', 'Columns: ') + passedCount + ' / ' + settings.goal).setColor('#f59e0b');
+      }
+    }
+
+    function updateHintButton() {
+      hintText.setText(shieldActive ? T('🛡️ Bouclier actif', '🛡️ Shield active') : T('💡 Bouclier (', '💡 Shield (') + hintsLeft + ')');
+      hintButton.setAlpha(hintsLeft > 0 || shieldActive ? 1 : 0.4);
+    }
+
+    // En bonus : jusqu'à +50 % de vitesse et des passages 25 % plus étroits à la fin
+    // Onglet Jeux : la même accélération, étalée sur 2 min 30
+    function bonusProgress() {
+      return Phaser.Math.Clamp(bonusElapsedMs / (arcadeMode ? 150000 : BONUS_MAX_MS), 0, 1);
+    }
+    function currentSpeed() {
+      return settings.speed * (1 + 0.5 * bonusProgress());
+    }
+    function currentGap() {
+      return settings.gap * (1 - 0.25 * bonusProgress());
+    }
+
+    // ---------- Entrées ----------
+
+    function handlePointerDown(pointer) {
+      if (!running) return;
+      if (hintButton.getBounds().contains(pointer.x, pointer.y)) {
+        useHint();
+        return;
+      }
+      if (stopButton && stopButton.getBounds().contains(pointer.x, pointer.y)) {
+        finishGame(true);
+        return;
+      }
+      flap();
+    }
+
+    function flap() {
+      if (!running) return;
+      if (!flying) {
+        flying = true;
+        scene.tweens.add({ targets: messageText, alpha: 0, duration: 400 });
+      }
+      player.vy = FLAP_VELOCITY;
+      sfx('jump');
+    }
+
+    function useHint() {
+      if (hintsLeft <= 0 || shieldActive) return;
+      hintsLeft -= 1;
+      shieldActive = true;
+      sfx('powerup');
+      shieldSprite.setVisible(true);
+      notifyHintUsed();
+      flashFeedback(playerX, player.y - 45, T('🛡️ Bouclier !', '🛡️ Shield!'), '#7dd3fc');
+      updateHintButton();
+    }
+
+    // ---------- Colonnes ----------
+
+    function spawnPillar() {
+      const gap = currentGap();
+      const margin = 70;
+      const gapY = Phaser.Math.Between(Math.round(margin + gap / 2), Math.round(groundY - margin - gap / 2));
+      const x = width + PILLAR_WIDTH;
+      const graphics = scene.add.graphics().setDepth(3);
+      drawPillar(graphics, gapY, gap);
+      graphics.x = x;
+      pillars.push({ x, gapY, gap, passed: false, graphics });
+      // Une étoile à attraper dans un passage sur trois
+      if (Math.random() < 0.35) {
+        const sprite = scene.add.text(x, gapY, '✨', { fontSize: '24px' }).setOrigin(0.5).setDepth(4);
+        stars.push({ x, y: gapY, sprite });
+      }
+    }
+
+    // Colonne de glace rayée comme un sucre d'orge, dessinée autour de x = 0 (déplacée avec graphics.x)
+    function drawPillar(g, gapY, gap) {
+      const top = gapY - gap / 2;
+      const bottom = gapY + gap / 2;
+      g.fillStyle(0xbae6fd, 0.9);
+      g.fillRect(-PILLAR_WIDTH / 2, 0, PILLAR_WIDTH, top);
+      g.fillRect(-PILLAR_WIDTH / 2, bottom, PILLAR_WIDTH, groundY - bottom);
+      g.fillStyle(0xef4444, 0.8);
+      for (let y = top - 22; y > -30; y -= 44) g.fillRect(-PILLAR_WIDTH / 2, y, PILLAR_WIDTH, 12);
+      for (let y = bottom + 10; y < groundY; y += 44) g.fillRect(-PILLAR_WIDTH / 2, y, PILLAR_WIDTH, 12);
+      g.fillStyle(0xe0f2fe, 1);
+      g.fillRect(-PILLAR_WIDTH / 2 - 5, top - 14, PILLAR_WIDTH + 10, 14);
+      g.fillRect(-PILLAR_WIDTH / 2 - 5, bottom, PILLAR_WIDTH + 10, 14);
+    }
+
+    // ---------- Boucle ----------
+
+    function update(time, delta) {
+      if (!running || !flying) {
+        // En attente du premier toucher : le renne flotte doucement
+        if (running && !flying) playerSprite.setY(player.y + Math.sin(time / 250) * 6);
+        return;
+      }
+      const dt = Math.min(delta, 50) / 1000;
+
+      if (bonusMode) {
+        bonusElapsedMs += dt * 1000;
+        if (!arcadeMode && bonusElapsedMs >= BONUS_MAX_MS) {
+          finishGame(true);
+          return;
+        }
+      }
+
+      player.vy += GRAVITY * dt;
+      player.y += player.vy * dt;
+      if (player.y < PLAYER_RADIUS) {
+        player.y = PLAYER_RADIUS;
+        player.vy = 0;
+      }
+      playerSprite.setPosition(playerX, player.y);
+      playerSprite.setAngle(Phaser.Math.Clamp(player.vy / 18, -25, 60));
+      shieldSprite.setPosition(playerX, player.y);
+
+      const dx = currentSpeed() * dt;
+      pillars.forEach((p) => {
+        p.x -= dx;
+        p.graphics.x = p.x;
+      });
+      stars.forEach((s) => {
+        s.x -= dx;
+        s.sprite.x = s.x;
+      });
+
+      const last = pillars[pillars.length - 1];
+      if (!last || last.x < width + PILLAR_WIDTH - settings.spacing) spawnPillar();
+
+      // Colonne franchie
+      pillars.forEach((p) => {
+        if (!p.passed && p.x + PILLAR_WIDTH / 2 < playerX - PLAYER_RADIUS) {
+          p.passed = true;
+          passedCount += 1;
+          score += bonusMode ? BONUS_POINTS_PER_PILLAR : POINTS_PER_PILLAR;
+          sfx('coin');
+          if (!bonusMode && passedCount >= settings.goal) startBonus();
+        }
+      });
+
+      stars = stars.filter((s) => {
+        if (Phaser.Math.Distance.Between(s.x, s.y, playerX, player.y) < PLAYER_RADIUS + 14) {
+          score += STAR_POINTS;
+          sfx('powerup');
+          flashFeedback(s.x, s.y - 20, '+' + STAR_POINTS, '#fbbf24');
+          s.sprite.destroy();
+          return false;
+        }
+        if (s.x < -30) { s.sprite.destroy(); return false; }
+        return true;
+      });
+      pillars = pillars.filter((p) => {
+        if (p.x < -PILLAR_WIDTH) { p.graphics.destroy(); return false; }
+        return true;
+      });
+
+      checkCollisions();
+      scoreText.setText('Score: ' + score);
+      updateGoalText();
+    }
+
+    function checkCollisions() {
+      if (!running) return;
+      let hit = player.y + PLAYER_RADIUS >= groundY;
+      if (!hit) {
+        for (const p of pillars) {
+          const overlapX = playerX + PLAYER_RADIUS > p.x - PILLAR_WIDTH / 2 && playerX - PLAYER_RADIUS < p.x + PILLAR_WIDTH / 2;
+          const inGap = player.y - PLAYER_RADIUS > p.gapY - p.gap / 2 && player.y + PLAYER_RADIUS < p.gapY + p.gap / 2;
+          if (overlapX && !inGap) { hit = true; p.passed = true; break; }
+        }
+      }
+      if (!hit) return;
+      if (shieldActive && player.y + PLAYER_RADIUS < groundY) {
+        // Le bouclier encaisse le choc : le renne traverse cette colonne
+        shieldActive = false;
+        sfx('bounce');
+        scene.tweens.add({ targets: shieldSprite, scale: 1.8, alpha: 0, duration: 250, onComplete: () => shieldSprite.setVisible(false).setAlpha(1).setScale(1) });
+        pillars.forEach((p) => {
+          if (playerX + PLAYER_RADIUS > p.x - PILLAR_WIDTH / 2 && playerX - PLAYER_RADIUS < p.x + PILLAR_WIDTH / 2) p.gap = height * 2;
+        });
+        flashFeedback(playerX, player.y - 45, T('Bloqué !', 'Blocked!'), '#7dd3fc');
+        updateHintButton();
+        return;
+      }
+      sfx('hurt');
+      scene.cameras.main.shake(250, 0.015);
+      playerSprite.setText('💫');
+      flashFeedback(playerX, player.y - 45, T('Aïe !', 'Ouch!'), '#ef4444');
+      // En bonus, l'objectif est déjà atteint : la partie s'arrête avec le score
+      finishGame(bonusMode);
+    }
+
+    // Objectif atteint : fragment gagné, on continue pour des points en plus
+    function startBonus() {
+      bonusMode = true;
+      bonusElapsedMs = 0;
+      sfx('powerup');
+      const banner = scene.add.text(width / 2, height * 0.3, T('🎉 Objectif atteint !\nContinue pour des points bonus\n(ça va accélérer !)', '🎉 Goal reached!\nKeep going for bonus points\n(it’ll speed up!)'), {
+        fontSize: '17px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+        wordWrap: { width: width - 24 },
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 2200, duration: 700, onComplete: () => banner.destroy() });
+      stopButton = scene.add.text(width - 16, 60, T('✓ Terminer', '✓ Finish'), {
+        fontSize: '15px', color: '#ffffff', fontStyle: 'bold', backgroundColor: '#7c3aed', padding: { x: 10, y: 6 },
+      }).setOrigin(1, 0).setDepth(20);
+    }
+
+    function flashFeedback(x, y, text, color) {
+      const feedback = scene.add.text(x, y, text, { fontSize: '18px', color, fontStyle: 'bold' }).setOrigin(0.5).setDepth(12);
+      scene.tweens.add({ targets: feedback, y: y - 40, alpha: 0, duration: 700, onComplete: () => feedback.destroy() });
+    }
+
+    function finishGame(success) {
+      if (gameEnded) return;
+      gameEnded = true;
+      running = false;
+      scene.time.delayedCall(success ? 400 : 900, () => endGame(success, score));
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 'rgba(0,0,0,0)',
+      transparent: true,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      scene: { preload, create, update },
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>

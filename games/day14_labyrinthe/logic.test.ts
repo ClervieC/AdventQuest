@@ -1,4 +1,4 @@
-import { attemptMove, calculateMazeScore, canMove, generateMaze, getNextPosition, isAtExit, Maze, slideMove } from './logic';
+import { attemptMove, calculateMazeScore, canMove, distancesFrom, generateMaze, getNextPosition, isAtExit, Maze, placeTorches, shortestPathLength, slideMove, slidePath } from './logic';
 
 describe('generateMaze', () => {
   test('génère une grille de la bonne taille', () => {
@@ -177,5 +177,43 @@ describe('Labyrinthe - glissement jusqu’au croisement', () => {
 
   test('mur direct : ne bouge pas', () => {
     expect(slideMove(makeClosed(3), { row: 0, col: 0 }, 'right')).toEqual({ position: { row: 0, col: 0 }, steps: 0 });
+  });
+});
+
+describe('Labyrinthe - torches et plus court chemin', () => {
+  test('le plus court chemin relie le départ à la sortie et fait au moins 2 × (taille − 1) cases', () => {
+    for (let i = 0; i < 10; i++) {
+      const maze = generateMaze(11);
+      const length = shortestPathLength(maze);
+      expect(Number.isFinite(length)).toBe(true);
+      expect(length).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  test('le score compte les mouvements en trop par rapport au vrai plus court chemin', () => {
+    expect(calculateMazeScore(40, 11, 40)).toBe(1000);
+    expect(calculateMazeScore(50, 11, 40)).toBe(850);
+  });
+
+  test('les torches sont loin du départ, jamais sur la sortie ni l’une sur l’autre', () => {
+    for (let i = 0; i < 10; i++) {
+      const maze = generateMaze(11);
+      const torches = placeTorches(maze, 3, 6);
+      const distances = distancesFrom(maze, { row: 0, col: 0 });
+      expect(torches).toHaveLength(3);
+      torches.forEach((t) => {
+        expect(distances[t.row][t.col]).toBeGreaterThanOrEqual(6);
+        expect(isAtExit(t, 11)).toBe(false);
+      });
+      expect(new Set(torches.map((t) => `${t.row},${t.col}`)).size).toBe(3);
+    }
+  });
+
+  test('slidePath liste toutes les cases traversées', () => {
+    const maze = generateMaze(5);
+    const { position, steps } = slideMove(maze, { row: 0, col: 0 }, 'right');
+    const path = slidePath(maze, { row: 0, col: 0 }, 'right');
+    expect(path).toHaveLength(steps);
+    if (steps > 0) expect(path[path.length - 1]).toEqual(position);
   });
 });

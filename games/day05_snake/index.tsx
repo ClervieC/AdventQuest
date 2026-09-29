@@ -9,74 +9,57 @@ import {
     calculateFinalScore,
     createInitialState,
     Direction,
-    isOppositeDirection,
+    getTickInterval,
+    isSnakeSuccess,
+    MIN_APPLES,
+    queueTurn,
     SnakeState,
 } from './logic';
 import { useI18n } from '../../services/i18n';
 
 const GRID_SIZE = 10;
-const TICK_SLOW_MS = 240;
-const TICK_FAST_MS = 80;
-const GAME_DURATION_SECONDS = 45;
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 const CELL_PIXEL_SIZE = 28;
 
-function getTickInterval(timeLeft: number): number {
-  const ratio = timeLeft / GAME_DURATION_SECONDS;
-  return Math.round(TICK_FAST_MS + (TICK_SLOW_MS - TICK_FAST_MS) * ratio);
-}
-
+// Pas de chrono : la partie dure tant que la guirlande ne se mord pas la queue.
+// Au moins MIN_APPLES pommes pour gagner le fragment ; chaque pomme accélère (voir logic.ts).
 export function SnakeGame({ onGameEnd }: GameComponentProps) {
   const { tr } = useI18n();
   const [gameState, setGameState] = useState<SnakeState>(() => createInitialState(GRID_SIZE));
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
-  const directionRef = useRef<Direction>('right');
+  // Virages demandés en attente : un par pas du serpent (voir queueTurn)
+  const turnsRef = useRef<Direction[]>([]);
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
   useEffect(() => {
     const id = setInterval(() => {
-      setGameState((prev) => advanceSnake({ ...prev, direction: directionRef.current }));
-    }, getTickInterval(timeLeft));
+      const [next, ...rest] = turnsRef.current;
+      turnsRef.current = rest;
+      const direction = next ?? gameStateRef.current.direction;
+      setGameState((prev) => advanceSnake({ ...prev, direction }));
+    }, getTickInterval(gameState.score));
 
     return () => clearInterval(id);
-  }, [timeLeft]);
+  }, [gameState.score]);
 
-  // Bruitage quand le serpent mange une pomme (le score augmente)
+  // Bruitage quand le serpent mange une pomme (le score augmente), fanfare à l'objectif
   const lastScoreRef = useRef(gameState.score);
   useEffect(() => {
-    if (gameState.score > lastScoreRef.current) playSfx('eat');
+    if (gameState.score > lastScoreRef.current) playSfx(gameState.score === MIN_APPLES ? 'victory' : 'eat');
     lastScoreRef.current = gameState.score;
   }, [gameState.score]);
 
-  // Mort par collision avec soi-même
+  // Fin : collision avec soi-même, ou grille entièrement remplie (partie parfaite)
   useEffect(() => {
-    if (gameState.isDead) {
-      const finalScore = calculateFinalScore(gameState.score);
-      onGameEnd({ success: gameState.score > 0, score: finalScore });
+    if (gameState.isDead || gameState.isFull) {
+      onGameEnd({ success: isSnakeSuccess(gameState.score), score: calculateFinalScore(gameState.score) });
     }
-  }, [gameState.isDead]);
-
-  // Timer de fin de partie
-  useEffect(() => {
-    const countdown = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdown);
-          const finalScore = calculateFinalScore(gameStateRef.current.score);
-          onGameEnd({ success: gameStateRef.current.score > 0, score: finalScore });
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(countdown);
-  }, [onGameEnd]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.isDead, gameState.isFull]);
 
   const changeDirection = useCallback((newDirection: Direction) => {
-    if (isOppositeDirection(directionRef.current, newDirection)) return; // empêche le demi-tour
-    directionRef.current = newDirection;
+    // Jamais de demi-tour, même avec deux appuis rapides entre deux pas
+    turnsRef.current = queueTurn(turnsRef.current, gameStateRef.current.direction, newDirection);
   }, []);
 
   // Sur ordi : les flèches changent de direction
@@ -100,40 +83,124 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
     <GestureDetector gesture={panGesture}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.score}>🍎 {gameState.score}</Text>
-          <Text style={styles.timer}>⏱ {timeLeft}s</Text>
+          <Text style={styles.score}>
+            🍎 {gameState.score}
+            {gameState.score < MIN_APPLES ? ` / ${MIN_APPLES}` : ''}
+          </Text>
+          {gameState.score >= MIN_APPLES && <Text style={styles.bonus}>{tr('🎉 Objectif atteint · bonus !', '🎉 Goal reached · bonus!')}</Text>}
         </View>
 
         <View style={[styles.grid, { width: GRID_SIZE * CELL_PIXEL_SIZE, height: GRID_SIZE * CELL_PIXEL_SIZE }]}>
           {/* Pomme */}
-          <View
-            style={[
-              styles.apple,
-              {
-                left: gameState.apple.col * CELL_PIXEL_SIZE,
-                top: gameState.apple.row * CELL_PIXEL_SIZE,
-              },
-            ]}
-          />
-          {/* Corps du serpent */}
-          {gameState.snake.map((segment, index) => (
-            <View
-              key={index}
-              style={[
-                styles.snakeSegment,
-                index === 0 && styles.snakeHead,
-                {
-                  left: segment.col * CELL_PIXEL_SIZE,
-                  top: segment.row * CELL_PIXEL_SIZE,
-                },
-              ]}
-            />
-          ))}
+          <View style={[styles.cell, { left: gameState.apple.col * CELL_PIXEL_SIZE, top: gameState.apple.row * CELL_PIXEL_SIZE }]}>
+            <Text style={styles.appleEmoji}>🍎</Text>
+          </View>
+          <SnakeBody snake={gameState.snake} direction={gameState.direction} />
         </View>
 
-        <Text style={styles.hint}>{tr('Glisse ton doigt pour diriger le serpent', 'Swipe to steer the snake')}</Text>
+        <Text style={styles.hint}>
+          {tr(
+            `Glisse pour diriger. Au moins ${MIN_APPLES} pommes, puis continue tant que tu ne te mords pas la queue : ça accélère !`,
+            `Swipe to steer. At least ${MIN_APPLES} apples, then keep going until you bite your tail: it speeds up!`
+          )}
+        </Text>
       </View>
     </GestureDetector>
+  );
+}
+
+// Serpent dessiné : anneaux verts reliés entre eux, qui s'affinent vers la queue, et une tête avec des yeux
+// qui regardent dans la direction du mouvement et une petite langue
+const BODY_COLORS = ['#22c55e', '#34d399'];
+const EYE_POSITIONS: Record<Direction, [number, number][]> = {
+  right: [[0.62, 0.26], [0.62, 0.74]],
+  left: [[0.38, 0.26], [0.38, 0.74]],
+  up: [[0.26, 0.38], [0.74, 0.38]],
+  down: [[0.26, 0.62], [0.74, 0.62]],
+};
+const PUPIL_SHIFT: Record<Direction, [number, number]> = { right: [1.5, 0], left: [-1.5, 0], up: [0, -1.5], down: [0, 1.5] };
+
+function SnakeBody({ snake, direction }: { snake: SnakeState['snake']; direction: Direction }) {
+  const cell = CELL_PIXEL_SIZE;
+  const count = snake.length;
+  // Épaisseur de chaque anneau : pleine près de la tête, 60 % au bout de la queue
+  const thickness = (index: number) => Math.round(cell * (0.86 - (count > 1 ? (0.3 * index) / (count - 1) : 0)));
+
+  return (
+    <>
+      {/* Liaisons entre deux anneaux voisins (pas quand le serpent traverse un bord) */}
+      {snake.slice(1).map((segment, i) => {
+        const previous = snake[i];
+        const dRow = previous.row - segment.row;
+        const dCol = previous.col - segment.col;
+        if (Math.abs(dRow) + Math.abs(dCol) !== 1) return null;
+        const size = thickness(i + 1);
+        const horizontal = dRow === 0;
+        return (
+          <View
+            key={`link-${i}`}
+            style={{
+              position: 'absolute',
+              backgroundColor: BODY_COLORS[(i + 1) % 2],
+              left: (Math.min(segment.col, previous.col) + 0.5) * cell - (horizontal ? 0 : size / 2),
+              top: (Math.min(segment.row, previous.row) + 0.5) * cell - (horizontal ? size / 2 : 0),
+              width: horizontal ? cell : size,
+              height: horizontal ? size : cell,
+            }}
+          />
+        );
+      })}
+      {/* Anneaux du corps, de la queue vers la tête (la tête passe par-dessus) */}
+      {snake
+        .map((segment, index) => ({ segment, index }))
+        .reverse()
+        .map(({ segment, index }) => {
+          if (index === 0) return null;
+          const size = thickness(index);
+          return (
+            <View
+              key={`seg-${index}`}
+              style={{
+                position: 'absolute',
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                backgroundColor: BODY_COLORS[index % 2],
+                left: segment.col * cell + (cell - size) / 2,
+                top: segment.row * cell + (cell - size) / 2,
+              }}
+            />
+          );
+        })}
+      <SnakeHead position={snake[0]} direction={direction} />
+    </>
+  );
+}
+
+function SnakeHead({ position, direction }: { position: SnakeState['snake'][number]; direction: Direction }) {
+  const cell = CELL_PIXEL_SIZE;
+  const [dx, dy] = PUPIL_SHIFT[direction];
+  const tongueHorizontal = direction === 'left' || direction === 'right';
+  return (
+    <View style={[styles.cell, { left: position.col * cell, top: position.row * cell }]}>
+      {/* Langue fourchue, qui dépasse devant la tête */}
+      <View
+        style={[
+          styles.tongue,
+          tongueHorizontal ? { width: 9, height: 3 } : { width: 3, height: 9 },
+          direction === 'right' && { left: cell - 3, top: cell / 2 - 1.5 },
+          direction === 'left' && { left: -6, top: cell / 2 - 1.5 },
+          direction === 'up' && { top: -6, left: cell / 2 - 1.5 },
+          direction === 'down' && { top: cell - 3, left: cell / 2 - 1.5 },
+        ]}
+      />
+      <View style={styles.head} />
+      {EYE_POSITIONS[direction].map(([x, y], i) => (
+        <View key={i} style={[styles.eye, { left: x * cell - 4, top: y * cell - 4 }]}>
+          <View style={[styles.pupil, { transform: [{ translateX: dx }, { translateY: dy }] }]} />
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -145,7 +212,8 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    gap: 24,
+    alignItems: 'baseline',
+    gap: 16,
     marginBottom: 16,
   },
   score: {
@@ -153,10 +221,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  timer: {
-    fontSize: 18,
+  bonus: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#f59e0b',
+    color: '#fbbf24',
   },
   grid: {
     backgroundColor: '#16233a',
@@ -166,28 +234,50 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  apple: {
+  cell: {
     position: 'absolute',
-    width: CELL_PIXEL_SIZE - 4,
-    height: CELL_PIXEL_SIZE - 4,
-    margin: 2,
-    borderRadius: 6,
-    backgroundColor: '#ef4444',
+    width: CELL_PIXEL_SIZE,
+    height: CELL_PIXEL_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  snakeSegment: {
+  appleEmoji: {
+    fontSize: CELL_PIXEL_SIZE * 0.78,
+    lineHeight: CELL_PIXEL_SIZE,
+  },
+  head: {
+    width: CELL_PIXEL_SIZE,
+    height: CELL_PIXEL_SIZE,
+    borderRadius: CELL_PIXEL_SIZE / 2.4,
+    backgroundColor: '#16a34a',
+    borderWidth: 2,
+    borderColor: '#15803d',
+  },
+  eye: {
     position: 'absolute',
-    width: CELL_PIXEL_SIZE - 2,
-    height: CELL_PIXEL_SIZE - 2,
-    margin: 1,
+    width: 8,
+    height: 8,
     borderRadius: 4,
-    backgroundColor: '#34d399',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  snakeHead: {
-    backgroundColor: '#10b981',
+  pupil: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#0f172a',
+  },
+  tongue: {
+    position: 'absolute',
+    backgroundColor: '#ef4444',
+    borderRadius: 1.5,
   },
   hint: {
     fontSize: 11,
     color: '#8ea6c0',
     marginTop: 16,
+    textAlign: 'center',
+    maxWidth: 300,
   },
 });

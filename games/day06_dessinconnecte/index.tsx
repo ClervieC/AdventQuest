@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import { GameComponentProps } from '../../components/GameWrapper/types';
@@ -11,6 +11,8 @@ import { useI18n } from '../../services/i18n';
 export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
   const { tr } = useI18n();
   const [drawing] = useState(() => getRandomDrawing());
+  // Zone de dessin carrée, la plus grande possible (les dessins ont une vingtaine de points)
+  const canvasSize = Math.min(340, useWindowDimensions().width - 32);
   const [lastValidatedId, setLastValidatedId] = useState(0);
   const [currentTouchPosition, setCurrentTouchPosition] = useState<{ x: number; y: number } | null>(null);
   const [layoutSize, setLayoutSize] = useState({ width: 0, height: 0 });
@@ -73,11 +75,11 @@ export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
     <View style={styles.container}>
       <Text style={styles.title}>{tr(drawing.name, drawing.nameEn)}</Text>
       <Text style={styles.progress}>
-        Point {lastValidatedId} / {drawing.points.length}
+        {tr('Point', 'Dot')} {lastValidatedId} / {drawing.points.length}
       </Text>
 
       <GestureDetector gesture={panGesture}>
-        <View style={styles.canvas} onLayout={handleLayout}>
+        <View style={[styles.canvas, { width: canvasSize, height: canvasSize }]} onLayout={handleLayout}>
           {layoutSize.width > 0 && (
             <Svg width={layoutSize.width} height={layoutSize.height}>
               {validatedSegments.map((segment, index) => (
@@ -143,8 +145,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   canvas: {
-    width: 280,
-    height: 280,
     backgroundColor: '#16233a',
     borderRadius: 16,
     borderWidth: 1,

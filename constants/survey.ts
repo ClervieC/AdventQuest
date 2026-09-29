@@ -23,7 +23,13 @@ export const SURVEY_GAMES: { key: string; label: Localized }[] = [
   { key: 'dodgeball', label: { fr: '🛡️ Dodge Ball', en: '🛡️ Dodge Ball' } },
   { key: 'cassebriques', label: { fr: '🧊 Casse-briques', en: '🧊 Brick Breaker' } },
   { key: 'rythme', label: { fr: '🔔 Rythme', en: '🔔 Rhythm' } },
-  { key: 'boss', label: { fr: '❤️‍🔥 Combat final', en: '❤️‍🔥 Final battle' } },
+  { key: 'slidingpuzzle', label: { fr: '🧩 Taquin', en: '🧩 Sliding puzzle' } },
+  { key: 'match3', label: { fr: '🍬 Friandises à aligner', en: '🍬 Treat match' } },
+  { key: 'flappy', label: { fr: '🦌 Envol du renne', en: '🦌 Reindeer flight' } },
+  { key: 'pairs', label: { fr: '🃏 Paires', en: '🃏 Pairs' } },
+  { key: 'wordsearch', label: { fr: '🔤 Mots mêlés', en: '🔤 Word search' } },
+  { key: 'game2048', label: { fr: '❤️‍🔥 2048 de Noël', en: '❤️‍🔥 Christmas 2048' } },
+  { key: 'boss', label: { fr: '👑 Combat final', en: '👑 Final battle' } },
 ];
 
 /** Envies pour l'année prochaine (plusieurs choix possibles).

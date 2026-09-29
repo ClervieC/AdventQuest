@@ -12,6 +12,7 @@ import {
   adminListSeasonSurveys,
   adminListUsers,
   adminResetProgress,
+  adminResetSeason,
   adminSetRole,
   adminSetTesterDays,
   FeedbackEntry,
@@ -201,6 +202,7 @@ function UsersTab({ users, myId, onChanged, pull }: { users: AdminUser[]; myId: 
         />
       }
       ListEmptyComponent={<Text style={styles.empty}>{tr('Aucun utilisateur.', 'No users.')}</Text>}
+      ListFooterComponent={<SeasonResetCard onDone={onChanged} />}
       renderItem={({ item }) => (
         <UserRow
           user={item}
@@ -365,6 +367,81 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
             </>
           )}
           {error && <Text style={styles.error}>{error}</Text>}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------- Nouvelle saison ----------
+
+const SEASON_CONFIRM_WORD = 'SAISON';
+
+/**
+ * Avant le vrai début (1er décembre) : efface la progression de tous les joueurs et repasse les testeurs en joueurs.
+ * Il faut taper un mot de confirmation : l'action touche tout le monde et ne peut pas être annulée.
+ */
+function SeasonResetCard({ onDone }: { onDone: () => void }) {
+  const { tr } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const matches = typed.trim().toUpperCase() === SEASON_CONFIRM_WORD;
+
+  const handleReset = async () => {
+    if (!matches || busy) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const players = await adminResetSeason();
+      setMessage(tr(`✅ Saison remise à zéro pour ${players} comptes.`, `✅ Season reset for ${players} accounts.`));
+      setOpen(false);
+      setTyped('');
+      onDone();
+      useGameStore.getState().refresh(); // ta propre progression aussi
+    } catch {
+      setMessage(tr('Remise à zéro impossible (as-tu lancé le SQL 20261001000000_season_reset.sql ?).', 'Reset failed (did you run the SQL 20261001000000_season_reset.sql?).'));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <View style={[styles.userCard, styles.seasonCard]}>
+      <Text style={styles.userName}>{tr('🗓️ Nouvelle saison', '🗓️ New season')}</Text>
+      <Text style={styles.note}>
+        {tr(
+          'À faire juste avant le 1er décembre : efface la progression, les scores et le classement de TOUS les joueurs, remet 1 hint à chacun et repasse les testeurs en joueurs. Les comptes, amis, retours, sondages et records de l’onglet Jeux sont gardés.',
+          'Do this just before 1 December: erases the progress, scores and leaderboard of ALL players, resets everyone to 1 hint and turns testers back into players. Accounts, friends, feedback, surveys and Games-tab records are kept.'
+        )}
+      </Text>
+      {message && <Text style={styles.note}>{message}</Text>}
+      {!open ? (
+        <Pressable style={styles.dangerOutline} onPress={() => setOpen(true)}>
+          <Text style={styles.dangerOutlineText}>{tr('Remettre la saison à zéro…', 'Reset the season…')}</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.confirmBox}>
+          <Text style={styles.note}>
+            {tr(`Action irréversible. Pour confirmer, tape « ${SEASON_CONFIRM_WORD} ».`, `This can’t be undone. To confirm, type “${SEASON_CONFIRM_WORD}”.`)}
+          </Text>
+          <TextInput
+            value={typed}
+            onChangeText={setTyped}
+            placeholder={SEASON_CONFIRM_WORD}
+            placeholderTextColor="#8ea6c0"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            style={styles.input}
+          />
+          <View style={styles.row}>
+            <Pressable style={[styles.secondaryButton, styles.flex]} onPress={() => { setOpen(false); setTyped(''); }} disabled={busy}>
+              <Text style={styles.secondaryButtonText}>{tr('Annuler', 'Cancel')}</Text>
+            </Pressable>
+            <Pressable style={[styles.dangerButton, styles.flex, !matches && styles.disabled]} onPress={handleReset} disabled={!matches || busy}>
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{tr('Tout remettre à zéro', 'Reset everything')}</Text>}
+            </Pressable>
+          </View>
         </View>
       )}
     </View>
@@ -656,6 +733,11 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: 32,
     ...pageColumn(16),
+  },
+  seasonCard: {
+    marginTop: 16,
+    borderColor: '#7f1d1d',
+    gap: 8,
   },
   input: {
     backgroundColor: '#16233a',

@@ -9,7 +9,9 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+        {/* maximum-scale=1 : l'iPhone ne zoome plus tout seul quand on touche un champ de saisie
+            (pseudo, mot de passe, avis...). Le zoom à deux doigts reste possible sur iPhone. */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, viewport-fit=cover" />
         <title>AdventQuest</title>
         <meta name="description" content="Calendrier de l'Avent interactif : 24 mini-jeux pour réparer le Cœur de Noël." />
 
@@ -17,6 +19,8 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.webmanifest" />
+        {/* Moteur des jeux Phaser : téléchargé en arrière-plan pour que le premier jeu s'ouvre vite */}
+        <link rel="prefetch" href="/phaser.min.js" as="script" />
 
         {/* Ajout à l'écran d'accueil sur iPhone : nom sous l'icône et barre d'état sombre */}
         <meta name="apple-mobile-web-app-title" content="AdventQuest" />

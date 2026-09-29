@@ -1,20 +1,38 @@
+import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AllFragmentsCelebration, hasCelebratedAllFragments, markAllFragmentsCelebrated } from '../../components/AllFragmentsCelebration';
 import { Calendar } from '../../components/Calendar';
 import { FragmentProgress } from '../../components/FragmentProgress';
 import { Snowfall } from '../../components/Snowfall';
 import { LanguageButton } from '../../components/LanguageToggle';
 import { SoundToggle } from '../../components/SoundToggle';
 import { SurveyInvite } from '../../components/SurveyInvite';
+import { TesterWelcome } from '../../components/TesterWelcome';
 import { contentColumn } from '../../constants/layout';
 import { useI18n } from '../../services/i18n';
 import { useGameStore } from '../../store/gameStore';
 
 export default function CalendarScreen() {
-  const { currentDay, totalFragments } = useGameStore();
+  const { currentDay, totalFragments, username } = useGameStore();
   const insets = useSafeAreaInsets();
   const { tr } = useI18n();
   const fragments = totalFragments();
+
+  // 24 fragments réunis (par exemple sur un autre appareil) et pas encore fêtés ici : on fait la fête
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (fragments < 24) return;
+    let cancelled = false;
+    hasCelebratedAllFragments(username).then((done) => {
+      if (cancelled || done) return;
+      markAllFragmentsCelebrated(username);
+      setCelebrate(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fragments, username]);
 
   return (
     <View style={styles.container}>
@@ -54,6 +72,8 @@ export default function CalendarScreen() {
 
       <Calendar />
       </ScrollView>
+      <AllFragmentsCelebration visible={celebrate} onClose={() => setCelebrate(false)} />
+      <TesterWelcome />
     </View>
   );
 }

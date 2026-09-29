@@ -42,10 +42,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           hintsLeft = typeof data.hintsAvailable === 'number' ? data.hintsAvailable : 0;
           configureDifficulty(currentDifficulty);
@@ -72,7 +74,11 @@
       startGame();
     }
 
+    // Objectif : tenir 60 s. Ensuite, bonus de 60 s au plus : la course accélère (jusqu'à +60 %) et les
+    // obstacles se rapprochent, jusqu'à la chute ou la fin du bonus. Perdre en bonus garde le fragment.
     const GAME_DURATION_MS = 60000;
+    const BONUS_MAX_MS = 60000;
+    const BONUS_SPEEDUP = 0.6;
     const MAX_LIVES = 3;
     const GRAVITY = 2200;
     const JUMP_VELOCITY = -820;
@@ -108,6 +114,8 @@
     let invulnerableUntil = 0;
     let slowUntil = 0;
     let hintsLeft = 0;
+    let bonusMode = false;
+    let stopButton = null;
 
     let scoreText, timeText, livesText, hintButton, hintText, messageText;
     let groundTiles = [];
@@ -216,10 +224,13 @@
       slowUntil = 0;
       running = false;
       gameEnded = false;
+      bonusMode = false;
+      if (stopButton) { stopButton.destroy(); stopButton = null; }
+      timeText.setColor('#f59e0b');
 
       playerSprite.setPosition(playerX, groundY).setScale(1).setAlpha(1).setAngle(0);
       scoreText.setText('Score: 0');
-      timeText.setText('60s');
+      timeText.setText(arcadeMode ? '⏱ 0s' : '60s');
       livesText.setText(getLivesString());
       updateHintButton();
     }
@@ -242,7 +253,17 @@
       hintButton.setAlpha(hintsLeft > 0 || slowActive ? 1 : 0.4);
     }
 
+    // Onglet Jeux : pas d'objectif ; la course accélère jusqu'à +60 % au-delà de la vitesse max en 2 min 30,
+    // et dure jusqu'à la dernière vie perdue
+    const ARCADE_RAMP_MS = 150000;
+    function bonusProgress() {
+      if (arcadeMode) return Math.min(1, elapsedMs / ARCADE_RAMP_MS);
+      return Phaser.Math.Clamp((elapsedMs - GAME_DURATION_MS) / BONUS_MAX_MS, 0, 1);
+    }
+
     function currentSpeed() {
+      if (arcadeMode) return settings.startSpeed + (settings.maxSpeed * (1 + BONUS_SPEEDUP) - settings.startSpeed) * bonusProgress();
+      if (elapsedMs > GAME_DURATION_MS) return settings.maxSpeed * (1 + BONUS_SPEEDUP * bonusProgress());
       const progress = Math.min(1, elapsedMs / GAME_DURATION_MS);
       return settings.startSpeed + (settings.maxSpeed - settings.startSpeed) * progress;
     }
@@ -258,6 +279,10 @@
       if (isOnHintButton(pointer)) {
         useHint();
         pointerStart = null;
+        return;
+      }
+      if (stopButton && stopButton.getBounds().contains(pointer.x, pointer.y)) {
+        finishGame(true);
         return;
       }
       pointerStart = { x: pointer.x, y: pointer.y, consumed: false };
@@ -371,17 +396,40 @@
       nextSpawnIn -= dt;
       if (nextSpawnIn <= 0) {
         spawnObstacle();
-        nextSpawnIn = Phaser.Math.FloatBetween(settings.gapMin, settings.gapMax);
+        // En bonus, les obstacles se rapprochent (jusqu'à −40 % d'écart)
+        nextSpawnIn = Phaser.Math.FloatBetween(settings.gapMin, settings.gapMax) * (1 - 0.4 * bonusProgress());
       }
 
       checkCollisions(time);
 
       score = Math.floor(distance / PX_PER_METER) + fragmentsCollected * FRAGMENT_POINTS;
       scoreText.setText('Score: ' + score);
-      const secondsLeft = Math.max(0, Math.ceil((GAME_DURATION_MS - elapsedMs) / 1000));
-      timeText.setText(secondsLeft + 's');
+      if (arcadeMode) {
+        timeText.setText('⏱ ' + Math.floor(elapsedMs / 1000) + 's');
+      } else if (!bonusMode) {
+        const secondsLeft = Math.max(0, Math.ceil((GAME_DURATION_MS - elapsedMs) / 1000));
+        timeText.setText(secondsLeft + 's');
+        if (elapsedMs >= GAME_DURATION_MS) startBonus();
+      } else {
+        const bonusLeft = Math.max(0, Math.ceil((GAME_DURATION_MS + BONUS_MAX_MS - elapsedMs) / 1000));
+        timeText.setText('Bonus ' + bonusLeft + 's');
+        if (bonusLeft <= 0) finishGame(true);
+      }
+    }
 
-      if (elapsedMs >= GAME_DURATION_MS) finishGame(true);
+    // 60 s tenues : fragment gagné, on continue pour des points en plus
+    function startBonus() {
+      bonusMode = true;
+      sfx('powerup');
+      timeText.setColor('#fbbf24');
+      const banner = scene.add.text(width / 2, groundY - 190, T('🎉 Objectif atteint !\nContinue pour des points bonus\n(ça va accélérer !)', '🎉 Goal reached!\nKeep going for bonus points\n(it’ll speed up!)'), {
+        fontSize: '17px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
+        wordWrap: { width: width - 24 },
+      }).setOrigin(0.5).setDepth(20);
+      scene.tweens.add({ targets: banner, alpha: 0, delay: 2200, duration: 700, onComplete: () => banner.destroy() });
+      stopButton = scene.add.text(width - 20, 50, T('✓ Terminer', '✓ Finish'), {
+        fontSize: '15px', color: '#ffffff', fontStyle: 'bold', backgroundColor: '#7c3aed', padding: { x: 10, y: 6 },
+      }).setOrigin(1, 0).setDepth(20);
     }
 
     function updatePlayer(time, dt) {
@@ -473,7 +521,8 @@
       invulnerableUntil = time + INVULNERABLE_MS;
       scene.cameras.main.shake(200, 0.01);
       flashFeedback(playerX, player.y - 70, T('Aïe !', 'Ouch!'), '#ef4444');
-      if (lives <= 0) finishGame(false);
+      // En bonus, l'objectif est déjà atteint : la partie s'arrête avec le score
+      if (lives <= 0) finishGame(bonusMode || arcadeMode);
     }
 
     function flashFeedback(x, y, text, color) {

@@ -8,6 +8,7 @@ import {
     GameState,
     getMovableCards,
     isGameWon,
+    isStuck,
 } from './logic';
 
 function makeCard(suit: Card['suit'], rank: Card['rank'], faceUp = true): Card {
@@ -187,5 +188,56 @@ describe('calculateSolitaireScore', () => {
 
   test('le score ne descend jamais sous 50', () => {
     expect(calculateSolitaireScore(0, 9999, 99)).toBe(50);
+  });
+});
+describe('isStuck (plus aucun coup utile)', () => {
+  const hidden = (suit: Card['suit'], rank: Card['rank']) => makeCard(suit, rank, false);
+  const base = (columns: Card[][], reserve: Card[] = [], foundations: Card[][] = [[], [], [], []]): GameState => ({
+    columns: [...columns, ...Array.from({ length: 7 - columns.length }, () => [hidden('clubs', 2), makeCard('clubs', 9)])].slice(0, 7),
+    foundations,
+    stock: reserve,
+    waste: [],
+  });
+
+  test('bloqué : rien dans la pioche ne se pose, aucune colonne ne bouge', () => {
+    const state = base([[hidden('hearts', 2), makeCard('spades', 9)]], [makeCard('hearts', 5), makeCard('diamonds', 7)]);
+    expect(isStuck(state)).toBe(true);
+  });
+
+  test('pas bloqué : une carte de la pioche se pose sur une colonne (même au fond de la pioche)', () => {
+    const state = base([[hidden('hearts', 2), makeCard('spades', 9)]], [makeCard('hearts', 8), makeCard('hearts', 5)]);
+    expect(isStuck(state)).toBe(false);
+  });
+
+  test('pas bloqué : un As en bas de colonne peut monter en fondation', () => {
+    const state = base([[hidden('hearts', 2), makeCard('diamonds', 1)]]);
+    expect(isStuck(state)).toBe(false);
+  });
+
+  test('pas bloqué : déplacer une suite découvre une carte cachée', () => {
+    const state = base([[hidden('hearts', 2), makeCard('hearts', 8)], [makeCard('spades', 9)]]);
+    expect(isStuck(state)).toBe(false);
+  });
+
+  test('bloqué : le seul coup fait passer une suite d’une colonne à l’autre sans rien découvrir', () => {
+    const state = base([[makeCard('hearts', 8)], [makeCard('spades', 9)]]);
+    expect(isStuck(state)).toBe(true);
+  });
+
+  test('pas bloqué : déplacer une partie de suite dégage une carte qui monte en fondation', () => {
+    // 9♥ passe sur 10♣, ce qui dégage 10♠ : il peut monter sur la fondation ♠ (As à 9)
+    const spades = Array.from({ length: 9 }, (_, i) => makeCard('spades', (i + 1) as Card['rank']));
+    const state = base(
+      [[hidden('clubs', 4), makeCard('spades', 10), makeCard('hearts', 9)], [makeCard('clubs', 10)]],
+      [],
+      [spades, [], [], []]
+    );
+    expect(isStuck(state)).toBe(false);
+  });
+
+  test('une partie gagnée n’est pas « bloquée »', () => {
+    const suits: Card['suit'][] = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const foundations = suits.map((suit) => Array.from({ length: 13 }, (_, i) => makeCard(suit, (i + 1) as Card['rank'])));
+    expect(isStuck({ columns: [[], [], [], [], [], [], []], foundations, stock: [], waste: [] })).toBe(false);
   });
 });

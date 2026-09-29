@@ -18,6 +18,19 @@ const BRIDGE_SCRIPT = `<script>
   };
 </script>`;
 
+// Phaser est servi par le site lui-même (public/phaser.min.js, même version) plutôt que par le CDN jsdelivr :
+// plus rapide (déjà en cache après le premier jeu) et le jeu ne dépend plus d'un site externe.
+// Si le fichier local ne se charge pas, on retombe sur le CDN d'origine.
+const PHASER_CDN_TAG = /<script src="(https:\/\/cdn\.jsdelivr\.net\/npm\/phaser@[^"]+)"><\/script>/i;
+
+function withLocalPhaser(html: string): string {
+  return html.replace(
+    PHASER_CDN_TAG,
+    (_tag, cdnUrl: string) =>
+      `<script src="/phaser.min.js" onerror="document.write('<script src=&quot;${cdnUrl}&quot;><\\/script>')"></script>`
+  );
+}
+
 function resolveHtmlUri(htmlSource: any): string {
   if (typeof htmlSource === 'string') return htmlSource;
   if (htmlSource && typeof htmlSource.uri === 'string') return htmlSource.uri;
@@ -25,7 +38,7 @@ function resolveHtmlUri(htmlSource: any): string {
   throw new Error('Source HTML Phaser non reconnue sur le web');
 }
 
-export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSource, difficulty, isStarted }: PhaserGameWrapperProps) {
+export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSource, difficulty, isStarted, arcade = false }: PhaserGameWrapperProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +56,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
     fetch(resolveHtmlUri(htmlSource))
       .then((response) => response.text())
       .then((html) => {
-        if (!cancelled) setSrcDoc(html.replace(/<head>/i, '<head>' + BRIDGE_SCRIPT + '<script>' + gameLangScript(lang) + GAME_SOUNDS_SCRIPT + '</script>'));
+        if (!cancelled) setSrcDoc(withLocalPhaser(html).replace(/<head>/i, '<head>' + BRIDGE_SCRIPT + '<script>' + gameLangScript(lang) + GAME_SOUNDS_SCRIPT + '</script>'));
       })
       .catch((error) => console.warn('Chargement du jeu Phaser impossible:', error));
     return () => {
@@ -62,7 +75,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   }, [muted]);
 
   const sendInit = () => {
-    sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current });
+    sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current, arcade });
   };
 
   // Quand le jeu est prêt ET que l'utilisateur a appuyé sur Jouer → envoyer INIT

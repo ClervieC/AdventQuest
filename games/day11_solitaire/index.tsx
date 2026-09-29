@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -19,6 +19,7 @@ import {
   getSourceCards,
   HintMove,
   isGameWon,
+  isStuck,
   MoveSource,
   MoveTarget,
   shuffleDeck,
@@ -55,12 +56,16 @@ interface Layout {
   boardW: number;
   boardH: number;
   columnsTop: number;
+  // Le plateau est centré dans la zone de jeu (grand écran) : les gestes arrivent en coordonnées de la zone,
+  // il faut retirer cette marge gauche pour retrouver la position sur le plateau
+  offsetX: number;
 }
 
 function computeLayout(width: number, height: number): Layout {
   const cardW = Math.min(MAX_CARD_WIDTH, Math.floor((width - GAP * 6) / 7));
   const cardH = Math.round(cardW * 1.4);
-  return { cardW, cardH, boardW: cardW * 7 + GAP * 6, boardH: height, columnsTop: cardH + ROW_GAP };
+  const boardW = cardW * 7 + GAP * 6;
+  return { cardW, cardH, boardW, boardH: height, columnsTop: cardH + ROW_GAP, offsetX: (width - boardW) / 2 };
 }
 
 const slotX = (layout: Layout, index: number) => index * (layout.cardW + GAP);
@@ -192,6 +197,12 @@ function SolitaireBoard({
     saver.clear();
     onNewGame();
   };
+
+  // Plus aucun coup utile, même en faisant tourner toute la pioche : on arrête et on propose une nouvelle donne
+  const stuck = useMemo(() => isStuck(state), [state]);
+  useEffect(() => {
+    if (stuck) playSfx('bump');
+  }, [stuck]);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Le geste lit l'état via des refs (callbacks exécutés hors du rendu React)
@@ -248,7 +259,7 @@ function SolitaireBoard({
   const handleTap = (x: number, y: number) => {
     const current = layoutRef.current;
     if (!current) return;
-    const hit = hitTest(stateRef.current, current, x, y);
+    const hit = hitTest(stateRef.current, current, x - current.offsetX, y);
     if (!hit) {
       setSelection(null);
       return;
@@ -278,7 +289,8 @@ function SolitaireBoard({
       const current = layoutRef.current;
       dragRef.current = null;
       if (!current) return;
-      const source = hitToSource(hitTest(stateRef.current, current, event.x, event.y));
+      const x = event.x - current.offsetX;
+      const source = hitToSource(hitTest(stateRef.current, current, x, event.y));
       const cards = source ? getSourceCards(stateRef.current, source) : null;
       if (!source || !cards) return;
       // Coin haut-gauche de la carte saisie, pour qu'elle reste "collée" au doigt au même endroit
@@ -287,7 +299,7 @@ function SolitaireBoard({
         source.type === 'waste'
           ? 0
           : current.columnsTop + source.cardIndex * peekFor(current, stateRef.current.columns[source.columnIndex].length);
-      dragRef.current = { source, cards, grabX: event.x - cardX, grabY: event.y - cardY };
+      dragRef.current = { source, cards, grabX: x - cardX, grabY: event.y - cardY };
       dragX.value = cardX;
       dragY.value = cardY;
     })
@@ -300,8 +312,9 @@ function SolitaireBoard({
     })
     .onUpdate((event) => {
       const drag = dragRef.current;
-      if (!drag) return;
-      dragX.value = event.x - drag.grabX;
+      const current = layoutRef.current;
+      if (!drag || !current) return;
+      dragX.value = event.x - current.offsetX - drag.grabX;
       dragY.value = event.y - drag.grabY;
     })
     .onEnd((event) => {
@@ -309,7 +322,7 @@ function SolitaireBoard({
       const current = layoutRef.current;
       if (!drag || !current) return;
       // On vise avec le centre de la carte tenue plutôt qu'avec le doigt : plus naturel
-      const centerX = event.x - drag.grabX + current.cardW / 2;
+      const centerX = event.x - current.offsetX - drag.grabX + current.cardW / 2;
       const centerY = event.y - drag.grabY + current.cardH / 2;
       const target = hitToTarget(hitTest(stateRef.current, current, centerX, centerY));
       if (!target || !tryMove(drag.source, target)) playSfx('bump'); // coup refusé : la carte revient
@@ -464,6 +477,28 @@ function SolitaireBoard({
         </View>
       </GestureDetector>
 
+      {stuck && (
+        <View style={styles.stuckOverlay}>
+          <View style={styles.stuckCard}>
+            <Text style={styles.stuckTitle}>{tr('😕 Plus aucun coup possible', '😕 No moves left')}</Text>
+            <Text style={styles.stuckText}>
+              {tr(
+                'Même en faisant tourner toute la pioche, plus aucune carte ne peut avancer. Relance une nouvelle donne !',
+                'Even cycling through the whole deck, no card can move forward. Deal a new game!'
+              )}
+            </Text>
+            <Pressable style={styles.stuckButton} onPress={handleNewGame} accessibilityRole="button">
+              <Text style={styles.stuckButtonText}>{tr('🔄 Nouvelle partie', '🔄 New game')}</Text>
+            </Pressable>
+            {previous && (
+              <Pressable onPress={handleUndo} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.stuckUndo}>{tr('↶ Annuler le dernier coup', '↶ Undo the last move')}</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
+
       <Text style={styles.help}>{tr('Glisse une carte, ou touche-la puis touche sa destination.', 'Drag a card, or tap it then tap where it should go.')}</Text>
       <View style={styles.buttonsRow}>
         <Pressable
@@ -503,6 +538,53 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     alignItems: 'center',
+  },
+  stuckOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5, 9, 16, 0.78)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    zIndex: 50,
+  },
+  stuckCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#16233a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#3a5a82',
+    padding: 20,
+    gap: 12,
+    alignItems: 'center',
+  },
+  stuckTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  stuckText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#b7c8da',
+    textAlign: 'center',
+  },
+  stuckButton: {
+    alignSelf: 'stretch',
+    backgroundColor: '#7c3aed',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  stuckButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  stuckUndo: {
+    color: '#b7c8da',
+    fontSize: 13,
+    fontWeight: '600',
   },
   boardArea: {
     flex: 1,

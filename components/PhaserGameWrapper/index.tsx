@@ -10,7 +10,7 @@ interface PhaserGameWrapperProps extends GameComponentProps {
   isStarted: boolean;
 }
 
-export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSource, difficulty, isStarted }: PhaserGameWrapperProps) {
+export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSource, difficulty, isStarted, arcade = false }: PhaserGameWrapperProps) {
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isReadyRef = useRef(false);
@@ -34,7 +34,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   // Quand le jeu est prêt ET que l'utilisateur a appuyé sur Jouer → envoyer INIT
   useEffect(() => {
     if (isStarted && isReadyRef.current) {
-      sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current });
+      sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current, arcade });
     }
   }, [isStarted, difficulty]);
 
@@ -54,7 +54,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
           sendMessageToGame({ type: 'SET_MUTED', muted: mutedRef.current });
           // Envoyer INIT seulement si l'utilisateur a déjà appuyé sur Jouer
           if (isStarted) {
-            sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current });
+            sendMessageToGame({ type: 'INIT', difficulty: difficulty ?? 'easy', hintsAvailable: hintsRef.current, muted: mutedRef.current, arcade });
           }
         }
 

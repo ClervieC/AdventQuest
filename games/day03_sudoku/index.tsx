@@ -247,19 +247,26 @@ function SudokuBoard({
         ))}
       </View>
 
-      <Pressable
-        style={[styles.notesToggle, notesMode && styles.notesToggleOn]}
-        onPress={() => setNotesMode((on) => !on)}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: notesMode }}
-      >
-        <Text style={[styles.notesToggleText, notesMode && styles.notesToggleTextOn]}>
-          {notesMode ? tr('✏️ Notes : activées', '✏️ Notes: on') : tr('✏️ Notes : désactivées', '✏️ Notes: off')}
-        </Text>
-      </Pressable>
-      {notesMode && (
-        <Text style={styles.notesHelp}>{tr('Les chiffres s’écrivent en petit, comme solutions possibles de la case.', 'Numbers are written small, as possible answers for the square.')}</Text>
-      )}
+      {/* Notes et indice sur une seule ligne : activer les notes ne décale rien vers le bas */}
+      <View style={styles.toolsRow}>
+        <Pressable
+          style={[styles.notesToggle, notesMode && styles.notesToggleOn]}
+          onPress={() => setNotesMode((on) => !on)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: notesMode }}
+        >
+          <Text style={[styles.notesToggleText, notesMode && styles.notesToggleTextOn]}>
+            {notesMode ? tr('✏️ Notes : oui', '✏️ Notes: on') : tr('✏️ Notes : non', '✏️ Notes: off')}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.hintButton, hintsAvailable === 0 && styles.hintButtonDisabled]}
+          onPress={handleHint}
+          disabled={hintsAvailable === 0}
+        >
+          <Text style={styles.hintButtonText}>{tr('💡 Révéler une case', '💡 Reveal a square')}</Text>
+        </Pressable>
+      </View>
 
       <View style={[styles.numberPad, notesMode && styles.numberPadNotes]}>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
@@ -281,15 +288,12 @@ function SudokuBoard({
         </Pressable>
       </View>
 
-      <Pressable
-        style={[styles.hintButton, hintsAvailable === 0 && styles.hintButtonDisabled]}
-        onPress={handleHint}
-        disabled={hintsAvailable === 0}
-      >
-        <Text style={styles.hintButtonText}>{tr('💡 Révéler une case', '💡 Reveal a square')}</Text>
-      </Pressable>
-
-      <Text style={styles.savedNote}>{tr('Ta grille est sauvegardée : tu peux quitter et revenir plus tard.', 'Your grid is saved: you can leave and come back later.')}</Text>
+      {/* Même place pour les deux textes : la page garde la même hauteur */}
+      <Text style={[styles.savedNote, notesMode && styles.notesHelp]}>
+        {notesMode
+          ? tr('✏️ Les chiffres s’écrivent en petit, comme solutions possibles de la case.', '✏️ Numbers are written small, as possible answers for the square.')
+          : tr('Ta grille est sauvegardée : tu peux quitter et revenir plus tard.', 'Your grid is saved: you can leave and come back later.')}
+      </Text>
       <NewGameButton onConfirm={handleNewGame} />
     </ScrollView>
   );
@@ -304,8 +308,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   savedNote: {
-    marginTop: 18,
+    marginTop: 12,
     marginBottom: 8,
+    minHeight: 30,
+    paddingHorizontal: 24,
     fontSize: 11,
     color: '#8ea6c0',
     textAlign: 'center',
@@ -314,13 +320,19 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 12,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 16,
+    marginBottom: 10,
+  },
+  toolsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
   },
   grid: {
     borderWidth: 2,
@@ -379,7 +391,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   notesToggle: {
-    marginTop: 18,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#3a5a82',
@@ -400,26 +411,24 @@ const styles = StyleSheet.create({
     color: '#fbbf24',
   },
   notesHelp: {
-    marginTop: 6,
-    fontSize: 11,
-    color: '#b7c8da',
-    textAlign: 'center',
-    paddingHorizontal: 24,
+    color: '#fbbf24',
   },
+  // Bordure toujours présente (transparente hors mode notes) : le pavé garde la même taille
   numberPadNotes: {
-    borderRadius: 14,
-    borderWidth: 1,
     borderColor: '#fbbf24',
-    borderStyle: 'dashed',
-    padding: 8,
   },
   numberPad: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 14,
+    marginTop: 12,
     justifyContent: 'center',
-    maxWidth: 320,
+    maxWidth: 336,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderStyle: 'dashed',
+    padding: 7,
   },
   numberButton: {
     width: 42,
@@ -443,13 +452,12 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   hintButton: {
-    marginTop: 20,
     backgroundColor: '#2a2208',
     borderColor: '#6b5410',
     borderWidth: 1,
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
   },
   hintButtonDisabled: {
     opacity: 0.3,

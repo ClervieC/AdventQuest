@@ -39,10 +39,12 @@
     }
 
     let currentDifficulty = 'easy';
+    let arcadeMode = false; // onglet Jeux : partie sans fin (ou par niveaux), sans objectif du jour
     window.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'INIT') {
+          arcadeMode = data.arcade === true;
           currentDifficulty = data.difficulty;
           configureDifficulty(currentDifficulty);
         }
@@ -68,18 +70,23 @@
     }
 
     // Vitesse (vol des friandises et fréquence d'apparition) au fil de la partie :
-    // lent au début (0.6), accélère jusqu'à 1.2 à la fin des 60 s, puis de plus en plus vite en bonus
-    // (+0.8 toutes les 30 s, plafonné à 2.6 pour rester jouable).
+    // lent au début (0.6), accélère jusqu'à 1.2 à la fin des 60 s, puis de plus en plus vite pendant le bonus
+    // jusqu'à 2.6 à la dernière seconde. Les bombes deviennent aussi plus fréquentes : le bonus finit par s'arrêter.
     const SPEED_START = 0.6;
     const SPEED_AT_GOAL = 1.2;
-    const BONUS_SPEEDUP_PER_30S = 0.8;
     const SPEED_MAX = 2.6;
+    // Onglet Jeux : pas d'objectif, ça accélère de 0.6 à 2.6 en 2 min 30 et la partie dure jusqu'à la 1re bombe
+    const ARCADE_RAMP_MS = 150000;
+    function bonusProgress() {
+      if (arcadeMode) return Math.min(1, elapsedMs / ARCADE_RAMP_MS);
+      return Phaser.Math.Clamp((elapsedMs - GAME_DURATION_MS) / BONUS_MAX_MS, 0, 1);
+    }
     function getSpeedRatio() {
+      if (arcadeMode) return SPEED_START + (SPEED_MAX - SPEED_START) * bonusProgress();
       if (elapsedMs <= GAME_DURATION_MS) {
         return SPEED_START + (SPEED_AT_GOAL - SPEED_START) * (elapsedMs / GAME_DURATION_MS);
       }
-      const bonusSeconds = (elapsedMs - GAME_DURATION_MS) / 1000;
-      return Math.min(SPEED_MAX, SPEED_AT_GOAL + BONUS_SPEEDUP_PER_30S * (bonusSeconds / 30));
+      return SPEED_AT_GOAL + (SPEED_MAX - SPEED_AT_GOAL) * bonusProgress();
     }
 
     function scheduleNextSpawn() {
@@ -98,6 +105,8 @@
       if (countdownEvent) { countdownEvent.remove(); countdownEvent = null; }
       objects.forEach((obj) => obj.sprite.destroy());
       objects = [];
+      pieces.forEach((piece) => piece.sprite.destroy());
+      pieces = [];
       trailPoints = [];
       isPointerDown = false;
       score = 0;
@@ -106,7 +115,7 @@
       gameEnded = false;
       if (stopButton) { stopButton.destroy(); stopButton = null; }
       scoreText.setText('Score: 0');
-      timerText.setText(Math.round(GAME_DURATION_MS / 1000) + 's').setColor('#f59e0b');
+      timerText.setText(arcadeMode ? '⏱ 0s' : Math.round(GAME_DURATION_MS / 1000) + 's').setColor('#f59e0b');
     }
 
     function startGame() {
@@ -120,9 +129,15 @@
       countdownEvent = scene.time.addEvent({ delay: 1000, callback: tickCountdown, loop: true });
     }
 
-    // Objectif : tenir 60 s sans toucher de bombe. Ensuite, la partie continue en bonus :
+    // Objectif : tenir 60 s sans toucher de bombe. Ensuite, la partie continue en bonus (60 s au plus) :
     // chaque friandise rapporte encore des points, et une bombe termine la partie sans la faire perdre.
     const GAME_DURATION_MS = 60000;
+    const BONUS_MAX_MS = 60000;
+    // Il faut un vrai geste de coupe : le doigt doit traverser la friandise assez vite (px/ms).
+    // Poser le doigt dessus ou le glisser lentement ne tranche rien.
+    const SLICE_MIN_SPEED = 0.45;
+    const TRAIL_LIFETIME_MS = 140;
+    const JUICE_COLORS = { '🍎': 0xef4444, '🍊': 0xfb923c, '🍐': 0xa3e635, '🍪': 0xd6a26b, '🧁': 0xf9a8d4, '🍭': 0xe879f9, '🪵': 0x92400e };
     const GRAVITY = 1100;
     // Hauteur de montée, en part de la hauteur d'écran : les fruits montent entre 55 % et 85 % de l'écran
     const RISE_MIN = 0.55;
@@ -131,8 +146,9 @@
     const TREATS = ['🍎', '🍊', '🍐', '🍪', '🧁', '🍭', '🪵']; // 🪵 = la bûche de Noël
 
     let scene;
-    let objects = [];        // { sprite, x, y, vx, vy, gravity, isBomb, sliced }
-    let trailPoints = [];    // historique récent des positions du doigt pour le tracé visuel
+    let objects = [];        // { sprite, x, y, vx, vy, gravity, isBomb, sliced, emoji }
+    let pieces = [];         // moitiés de friandises tranchées qui retombent : { sprite, vx, vy, gravity, spin }
+    let trailPoints = [];    // positions récentes du doigt { x, y, t } pour la lame (effacées au bout de 140 ms)
     let score = 0;
     let gameEnded = false;
     let spawnTimer = null;
@@ -162,22 +178,23 @@
           return;
         }
         isPointerDown = true;
-        lastPointerPos = { x: pointer.x, y: pointer.y };
-        trailPoints = [{ x: pointer.x, y: pointer.y }];
+        lastPointerPos = { x: pointer.x, y: pointer.y, t: scene.time.now };
+        trailPoints = [lastPointerPos];
       });
 
       this.input.on('pointermove', (pointer) => {
         if (!isPointerDown) return;
-        const newPos = { x: pointer.x, y: pointer.y };
-        checkSliceCollision(lastPointerPos, newPos);
+        const newPos = { x: pointer.x, y: pointer.y, t: scene.time.now };
+        const length = Phaser.Math.Distance.Between(lastPointerPos.x, lastPointerPos.y, newPos.x, newPos.y);
+        const speed = length / Math.max(1, newPos.t - lastPointerPos.t);
+        if (speed >= SLICE_MIN_SPEED) checkSliceCollision(lastPointerPos, newPos);
         trailPoints.push(newPos);
-        if (trailPoints.length > 10) trailPoints.shift();
         lastPointerPos = newPos;
       });
 
+      // La lame s'efface d'elle-même (drawBlade) : pas de coupure nette au lever du doigt
       this.input.on('pointerup', () => {
         isPointerDown = false;
-        trailPoints = [];
       });
 
       notifyReady();
@@ -188,7 +205,8 @@
 
       const width = scene.scale.width;
       const height = scene.scale.height;
-      const isBomb = Math.random() < settings.bombChance;
+      // En bonus, jusqu'à deux fois plus de bombes à la fin
+      const isBomb = Math.random() < settings.bombChance * (1 + bonusProgress());
 
       const x = width * 0.2 + Math.random() * width * 0.6;
       const y = height + 40;
@@ -202,17 +220,18 @@
 
       // Friandises de Noël à couper ; les bombes ont un halo rouge pour ne jamais les confondre
       let sprite;
+      let emoji = null;
       if (isBomb) {
         const halo = scene.add.circle(0, 0, OBJECT_RADIUS + 4, 0xef4444, 0.35).setStrokeStyle(3, 0xef4444);
         const bomb = scene.add.text(0, 0, '💣', { fontSize: OBJECT_RADIUS * 1.5 + 'px' }).setOrigin(0.5);
         sprite = scene.add.container(x, y, [halo, bomb]);
       } else {
-        const emoji = TREATS[Math.floor(Math.random() * TREATS.length)];
+        emoji = TREATS[Math.floor(Math.random() * TREATS.length)];
         sprite = scene.add.text(x, y, emoji, { fontSize: OBJECT_RADIUS * 1.6 + 'px' }).setOrigin(0.5);
       }
       sprite.spin = (Math.random() - 0.5) * 4;
 
-      objects.push({ sprite, x, y, vx, vy, gravity, isBomb, sliced: false });
+      objects.push({ sprite, x, y, vx, vy, gravity, isBomb, emoji, sliced: false });
     }
 
     function checkSliceCollision(from, to) {
@@ -220,7 +239,7 @@
         if (obj.sliced) return;
         const distance = distanceFromSegmentToPoint(from, to, { x: obj.x, y: obj.y });
         if (distance <= OBJECT_RADIUS) {
-          sliceObject(obj);
+          sliceObject(obj, from, to);
         }
       });
     }
@@ -244,17 +263,22 @@
       return Phaser.Math.Distance.Between(point.x, point.y, closestX, closestY);
     }
 
-    function sliceObject(obj) {
+    function sliceObject(obj, from, to) {
       obj.sliced = true;
       obj.sprite.destroy();
+      const angle = Math.atan2(to.y - from.y, to.x - from.x);
+      drawSlash(obj.x, obj.y, angle);
 
       if (obj.isBomb) {
         sfx('explode');
+        explode(obj.x, obj.y);
         // Pendant les 60 s : perdu. En bonus : l'objectif est déjà atteint, la partie s'arrête avec le score
-        finishGame(bonusMode);
+        finishGame(bonusMode || arcadeMode);
         return;
       }
       sfx('slice');
+      splitTreat(obj, angle);
+      splashJuice(obj.x, obj.y, JUICE_COLORS[obj.emoji] || 0xffffff);
 
       score += 30;
       scoreText.setText('Score: ' + score);
@@ -286,28 +310,104 @@
         return true;
       });
 
-      // Dessine la traînée du doigt
+      updatePieces(dt);
+      drawBlade(time);
+    }
+
+    // Lame : traînée qui s'affine et s'efface vers la queue (seulement les 140 dernières ms du geste)
+    function drawBlade(now) {
+      trailPoints = trailPoints.filter((p) => now - p.t <= TRAIL_LIFETIME_MS);
       trailGraphics.clear();
-      if (trailPoints.length > 1) {
-        trailGraphics.lineStyle(4, 0xffffff, 0.5);
-        trailGraphics.beginPath();
-        trailGraphics.moveTo(trailPoints[0].x, trailPoints[0].y);
-        for (let i = 1; i < trailPoints.length; i++) {
-          trailGraphics.lineTo(trailPoints[i].x, trailPoints[i].y);
-        }
-        trailGraphics.strokePath();
+      for (let i = 1; i < trailPoints.length; i++) {
+        const k = i / (trailPoints.length - 1);
+        trailGraphics.lineStyle(2 + 7 * k, 0xffffff, 0.15 + 0.75 * k);
+        trailGraphics.lineBetween(trailPoints[i - 1].x, trailPoints[i - 1].y, trailPoints[i].x, trailPoints[i].y);
       }
+    }
+
+    // Trait lumineux à l'endroit de la coupe
+    function drawSlash(x, y, angle) {
+      const half = OBJECT_RADIUS + 18;
+      const slash = scene.add.graphics().setDepth(15);
+      slash.lineStyle(3, 0xffffff, 0.95);
+      slash.lineBetween(x - Math.cos(angle) * half, y - Math.sin(angle) * half, x + Math.cos(angle) * half, y + Math.sin(angle) * half);
+      scene.tweens.add({ targets: slash, alpha: 0, duration: 220, onComplete: () => slash.destroy() });
+    }
+
+    // La friandise est coupée en deux dans le sens du geste : les deux moitiés s'écartent et retombent en tournant
+    function splitTreat(obj, angle) {
+      const normalX = -Math.sin(angle);
+      const normalY = Math.cos(angle);
+      [-1, 1].forEach((side) => {
+        const half = scene.add.text(obj.x, obj.y, obj.emoji, { fontSize: OBJECT_RADIUS * 1.6 + 'px' }).setOrigin(0.5).setDepth(5);
+        // Moitié haute ou basse de l'emoji, tournée pour que la coupe suive le geste
+        const h = half.height / 2;
+        half.setCrop(0, side < 0 ? 0 : h, half.width, h);
+        half.setRotation(angle);
+        pieces.push({
+          sprite: half,
+          vx: obj.vx * 0.5 + normalX * side * 160,
+          vy: Math.min(obj.vy, 0) * 0.3 + normalY * side * 160 - 120,
+          gravity: obj.gravity || GRAVITY,
+          spin: side * (4 + Math.random() * 4),
+        });
+      });
+    }
+
+    function updatePieces(dt) {
+      pieces = pieces.filter((piece) => {
+        piece.vy += piece.gravity * dt;
+        piece.sprite.x += piece.vx * dt;
+        piece.sprite.y += piece.vy * dt;
+        piece.sprite.angle += piece.spin;
+        if (piece.sprite.y > scene.scale.height + 60) {
+          piece.sprite.destroy();
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Éclaboussure de jus de la couleur du fruit
+    function splashJuice(x, y, color) {
+      for (let i = 0; i < 8; i++) {
+        const drop = scene.add.circle(x, y, 3 + Math.random() * 4, color, 0.9).setDepth(4);
+        const a = Math.random() * Math.PI * 2;
+        const d = 25 + Math.random() * 35;
+        scene.tweens.add({
+          targets: drop,
+          x: x + Math.cos(a) * d,
+          y: y + Math.sin(a) * d + 15,
+          scale: 0.3,
+          alpha: 0,
+          duration: 380 + Math.random() * 200,
+          ease: 'Quad.easeOut',
+          onComplete: () => drop.destroy(),
+        });
+      }
+    }
+
+    function explode(x, y) {
+      const blast = scene.add.circle(x, y, OBJECT_RADIUS, 0xfbbf24, 0.9).setDepth(15);
+      scene.tweens.add({ targets: blast, scale: 4, alpha: 0, duration: 350, onComplete: () => blast.destroy() });
+      scene.cameras.main.shake(220, 0.012);
     }
 
     function tickCountdown() {
       if (gameEnded) return;
       elapsedMs += 1000;
+      if (arcadeMode) {
+        timerText.setText('⏱ ' + Math.round(elapsedMs / 1000) + 's');
+        return;
+      }
       if (!bonusMode) {
         const secondsLeft = Math.max(0, Math.ceil((GAME_DURATION_MS - elapsedMs) / 1000));
         timerText.setText(secondsLeft + 's');
         if (elapsedMs >= GAME_DURATION_MS) startBonus();
       } else {
-        timerText.setText('Bonus +' + Math.round((elapsedMs - GAME_DURATION_MS) / 1000) + 's');
+        const bonusLeft = Math.max(0, Math.ceil((GAME_DURATION_MS + BONUS_MAX_MS - elapsedMs) / 1000));
+        timerText.setText('Bonus ' + bonusLeft + 's');
+        if (bonusLeft <= 0) finishGame(true);
       }
     }
 
@@ -315,8 +415,8 @@
     function startBonus() {
       bonusMode = true;
       sfx('powerup');
-      timerText.setText('Bonus +0s').setColor('#fbbf24');
-      const banner = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.35, T('🎉 Objectif atteint !\nContinue pour des points bonus', '🎉 Goal reached!\nKeep going for bonus points'), {
+      timerText.setText('Bonus ' + Math.round(BONUS_MAX_MS / 1000) + 's').setColor('#fbbf24');
+      const banner = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.35, T('🎉 Objectif atteint !\nContinue pour des points bonus\n(ça va accélérer !)', '🎉 Goal reached!\nKeep going for bonus points\n(it’ll speed up!)'), {
         fontSize: '17px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
         wordWrap: { width: scene.scale.width - 24 },
       }).setOrigin(0.5).setDepth(20);

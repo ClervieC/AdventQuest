@@ -1,5 +1,5 @@
 import { isGridComplete, isGridValid } from './logic';
-import { generateSudokuPuzzle } from './puzzles';
+import { countSolutions, generateSudokuPuzzle } from './puzzles';
 
 describe('generateSudokuPuzzle', () => {
   test('la solution générée est toujours une grille 9x9 complète et valide', () => {
@@ -39,5 +39,24 @@ describe('generateSudokuPuzzle', () => {
     const puzzle2 = generateSudokuPuzzle('easy');
     // très improbable que deux grilles générées aléatoirement soient identiques
     expect(puzzle1.solution).not.toEqual(puzzle2.solution);
+  });
+});
+describe('Sudoku - solution unique (résoluble sans deviner)', () => {
+  test.each(['easy', 'medium', 'hard', 'very_hard'] as const)('grille %s : une seule solution', (difficulty) => {
+    for (let i = 0; i < 3; i++) {
+      const puzzle = generateSudokuPuzzle(difficulty);
+      const asNumbers = puzzle.initialGrid.map((row) => row.map((cell) => cell ?? 0));
+      expect(countSolutions(asNumbers, 2)).toBe(1);
+    }
+  });
+
+  test('very_hard garde peu de cases pré-remplies (au plus 30)', () => {
+    const filled = generateSudokuPuzzle('very_hard').initialGrid.flat().filter((cell) => cell !== null).length;
+    expect(filled).toBeLessThanOrEqual(30);
+  });
+
+  test('countSolutions détecte une grille à plusieurs solutions', () => {
+    const empty = Array.from({ length: 9 }, () => Array(9).fill(0));
+    expect(countSolutions(empty, 2)).toBe(2);
   });
 });

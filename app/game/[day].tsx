@@ -1,69 +1,15 @@
-import { StackGame } from '@/games/day02_stack';
-import { SpaceInvadersGame } from '@/games/day04_spaceinvaders';
-import { SnakeGame } from '@/games/day05_snake';
-import { DessinConnecteGame } from '@/games/day06_dessinconnecte';
-import { FruitNinjaGame } from '@/games/day07_fruitninja';
-import { MemorySequenceGame } from '@/games/day08_memory_sequence';
-import { BubbleShooterGame } from '@/games/day09_bubbleshooter';
-import { PipePuzzleGame } from '@/games/day10_pipepuzzle';
-import { SolitaireGame } from '@/games/day11_solitaire';
-import { RunnerGame } from '@/games/day13_runner';
-import { LabyrintheGame } from '@/games/day14_labyrinthe';
-import { NonogramGame } from '@/games/day15_nonogram';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
-import { GameType, getDayConfig } from '../../constants/days';
+import { getDayConfig } from '../../constants/days';
 import { TUTORIALS } from '../../constants/tutorials';
+import { GAME_COMPONENTS, GAME_DIFFICULTY, PRELOADED_GAMES } from '../../games/registry';
 import { useI18n } from '../../services/i18n';
-import { QuizGame } from '../../games/day01_quiz';
-import { SudokuGame } from '../../games/day03_sudoku';
-import { WhackAMoleGame } from '../../games/day16_whackamole';
-import { DodgeBallGame } from '../../games/day19_dodgeball';
-import { RythmeGame } from '../../games/day21_rythme';
-import { CasseBriquesGame } from '../../games/day20_cassebriques';
-import { Day22MarathonGame } from '../../games/day22_marathon';
-import { Day23MarathonGame } from '../../games/day23_marathon';
-import { BossGame } from '../../games/day24_boss';
-
-const GAME_COMPONENTS: Record<string, React.ComponentType<any>> = {
-  quiz: QuizGame,
-  sudoku: SudokuGame,
-  memory_sequence: MemorySequenceGame,
-  snake: SnakeGame,
-  stack: StackGame,
-  labyrinthe: LabyrintheGame,
-  pipepuzzle: PipePuzzleGame,
-  spaceinvaders: SpaceInvadersGame,
-  whackamole: WhackAMoleGame,
-  dessinconnecte: DessinConnecteGame,
-  fruitninja: FruitNinjaGame,
-  bubbleshooter: BubbleShooterGame,
-  solitaire: SolitaireGame,
-  nonogram: NonogramGame,
-  runner: RunnerGame,
-  dodgeball: DodgeBallGame,
-  cassebriques: CasseBriquesGame,
-  marathon_22: Day22MarathonGame,
-  marathon_23: Day23MarathonGame,
-  boss: BossGame,
-  rythme: RythmeGame,
-};
-
-// Jeux Phaser (WebView) et marathons : montés dès l'intro pour que la WebView ait le temps de charger.
-// Ils attendent INIT pour démarrer et se remettent à zéro eux-mêmes à chaque "Rejouer".
-const PRELOADED_GAMES = new Set<GameType>([
-  'stack', 'spaceinvaders', 'fruitninja', 'bubbleshooter', 'whackamole',
-  'runner', 'dodgeball', 'cassebriques', 'marathon_22', 'marathon_23', 'boss',
-]);
 
 // Build web statique (Vercel...) : pré-génère une page par jour, /game/1 à /game/24
 export async function generateStaticParams(): Promise<{ day: string }[]> {
   return Array.from({ length: 24 }, (_, i) => ({ day: String(i + 1) }));
 }
-
-// Difficulté du jour → difficulté du jeu (le boss joue ses épreuves en "hard")
-const GAME_DIFFICULTY = { easy: 'easy', medium: 'medium', hard: 'hard', very_hard: 'very_hard', boss: 'hard' } as const;
 
 export default function GameScreen() {
   const { day } = useLocalSearchParams<{ day: string }>();

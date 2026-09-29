@@ -40,21 +40,99 @@ function generateCompleteSolution(): number[][] {
   return grid;
 }
 
-/** Retire N cellules d'une grille complète pour créer le puzzle à résoudre */
+const BOX = 3;
+const ALL_DIGITS = 0b1111111110; // bits 1 à 9
+
+/**
+ * Compte les solutions d'une grille (0 = case vide), en s'arrêtant à `limit`.
+ * Masques de bits par ligne / colonne / carré + on remplit toujours la case la plus contrainte : rapide.
+ */
+export function countSolutions(grid: number[][], limit = 2): number {
+  const cells = grid.map((row) => [...row]);
+  const rows = Array(GRID_SIZE).fill(0);
+  const cols = Array(GRID_SIZE).fill(0);
+  const boxes = Array(GRID_SIZE).fill(0);
+  const boxOf = (r: number, c: number) => Math.floor(r / BOX) * BOX + Math.floor(c / BOX);
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const v = cells[r][c];
+      if (!v) continue;
+      const bit = 1 << v;
+      if ((rows[r] | cols[c] | boxes[boxOf(r, c)]) & bit) return 0; // grille déjà contradictoire
+      rows[r] |= bit;
+      cols[c] |= bit;
+      boxes[boxOf(r, c)] |= bit;
+    }
+  }
+
+  let count = 0;
+  const search = (): void => {
+    // Case vide avec le moins de chiffres possibles
+    let bestR = -1;
+    let bestC = -1;
+    let bestMask = 0;
+    let bestCount = 10;
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        if (cells[r][c]) continue;
+        const mask = ALL_DIGITS & ~(rows[r] | cols[c] | boxes[boxOf(r, c)]);
+        let n = 0;
+        for (let m = mask; m; m &= m - 1) n++;
+        if (n < bestCount) {
+          bestR = r;
+          bestC = c;
+          bestMask = mask;
+          bestCount = n;
+          if (n <= 1) break;
+        }
+      }
+      if (bestCount <= 1) break;
+    }
+    if (bestR === -1) {
+      count++;
+      return;
+    }
+    const b = boxOf(bestR, bestC);
+    for (let v = 1; v <= 9 && count < limit; v++) {
+      const bit = 1 << v;
+      if (!(bestMask & bit)) continue;
+      cells[bestR][bestC] = v;
+      rows[bestR] |= bit;
+      cols[bestC] |= bit;
+      boxes[b] |= bit;
+      search();
+      cells[bestR][bestC] = 0;
+      rows[bestR] &= ~bit;
+      cols[bestC] &= ~bit;
+      boxes[b] &= ~bit;
+    }
+  };
+  search();
+  return count;
+}
+
+/**
+ * Retire jusqu'à N cellules d'une grille complète pour créer le puzzle, en gardant une SEULE solution :
+ * une case n'est vidée que si la grille reste à solution unique. Le puzzle se résout donc par déduction,
+ * sans jamais devoir deviner (même en très difficile).
+ */
 function createPuzzleFromSolution(solution: number[][], cellsToRemove: number): Grid {
-  const grid: Grid = solution.map((row) => [...row]);
+  const grid = solution.map((row) => [...row]);
   const positions: [number, number][] = [];
   for (let r = 0; r < GRID_SIZE; r++) {
     for (let c = 0; c < GRID_SIZE; c++) {
       positions.push([r, c]);
     }
   }
-  const shuffled = shuffle(positions);
-  for (let i = 0; i < cellsToRemove; i++) {
-    const [r, c] = shuffled[i];
-    grid[r][c] = null;
+  let removed = 0;
+  for (const [r, c] of shuffle(positions)) {
+    if (removed >= cellsToRemove) break;
+    const value = grid[r][c];
+    grid[r][c] = 0;
+    if (countSolutions(grid, 2) === 1) removed++;
+    else grid[r][c] = value; // deux solutions possibles : on garde ce chiffre
   }
-  return grid;
+  return grid.map((row) => row.map((v) => (v === 0 ? null : v)));
 }
 
 export type SudokuDifficulty = 'easy' | 'medium' | 'hard' | 'very_hard';
@@ -64,7 +142,7 @@ const CELLS_TO_REMOVE: Record<SudokuDifficulty, number> = {
   easy: 30,        // ~51 cases pré-remplies — beaucoup d'aide visuelle
   medium: 40,       // ~41 cases pré-remplies
   hard: 50,         // ~31 cases pré-remplies
-  very_hard: 58,    // ~23 cases pré-remplies — très peu d'indices de départ
+  very_hard: 56,    // ~25 cases pré-remplies — très peu d'indices de départ (mais une seule solution)
 };
 
 export function generateSudokuPuzzle(difficulty: SudokuDifficulty = 'easy'): SudokuPuzzle {

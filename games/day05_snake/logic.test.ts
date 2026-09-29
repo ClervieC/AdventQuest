@@ -4,9 +4,15 @@ import {
     createInitialState,
     generateApplePosition,
     getNextHeadPosition,
+    getTickInterval,
     isEatingApple,
+    isSnakeSuccess,
+    MIN_APPLES,
+    queueTurn,
     isOppositeDirection,
     SnakeState,
+    TICK_FAST_MS,
+    TICK_SLOW_MS,
 } from './logic';
 
 describe('getNextHeadPosition', () => {
@@ -103,6 +109,7 @@ describe('advanceSnake', () => {
       score: 0,
       gridSize: 10,
       isDead: false,
+      isFull: false,
     };
     const next = advanceSnake(state);
     expect(next.snake).toHaveLength(3);
@@ -119,6 +126,7 @@ describe('advanceSnake', () => {
       score: 0,
       gridSize: 10,
       isDead: false,
+      isFull: false,
     };
     const next = advanceSnake(state);
     expect(next.snake).toHaveLength(3);
@@ -133,6 +141,7 @@ describe('advanceSnake', () => {
       score: 0,
       gridSize: 10,
       isDead: false,
+      isFull: false,
     };
     const next = advanceSnake(state);
     expect(next.apple.row).toBeGreaterThanOrEqual(0);
@@ -147,6 +156,7 @@ describe('advanceSnake', () => {
       score: 0,
       gridSize: 10,
       isDead: false,
+      isFull: false,
     };
     const next = advanceSnake(state);
     expect(next.snake[0]).toEqual({ row: 9, col: 5 });
@@ -171,6 +181,7 @@ describe('advanceSnake', () => {
       score: 2,
       gridSize: 10,
       isDead: false,
+      isFull: false,
     };
     const next = advanceSnake(state);
     expect(next.isDead).toBe(true);
@@ -184,6 +195,7 @@ describe('advanceSnake', () => {
       score: 1,
       gridSize: 10,
       isDead: true,
+      isFull: false,
     };
     const next = advanceSnake(state);
     expect(next).toBe(state); // même référence, aucun changement
@@ -217,5 +229,50 @@ describe('calculateFinalScore', () => {
 
   test('chaque pomme vaut 100 points', () => {
     expect(calculateFinalScore(7)).toBe(700);
+  });
+});
+describe('Snake sans chrono : minimum de pommes et accélération', () => {
+  test(`il faut au moins ${MIN_APPLES} pommes pour gagner`, () => {
+    expect(isSnakeSuccess(MIN_APPLES - 1)).toBe(false);
+    expect(isSnakeSuccess(MIN_APPLES)).toBe(true);
+  });
+
+  test('chaque pomme accélère le serpent, jusqu’à une vitesse maximale', () => {
+    expect(getTickInterval(0)).toBe(TICK_SLOW_MS);
+    expect(getTickInterval(5)).toBeLessThan(getTickInterval(4));
+    expect(getTickInterval(100)).toBe(TICK_FAST_MS);
+  });
+
+  test('grille pleine : la partie s’arrête proprement (pas de recherche de pomme sans fin)', () => {
+    // Grille 2×2 : serpent de 3 cases, la pomme sur la dernière case libre
+    const state: SnakeState = {
+      snake: [{ row: 0, col: 1 }, { row: 0, col: 0 }, { row: 1, col: 0 }],
+      direction: 'down',
+      apple: { row: 1, col: 1 },
+      score: 2,
+      gridSize: 2,
+      isDead: false,
+      isFull: false,
+    };
+    const next = advanceSnake(state);
+    expect(next.isFull).toBe(true);
+    expect(next.isDead).toBe(false);
+    expect(next.score).toBe(3);
+  });
+});
+
+describe('Snake - file des virages', () => {
+  test('deux appuis rapides ne permettent jamais un demi-tour', () => {
+    // On monte ; ← puis ↓ entre deux pas : ↓ est comparé à ←, donc accepté, mais jamais directement après ↑
+    let queue = queueTurn([], 'up', 'left');
+    queue = queueTurn(queue, 'up', 'down');
+    expect(queue).toEqual(['left', 'down']);
+    // Sans virage intermédiaire, le demi-tour est refusé
+    expect(queueTurn([], 'up', 'down')).toEqual([]);
+  });
+
+  test('ignore la direction déjà suivie et limite la file à 2 virages', () => {
+    expect(queueTurn([], 'right', 'right')).toEqual([]);
+    expect(queueTurn(['up', 'left'], 'right', 'down')).toEqual(['up', 'left']);
   });
 });

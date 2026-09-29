@@ -80,7 +80,7 @@ export const TERMS: LegalDocument = {
 
 export const PRIVACY: LegalDocument = {
   title: 'Politique de confidentialité',
-  updatedAt: '28 septembre 2026',
+  updatedAt: '29 septembre 2026',
   sections: [
     {
       title: '1. Qui est responsable de tes données ?',
@@ -96,6 +96,7 @@ export const PRIVACY: LegalDocument = {
         '• Les joueurs que tu suis.',
         '• Si tu es testeur : les commentaires que tu envoies.',
         '• Si tu réponds au sondage de fin de saison (facultatif) : ta note, tes jeux préférés, tes envies et tes commentaires pour l’année prochaine.',
+        '• Tes records personnels de l’onglet Jeux : ton meilleur score pour chaque jeu, pour les retrouver sur tous tes appareils.',
         '• Des données techniques de connexion (jeton de session).',
         'Nous ne demandons ni nom, ni e-mail, ni numéro de téléphone, ni localisation.',
       ],
@@ -110,6 +111,7 @@ export const PRIVACY: LegalDocument = {
       title: '4. Qui peut voir quoi ?',
       paragraphs: [
         '• Tous les joueurs voient ton pseudo, ton score total, ton nombre de fragments et ta série dans le classement, et peuvent te trouver par ton pseudo.',
+        '• Les joueurs qui te suivent voient tes records personnels dans le classement entre amis de chaque jeu de l’onglet Jeux.',
         '• Ta progression détaillée, ton fuseau horaire et la liste des joueurs que tu suis ne sont visibles que par toi.',
         '• Les administrateurs du jeu voient la liste des comptes (pseudo, rôle, score) et les commentaires des testeurs et les réponses au sondage de fin de saison, pour gérer et améliorer l’application.',
         'Aucune donnée n’est vendue ni utilisée pour de la publicité. L’application ne contient pas de traceur publicitaire.',
@@ -118,14 +120,14 @@ export const PRIVACY: LegalDocument = {
     {
       title: '5. Hébergement',
       paragraphs: [
-        'Les données du jeu (comptes, progression, classement, amis, retours, sondage) sont stockées par Supabase (base de données et authentification) dans l’Union européenne, région « Central EU » (Francfort, Allemagne).',
+        'Les données du jeu (comptes, progression, classement, amis, records, retours, sondage) sont stockées par Supabase (base de données et authentification) dans l’Union européenne, région « Central EU » (Francfort, Allemagne).',
         'Le site web est servi par Vercel, qui peut traiter des données techniques de connexion (comme l’adresse IP) le temps de délivrer les pages ; aucune donnée de jeu n’y est stockée.',
       ],
     },
     {
       title: '6. Combien de temps ?',
       paragraphs: [
-        'Tant que ton compte existe. Quand tu supprimes ton compte (onglet Profil), ton profil, ta progression, ton classement, tes abonnements et ta réponse au sondage sont effacés immédiatement et définitivement. Les commentaires de testeur déjà envoyés sont conservés de façon anonyme.',
+        'Tant que ton compte existe. Quand tu supprimes ton compte (onglet Profil), ton profil, ta progression, ton classement, tes records, tes abonnements et ta réponse au sondage sont effacés immédiatement et définitivement. Les commentaires de testeur déjà envoyés sont conservés de façon anonyme.',
       ],
     },
     {
@@ -143,7 +145,7 @@ export const PRIVACY: LegalDocument = {
     {
       title: '9. Stockage sur l’appareil',
       paragraphs: [
-        'L’application garde sur ton appareil ta session de connexion et, si tu joues hors ligne, les parties en attente d’envoi. Il ne s’agit pas de cookies publicitaires.',
+        'L’application garde sur ton appareil : ta session de connexion ; les parties en attente d’envoi si tu joues hors ligne ; tes réglages (son coupé ou non, langue) ; les parties en cours que tu peux reprendre (Sudoku, Solitaire) ; une copie de tes records personnels ; et, pour les testeurs, les indices de test déjà utilisés. Il ne s’agit pas de cookies publicitaires : rien de tout cela ne sert à te suivre ou à faire de la publicité.',
       ],
     },
   ],
@@ -256,7 +258,7 @@ export const TERMS_EN: LegalDocument = {
 
 export const PRIVACY_EN: LegalDocument = {
   title: 'Privacy policy',
-  updatedAt: '28 September 2026',
+  updatedAt: '29 September 2026',
   sections: [
     {
       title: '1. Who is responsible for your data?',
@@ -272,6 +274,7 @@ export const PRIVACY_EN: LegalDocument = {
         '• The players you follow.',
         '• If you are a tester: the comments you send.',
         '• If you answer the end-of-season survey (optional): your rating, your favourite games, your wishes and your comments for next year.',
+        '• Your personal records in the Games tab: your best score for each game, so you get them back on all your devices.',
         '• Technical connection data (session token).',
         'We never ask for your name, email, phone number or location.',
       ],
@@ -286,6 +289,7 @@ export const PRIVACY_EN: LegalDocument = {
       title: '4. Who can see what?',
       paragraphs: [
         '• All players can see your username, total score, number of shards and streak in the leaderboard, and can find you by your username.',
+        '• Players who follow you can see your personal records in the friends’ ranking of each game in the Games tab.',
         '• Your detailed progress, your time zone and the list of players you follow are visible only to you.',
         '• The game’s administrators can see the list of accounts (username, role, score), testers’ comments and answers to the end-of-season survey, to manage and improve the app.',
         'No data is sold or used for advertising. The app contains no advertising trackers.',
@@ -294,14 +298,14 @@ export const PRIVACY_EN: LegalDocument = {
     {
       title: '5. Hosting',
       paragraphs: [
-        'Game data (accounts, progress, leaderboard, friends, feedback, survey) is stored by Supabase (database and authentication) in the European Union, “Central EU” region (Frankfurt, Germany).',
+        'Game data (accounts, progress, leaderboard, friends, records, feedback, survey) is stored by Supabase (database and authentication) in the European Union, “Central EU” region (Frankfurt, Germany).',
         'The website is served by Vercel, which may process technical connection data (such as your IP address) while delivering the pages; no game data is stored there.',
       ],
     },
     {
       title: '6. How long?',
       paragraphs: [
-        'As long as your account exists. When you delete your account (Profile tab), your profile, progress, leaderboard entry, follows and survey answer are erased immediately and permanently. Tester comments already sent are kept anonymously.',
+        'As long as your account exists. When you delete your account (Profile tab), your profile, progress, leaderboard entry, records, follows and survey answer are erased immediately and permanently. Tester comments already sent are kept anonymously.',
       ],
     },
     {
@@ -319,7 +323,7 @@ export const PRIVACY_EN: LegalDocument = {
     {
       title: '9. Storage on your device',
       paragraphs: [
-        'The app keeps your login session on your device and, if you play offline, the games waiting to be sent. These are not advertising cookies.',
+        'The app keeps on your device: your login session; games waiting to be sent if you play offline; your settings (sound on or off, language); games in progress you can resume (Sudoku, Solitaire); a copy of your personal records; and, for testers, the test hints already used. These are not advertising cookies: none of this is used to track you or for advertising.',
       ],
     },
     TRANSLATION_NOTE,

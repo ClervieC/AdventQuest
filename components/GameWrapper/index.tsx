@@ -4,13 +4,16 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getZoneForDay } from '../../constants/zones';
 import { GameTutorial as Tutorial } from '../../constants/tutorials';
+import { AllFragmentsCelebration, markAllFragmentsCelebrated } from '../AllFragmentsCelebration';
 import { FeedbackForm } from '../FeedbackForm';
 import { GameTutorial } from '../GameTutorial';
 import { FragmentHeart } from '../FragmentHeart';
 import { useI18n } from '../../services/i18n';
 import { playSfx } from '../../services/sfx';
+import { clearTestHintsLeft, loadTestHintsLeft, saveTestHintsLeft } from '../../services/testHints';
 import { SoundToggle } from '../SoundToggle';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
+import { dayRecordKey, useRecordsStore } from '../../store/recordsStore';
 import { CONTENT_WIDTH, pageColumn } from '../../constants/layout';
 import { GameResult } from './types';
 
@@ -20,10 +23,14 @@ interface GameWrapperProps {
   fragmentIcon: string;
   storyIntro: string;
   tutorial?: Tutorial; // « Comment jouer » affiché avant de lancer la partie
+  arcade?: boolean; // lancé depuis l'onglet Jeux : toujours en entraînement (rien d'enregistré), rejouable à l'infini
+  recordKey?: string; // clé du record personnel (par défaut : le jeu du jour)
+  recordFloor?: number; // record déjà établi ailleurs (calendrier...) à prendre en compte
+  introExtra?: React.ReactNode; // contenu en plus sous le tutoriel de l'intro (ex. records entre amis)
   children: (props: { onGameEnd: (result: GameResult) => void; hintsAvailable: number; onUseHint: () => void; isStarted: boolean }) => React.ReactNode;
 }
 
-export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutorial, children }: GameWrapperProps) {
+export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutorial, arcade = false, recordKey, recordFloor = 0, introExtra, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
   const { tr, l } = useI18n();
   // Haut de la zone de jeu (sous l'en-tête) : le jeu préchargé pendant l'intro est placé exactement là,
@@ -32,23 +39,51 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   // Marge gauche/droite de la zone de jeu : centrée à la largeur du calendrier sur ordi, pleine largeur sur téléphone
   const { width: screenWidth } = useWindowDimensions();
   const gameSide = Math.max(0, (screenWidth - COLUMN_MAX_WIDTH) / 2) + CONTAINER_PADDING;
-  const { hints, useHint, finishAttempt, canPlay, isLocked, canTest, role, days, bossUnlocked, totalFragments } = useGameStore();
+  const { hints, useHint, finishAttempt, canPlay, isLocked, canTest, role, days, bossUnlocked, totalFragments, username } = useGameStore();
   const [phase, setPhase] = useState<'intro' | 'playing' | 'result'>('intro');
   const [result, setResult] = useState<GameResult | null>(null);
   const [attemptId, setAttemptId] = useState(0); // un formulaire de retour neuf à chaque partie
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [testHintsLeft, setTestHintsLeft] = useState(TEST_HINTS_PER_GAME);
+  const [celebrateAll, setCelebrateAll] = useState(false);
+  // Record personnel : celui d'avant la partie, et si la partie vient de le battre
+  const [recordInfo, setRecordInfo] = useState<{ previous: number; isNew: boolean } | null>(null);
+
+  // Hints de test déjà utilisés sur ce jour (partie reprise après être sorti) : on ne repart pas à 3
+  useEffect(() => {
+    let cancelled = false;
+    loadTestHintsLeft(username, day).then((left) => {
+      if (!cancelled && left !== null) setTestHintsLeft(Math.min(TEST_HINTS_PER_GAME, left));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [username, day]);
 
   const dayState = days[day];
   const alreadyWon = dayState?.fragmentWon ?? false;
   // Jour futur ouvert en avance pour un testeur/admin : la partie est enregistrée (classement marqué 🧪)
-  const isTestMode = isLocked(day) && canTest(day);
+  const isTestMode = !arcade && isLocked(day) && canTest(day);
   // Jour passé : entraînement, rien n'est enregistré
-  const isPractice = !canPlay(day) && !isTestMode;
+  const isPractice = arcade || (!canPlay(day) && !isTestMode);
+  // Où revenir en quittant : l'onglet Jeux ou le calendrier
+  const home = arcade ? '/games' : '/';
   const canGiveFeedback = role === 'tester' || role === 'admin';
 
   const handleGameEnd = (gameResult: GameResult) => {
+    // Ce fragment est le 24e : grande fête, juste après l'arrivée du fragment autour du cœur
+    const completesAll = !isPractice && gameResult.success && !alreadyWon && totalFragments() === 23;
+    if (completesAll) {
+      markAllFragmentsCelebrated(username);
+      setTimeout(() => setCelebrateAll(true), 2200);
+    }
+    // Record : le meilleur entre l'onglet Jeux / l'entraînement (appareil) et les vraies parties du calendrier
+    const key = recordKey ?? dayRecordKey(day);
+    const calendarBest = key === dayRecordKey(day) ? dayState?.bestScore ?? 0 : 0;
+    const previous = Math.max(useRecordsStore.getState().records[key] ?? 0, calendarBest, recordFloor);
+    useRecordsStore.getState().submit(key, gameResult.score);
+    setRecordInfo({ previous, isNew: gameResult.score > previous && gameResult.score > 0 });
     if (!isPractice) finishAttempt(day, gameResult.score, gameResult.success);
     // Le son "fragment" est réservé aux vrais fragments ; en entraînement, simple son de victoire
     if (!gameResult.success) playSfx('failure');
@@ -57,6 +92,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
     setResult(gameResult);
     setAttemptId((id) => id + 1);
     setPhase('result');
+    // Partie terminée : la prochaine repart avec tous ses hints de test
+    setTestHintsLeft(TEST_HINTS_PER_GAME);
+    clearTestHintsLeft(username, day);
   };
 
   const isBoss = day === BOSS_DAY;
@@ -65,12 +103,13 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   const hintsAllowed = !isPractice && !isTestMode && !isBoss;
   const testHintsAllowed = isTestMode && !isBoss;
   const noop = () => {};
-  const useTestHint = () => setTestHintsLeft((n) => Math.max(0, n - 1));
-
-  const handleStart = () => {
-    setTestHintsLeft(TEST_HINTS_PER_GAME);
-    setPhase('playing');
+  const useTestHint = () => {
+    const left = Math.max(0, testHintsLeft - 1);
+    setTestHintsLeft(left);
+    saveTestHintsLeft(username, day, left);
   };
+
+  const handleStart = () => setPhase('playing');
 
   const handleRetry = () => setPhase('intro');
 
@@ -141,12 +180,12 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
       // Sur le web : retire l'entrée tampon, puis revient au calendrier (même si on est arrivé directement sur le jour)
       webGuardRef.current = false;
       window.history.back();
-      setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/')), 50);
+      setTimeout(() => (router.canGoBack() ? router.back() : router.replace(home)), 50);
       return;
     }
     if (pendingActionRef.current) navigation.dispatch(pendingActionRef.current);
     else if (router.canGoBack()) router.back();
-    else router.replace('/');
+    else router.replace(home);
   };
 
   const handleBackToCalendar = () => {
@@ -161,7 +200,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   const backButton = (
     <View style={[styles.headerRow, styles.column]} onLayout={(e) => setGameTop(e.nativeEvent.layout.y + e.nativeEvent.layout.height + HEADER_MARGIN)}>
       <Pressable style={styles.headerBack} onPress={handleBackToCalendar} hitSlop={12}>
-        <Text style={styles.headerBackText}>{tr('‹ Calendrier', '‹ Calendar')}</Text>
+        <Text style={styles.headerBackText}>{arcade ? tr('‹ Jeux', '‹ Games') : tr('‹ Calendrier', '‹ Calendar')}</Text>
       </Pressable>
       <View style={styles.headerActions}>
         {/* Testeurs : donner son avis à tout moment, même si le jeu ne va pas jusqu'au bout */}
@@ -196,7 +235,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   }
 
   // Sécurité : un jour futur n'est jamais jouable (sauf accès testeur)
-  if (isLocked(day) && !isTestMode) {
+  if (isLocked(day) && !isTestMode && !(arcade && canTest(day))) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {backButton}
@@ -222,6 +261,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
           <Text style={styles.story}>{storyIntro}</Text>
 
           {tutorial && <GameTutorial tutorial={tutorial} />}
+          {introExtra}
 
           {isTestMode && (
             <View style={[styles.practiceBanner, styles.testBanner]}>
@@ -237,18 +277,25 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
 
           {isPractice && (
             <View style={styles.practiceBanner}>
-              <Text style={styles.practiceTitle}>{tr('🔁 Mode entraînement', '🔁 Practice mode')}</Text>
+              <Text style={styles.practiceTitle}>{arcade ? tr('🎮 Salle de jeux', '🎮 Games room') : tr('🔁 Mode entraînement', '🔁 Practice mode')}</Text>
               <Text style={styles.practiceText}>
-                {tr(
-                  'Ce jour est passé : tu peux rejouer, mais ton score ne sera pas enregistré et aucun hint ne sera utilisé.',
-                  'This day is over: you can play again, but your score won’t be saved and no hints will be used.'
-                )}
+                {arcade
+                  ? tr(
+                      'Joue autant que tu veux pour t’entraîner : rien n’est enregistré, ni score ni hint.',
+                      'Play as much as you like for practice: nothing is saved, neither score nor hints.'
+                    )
+                  : tr(
+                      'Ce jour est passé : tu peux rejouer, mais ton score ne sera pas enregistré et aucun hint ne sera utilisé.',
+                      'This day is over: you can play again, but your score won’t be saved and no hints will be used.'
+                    )}
               </Text>
-              <Text style={alreadyWon ? styles.practiceWon : styles.practiceLost}>
-                {alreadyWon
-                  ? tr(`✅ Fragment obtenu — score retenu : ${dayState?.bestScore ?? 0}`, `✅ Shard won — score kept: ${dayState?.bestScore ?? 0}`)
-                  : tr('❌ Fragment perdu', '❌ Shard lost')}
-              </Text>
+              {!arcade && (
+                <Text style={alreadyWon ? styles.practiceWon : styles.practiceLost}>
+                  {alreadyWon
+                    ? tr(`✅ Fragment obtenu — score retenu : ${dayState?.bestScore ?? 0}`, `✅ Shard won — score kept: ${dayState?.bestScore ?? 0}`)
+                    : tr('❌ Fragment perdu', '❌ Shard lost')}
+                </Text>
+              )}
             </View>
           )}
 
@@ -262,7 +309,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
                 {isBoss
                   ? tr('🚫 Aucun hint contre le boss', '🚫 No hints against the boss')
                   : isTestMode
-                  ? tr(`💡 ${TEST_HINTS_PER_GAME} hints offerts pour le test`, `💡 ${TEST_HINTS_PER_GAME} free hints for testing`)
+                  ? tr(`💡 ${testHintsLeft} / ${TEST_HINTS_PER_GAME} hints offerts pour le test`, `💡 ${testHintsLeft} / ${TEST_HINTS_PER_GAME} free hints for testing`)
                   : tr(`💡 ${hints} hints disponibles`, `💡 ${hints} hints available`)}
               </Text>
             </View>
@@ -300,11 +347,24 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
 
       {phase === 'result' && result && (
         <ScrollView style={styles.resultScroll} contentContainerStyle={[styles.resultContainer, styles.column]} keyboardShouldPersistTaps="handled">
-          <Text style={styles.resultIcon}>{result.success ? '🎉' : '😔'}</Text>
+          <Text style={styles.resultIcon}>{arcade ? (recordInfo?.isNew ? '🏆' : '🎮') : result.success ? '🎉' : '😔'}</Text>
           <Text style={styles.resultTitle}>
-            {!result.success ? tr('Pas cette fois...', 'Not this time...') : isPractice ? tr('Bien joué !', 'Well played!') : tr('Fragment obtenu !', 'Shard won!')}
+            {arcade
+              ? tr('🎮 Partie terminée', '🎮 Game over')
+              : !result.success
+              ? tr('Pas cette fois...', 'Not this time...')
+              : isPractice
+              ? tr('Bien joué !', 'Well played!')
+              : tr('Fragment obtenu !', 'Shard won!')}
           </Text>
           <Text style={styles.resultScore}>{tr('Score : ', 'Score: ')}{result.score}</Text>
+          {recordInfo && (
+            <Text style={[styles.record, recordInfo.isNew && styles.recordNew]}>
+              {recordInfo.isNew
+                ? tr('🏆 Nouveau record personnel !', '🏆 New personal best!')
+                : tr(`🏆 Ton record : ${recordInfo.previous}`, `🏆 Your best: ${recordInfo.previous}`)}
+            </Text>
+          )}
           {isPractice && <Text style={styles.practiceText}>{tr('Entraînement — score non enregistré', 'Practice — score not saved')}</Text>}
           {isTestMode && <Text style={styles.practiceText}>{tr('🧪 Mode test — score enregistré', '🧪 Test mode — score saved')}</Text>}
 
@@ -320,13 +380,13 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
           )}
 
           <View style={styles.resultButtons}>
-            {(!isLocked(day) || isTestMode) && (
+            {(!isLocked(day) || isTestMode || arcade) && (
               <Pressable style={styles.retryButton} onPress={handleRetry}>
                 <Text style={styles.retryButtonText}>{tr('↩ Rejouer', '↩ Play again')}</Text>
               </Pressable>
             )}
             <Pressable style={styles.backButton} onPress={handleBackToCalendar}>
-              <Text style={styles.backButtonText}>{tr('Retour au calendrier', 'Back to the calendar')}</Text>
+              <Text style={styles.backButtonText}>{arcade ? tr('Retour aux jeux', 'Back to the games') : tr('Retour au calendrier', 'Back to the calendar')}</Text>
             </Pressable>
           </View>
 
@@ -355,6 +415,8 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
           </View>
         </View>
       )}
+
+      <AllFragmentsCelebration visible={celebrateAll} onClose={() => setCelebrateAll(false)} />
 
       {feedbackOpen && (
         <View style={styles.overlay}>
@@ -464,6 +526,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginTop: 12,
+  },
+  record: {
+    fontSize: 13,
+    color: '#b7c8da',
+    marginTop: 6,
+  },
+  recordNew: {
+    color: '#fbbf24',
+    fontWeight: '700',
   },
   resultScore: {
     fontSize: 14,

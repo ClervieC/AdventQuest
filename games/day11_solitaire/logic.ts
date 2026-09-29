@@ -263,6 +263,49 @@ export function findHintMove(state: GameState): HintMove | null {
   return null;
 }
 
+/**
+ * Partie bloquée : plus aucun coup ne peut faire avancer la partie, même en faisant tourner toute la pioche.
+ * On pioche une carte à la fois et la défausse se recycle sans limite : chaque carte de la pioche ou de la
+ * défausse finira donc sur le dessus de la défausse. Un coup est « utile » s'il :
+ * - envoie une carte (colonne, pioche ou défausse) sur une fondation ;
+ * - pose une carte de la pioche ou de la défausse sur une colonne ;
+ * - découvre une carte cachée ou libère une colonne en déplaçant une suite ;
+ * - déplace une partie d'une suite pour dégager une carte qui peut alors monter en fondation ou recevoir
+ *   une carte de la pioche.
+ * Les autres coups (faire passer une suite d'une colonne à l'autre sans rien découvrir) tournent en rond.
+ */
+export function isStuck(state: GameState): boolean {
+  if (isGameWon(state)) return false;
+  const reserve = [...state.stock, ...state.waste];
+  const fitsFoundation = (card: Card) => state.foundations.some((foundation) => canPlaceOnFoundation(card, foundation));
+
+  // Pioche et défausse : une carte qui peut aller quelque part
+  if (reserve.some((card) => fitsFoundation(card) || state.columns.some((column) => canPlaceOnColumn(card, column)))) return false;
+
+  for (let columnIndex = 0; columnIndex < state.columns.length; columnIndex++) {
+    const column = state.columns[columnIndex];
+    if (column.length === 0) continue;
+    if (fitsFoundation(column[column.length - 1])) return false;
+
+    const firstFaceUp = column.findIndex((card) => card.faceUp);
+    if (firstFaceUp < 0) continue;
+    for (let cardIndex = firstFaceUp; cardIndex < column.length; cardIndex++) {
+      const source: MoveSource = { type: 'column', columnIndex, cardIndex };
+      const canMove = state.columns.some((_, target) => target !== columnIndex && applyMove(state, source, { type: 'column', index: target }));
+      if (!canMove) continue;
+      // Toute la partie visible : découvre une carte cachée (ou vide la colonne si des cartes restent cachées ailleurs)
+      if (cardIndex === firstFaceUp) {
+        if (firstFaceUp > 0) return false;
+        continue;
+      }
+      // Une partie de la suite : utile si la carte dégagée peut monter ou accueillir une carte de la réserve
+      const exposed = column[cardIndex - 1];
+      if (fitsFoundation(exposed) || reserve.some((card) => canPlaceOnColumn(card, [exposed]))) return false;
+    }
+  }
+  return true;
+}
+
 /** Calcule le score selon le nombre de cartes en fondation et le temps pris */
 export function calculateSolitaireScore(cardsInFoundations: number, timeSpentSeconds: number, hintsUsed: number): number {
   const baseScore = cardsInFoundations * 25; // jusqu'à 52*25=1300 si toutes les cartes y sont

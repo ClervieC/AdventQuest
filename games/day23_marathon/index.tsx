@@ -1,17 +1,15 @@
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { MarathonGame, MarathonStage } from '../../components/MarathonGame';
-import { NonogramGame } from '../day15_nonogram';
-import { NONOGRAM_TREE } from '../day15_nonogram/puzzles';
-import { DodgeBallGame } from '../day19_dodgeball';
+import { gameRecordKey } from '../../store/recordsStore';
+import { FlappyGame } from '../extra_flappy';
+import { PairsGame } from '../extra_pairs';
+import { WordSearchGame } from '../extra_wordsearch';
 
-// Le Nonogram du marathon dessine toujours le sapin de Noël
-function TreeNonogramGame(props: GameComponentProps) {
-  return <NonogramGame {...props} puzzle={NONOGRAM_TREE} />;
-}
-
+// Bout du pont : le dernier barrage de Grimnoir, trois épreuves à la suite sans droit à l'erreur
 const STAGES: MarathonStage[] = [
-  { label: { fr: 'Dodge Ball', en: 'Dodge Ball' }, icon: '🛡️', component: DodgeBallGame },
-  { label: { fr: 'Nonogram', en: 'Nonogram' }, icon: '🎄', component: TreeNonogramGame, preload: false },
+  { label: { fr: 'Envol du renne', en: 'Reindeer flight' }, icon: '🦌', component: FlappyGame, recordKey: gameRecordKey('flappy') },
+  { label: { fr: 'Paires', en: 'Pairs' }, icon: '🃏', component: PairsGame, preload: false, recordKey: gameRecordKey('pairs') },
+  { label: { fr: 'Mots mêlés', en: 'Word search' }, icon: '🔤', component: WordSearchGame, preload: false, recordKey: gameRecordKey('wordsearch') },
 ];
 
 export function Day23MarathonGame(props: GameComponentProps & { isStarted: boolean }) {
