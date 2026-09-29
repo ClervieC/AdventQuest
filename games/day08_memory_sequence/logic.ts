@@ -73,11 +73,14 @@ export function sequenceDelayMs(baseDelayMs: number, round: number): number {
   return Math.round(baseDelayMs * slowdown);
 }
 
+/** Délai minimal entre deux couleurs : en dessous, on ne voit plus bien chaque couleur s'allumer (retour testeur) */
+export const MIN_DELAY_MS = 380;
+
 /**
  * En bonus (séquences plus longues que l'objectif), les couleurs défilent de plus en plus vite :
- * −12 % par manche bonus, sans descendre sous 220 ms.
+ * −10 % par manche bonus, sans descendre sous MIN_DELAY_MS.
  */
 export function bonusDelayMs(delayMs: number, bonusRounds: number): number {
   if (bonusRounds <= 0) return delayMs;
-  return Math.max(220, Math.round(delayMs * 0.88 ** bonusRounds));
+  return Math.max(MIN_DELAY_MS, Math.round(delayMs * 0.9 ** bonusRounds));
 }

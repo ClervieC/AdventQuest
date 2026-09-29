@@ -4,6 +4,7 @@ import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
 import {
+    BONUS_POINTS_PER_COLOR,
     bonusDelayMs,
     calculateSequenceScore,
     checkPlayerInput,
@@ -54,7 +55,7 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
 
       const hideTimeout = setTimeout(() => {
         setHighlightedSymbol(null);
-      }, index * delay + delay * 0.6);
+      }, index * delay + delay * 0.65);
 
       timeoutsRef.current.push(showTimeout, hideTimeout);
     });
@@ -86,11 +87,23 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
     onGameEnd({
       success: lengthReached >= config.maxLength,
       score: calculateSequenceScore(lengthReached, hintsUsedThisGame, config.maxLength),
+      // Couleurs au-delà de l'objectif = bonus (150 + 100 points chacune, non plafonnées)
+      bonus: Math.max(0, lengthReached - config.maxLength) * (150 + BONUS_POINTS_PER_COLOR),
     });
+  };
+
+  // Effet d'appui : la case touchée s'allume un instant, pour confirmer qu'elle a bien été pressée
+  const [pressed, setPressed] = useState<SymbolIndex | null>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashPress = (symbolIndex: SymbolIndex) => {
+    setPressed(symbolIndex);
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => setPressed(null), 180);
   };
 
   const handleSymbolPress = (symbolIndex: SymbolIndex) => {
     if (phase !== 'waiting_input') return;
+    flashPress(symbolIndex);
 
     const newInput = [...playerInput, symbolIndex];
     const result = checkPlayerInput(sequence, newInput);
@@ -185,6 +198,7 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
               // Pendant la démonstration, les couleurs non allumées sont estompées : on voit bien laquelle s'allume
               phase === 'showing' && highlightedSymbol !== symbolIndex && styles.symbolDimmed,
               highlightedSymbol === symbolIndex && styles.symbolHighlighted,
+              pressed === symbolIndex && styles.symbolPressed,
             ]}
           >
             <Text style={styles.symbolEmoji}>{SYMBOL_LABELS[symbolIndex]}</Text>
@@ -275,6 +289,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     opacity: 0.5,
+  },
+  symbolPressed: {
+    opacity: 1,
+    transform: [{ scale: 0.94 }],
+    borderWidth: 3,
+    borderColor: '#ffffff',
   },
   symbolHighlighted: {
     opacity: 1,

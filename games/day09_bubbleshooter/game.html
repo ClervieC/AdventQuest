@@ -31,8 +31,9 @@
     function T(fr, en) {
       return window.GAME_LANG === 'en' ? en : fr;
     }
-    function endGame(success, score) {
-      sendToReactNative({ type: 'GAME_OVER', success, score });
+    // bonus : part du score gagnée en temps additionnel (non plafonnée par l'app ; le reste l'est à 2 000)
+    function endGame(success, score, bonus) {
+      sendToReactNative({ type: 'GAME_OVER', success, score, bonus: bonus || 0 });
     }
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });

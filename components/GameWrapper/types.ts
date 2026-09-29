@@ -1,6 +1,7 @@
 export interface GameResult {
   success: boolean;
   score: number;
+  bonus?: number; // part du score gagnée en temps additionnel / bonus (non plafonnée, voir constants/scoring.ts)
 }
 
 export interface GameComponentProps {

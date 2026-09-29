@@ -1,4 +1,4 @@
-import { calculateSudokuScore, clearNotesAfterPlacement, completedNumbers, emptyNotes, Grid, isGridComplete, isGridValid, isSolved, isValidPlacement, revealRandomCell, toggleNote } from './logic';
+import { calculateSudokuScore, clearNotesAfterPlacement, completedNumbers, conflictingCells, emptyNotes, Grid, isGridComplete, isGridValid, isSolved, isValidPlacement, revealRandomCell, toggleNote } from './logic';
 
 // Grille 9x9 complète et valide, utilisée comme référence dans tous les tests
 const VALID_SOLVED_GRID: Grid = [
@@ -155,5 +155,22 @@ describe('notes', () => {
     expect(after[8][0]).toEqual([6]); // même colonne
     expect(after[1][1]).toEqual([6]); // même bloc
     expect(after[4][4]).toEqual([3, 6]); // ailleurs : inchangé
+  });
+});
+
+describe('conflictingCells (erreurs montrées en rouge)', () => {
+  test('repère les deux cases qui ont le même chiffre dans une ligne', () => {
+    const grid: Grid = Array.from({ length: 9 }, () => Array(9).fill(null));
+    grid[0][0] = 5;
+    grid[0][7] = 5;
+    grid[4][4] = 3;
+    expect([...conflictingCells(grid, 9)].sort()).toEqual(['0,0', '0,7']);
+  });
+
+  test('aucun conflit dans une grille sans doublon', () => {
+    const grid: Grid = Array.from({ length: 9 }, () => Array(9).fill(null));
+    grid[0][0] = 1;
+    grid[1][3] = 1;
+    expect(conflictingCells(grid, 9).size).toBe(0);
   });
 });

@@ -31,8 +31,9 @@
     function T(fr, en) {
       return window.GAME_LANG === 'en' ? en : fr;
     }
-    function endGame(success, score) {
-      sendToReactNative({ type: 'GAME_OVER', success, score });
+    // bonus : part du score gagnée en temps additionnel (non plafonnée par l'app ; le reste l'est à 2 000)
+    function endGame(success, score, bonus) {
+      sendToReactNative({ type: 'GAME_OVER', success, score, bonus: bonus || 0 });
     }
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });
@@ -108,6 +109,7 @@
     let shieldActive = false;
     let hintsLeft = 0;
     let bonusMode = false;
+    let scoreAtBonus = 0; // score au début du temps additionnel : ce qui vient après est du bonus
     let stopButton = null;
     let keys;
 
@@ -125,8 +127,9 @@
       scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '20px', color: '#ffffff', fontStyle: 'bold' }).setDepth(10);
       multText = this.add.text(20, 46, '×1', { fontSize: '16px', color: '#a78bfa', fontStyle: 'bold' }).setDepth(10);
       timeText = this.add.text(0, 20, '', { fontSize: '20px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(10);
-      hintButton = this.add.rectangle(0, 42, 120, 34, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
-      hintText = this.add.text(0, 59, '', { fontSize: '13px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
+      // Bouton d'indice doré, bien visible (retour testeur : on ne le remarquait pas)
+      hintButton = this.add.rectangle(0, 42, 120, 34, 0xfbbf24).setOrigin(1, 0).setStrokeStyle(2, 0xfde68a).setDepth(10);
+      hintText = this.add.text(0, 59, '', { fontSize: '13px', color: '#1c1402', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
       messageText = this.add.text(0, 0, T('Glisse le doigt pour esquiver\nAttrape les 🎁 pour des bonus', 'Slide your finger to dodge\nCatch the 🎁 for bonuses'), {
         fontSize: '14px', color: '#7a9ab8', align: 'center',
       }).setOrigin(0.5).setDepth(10);
@@ -346,6 +349,7 @@
 
     // Temps tenu : fragment gagné, on continue pour des points en plus
     function startBonus() {
+      scoreAtBonus = Math.floor(score);
       bonusMode = true;
       sfx('powerup');
       timeText.setColor('#fbbf24');
@@ -437,7 +441,7 @@
       const finalScore = Math.floor(score);
       scene.time.delayedCall(survived ? 400 : 900, () => {
         playerSprite.setText('🧝');
-        endGame(survived, finalScore);
+        endGame(survived, finalScore, bonusMode ? finalScore - scoreAtBonus : 0);
       });
     }
 

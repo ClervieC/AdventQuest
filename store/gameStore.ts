@@ -16,6 +16,7 @@ import {
   submitAttempt,
 } from '../services/api';
 import { getI18n } from '../services/i18n';
+import { clearLastState, loadLastState, saveLastState } from '../services/offlineState';
 import { loadPendingAttempts, PendingAttempt, savePendingAttempts } from '../services/pendingAttempts';
 
 export interface DayState {
@@ -35,6 +36,7 @@ interface GameStore {
   role: Role;
   testerDays: number[];
   hasAccount: boolean; // true = protégé par un mot de passe (connectable sur d'autres appareils)
+  offline: boolean; // serveur injoignable : on joue sur le dernier état connu, les parties partiront plus tard
   passwordSetupFailed: boolean; // le mot de passe choisi à l'inscription n'a pas pu être enregistré
   currentDay: number; // 0 = saison pas commencée, 1..24, 25 = saison terminée (vient du serveur)
   hints: number;
@@ -140,6 +142,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     role: 'player',
     testerDays: [],
     hasAccount: false,
+    offline: false,
     passwordSetupFailed: false,
     currentDay: 0,
     hints: 0,
@@ -165,9 +168,20 @@ export const useGameStore = create<GameStore>((set, get) => {
       try {
         await ensureSession();
         await flushPendingAttempts();
-        applyServerState(await fetchPlayerState());
-        set({ hasAccount: await hasProtectedAccount() });
+        const state = await fetchPlayerState();
+        applyServerState(state);
+        const hasAccount = await hasProtectedAccount();
+        set({ hasAccount, offline: false });
+        saveLastState(state, hasAccount);
       } catch (error) {
+        // Pas de réseau : l'appli s'ouvre quand même sur le dernier état connu de ce joueur
+        const isNetwork = !(error instanceof ApiError) || error.code === 'network';
+        const snapshot = isNetwork ? await loadLastState() : null;
+        if (snapshot) {
+          applyServerState(snapshot.state);
+          set({ hasAccount: snapshot.hasAccount, offline: true });
+          return;
+        }
         set({
           status: 'error',
           errorMessage: error instanceof Error ? error.message : getI18n().tr('Serveur injoignable', 'Server unreachable'),
@@ -180,9 +194,13 @@ export const useGameStore = create<GameStore>((set, get) => {
       if (get().status !== 'ready') return;
       try {
         await flushPendingAttempts();
-        applyServerState(await fetchPlayerState());
+        const state = await fetchPlayerState();
+        applyServerState(state);
+        set({ offline: false });
+        saveLastState(state, get().hasAccount);
       } catch {
         // Pas de réseau : on garde l'état actuel, on réessaiera plus tard
+        set({ offline: true });
       }
     },
 
@@ -218,14 +236,16 @@ export const useGameStore = create<GameStore>((set, get) => {
     // Déconnexion (seulement proposée pour un compte protégé) : repart sur un nouveau joueur anonyme
     logout: async () => {
       await apiLogout();
-      set({ days: {}, hints: 0, username: null, timezone: null, role: 'player', testerDays: [], hasAccount: false });
+      set({ days: {}, hints: 0, username: null, timezone: null, role: 'player', testerDays: [], hasAccount: false, offline: false });
+      clearLastState(); // l'état gardé hors ligne était celui de l'ancien compte
       await get().init();
     },
 
     // Suppression définitive du compte (RGPD), puis retour à l'écran d'inscription
     deleteAccount: async () => {
       await deleteMyAccount();
-      set({ days: {}, hints: 0, username: null, timezone: null, role: 'player', testerDays: [], hasAccount: false });
+      set({ days: {}, hints: 0, username: null, timezone: null, role: 'player', testerDays: [], hasAccount: false, offline: false });
+      clearLastState(); // l'état gardé hors ligne était celui de l'ancien compte
       await get().init();
     },
 

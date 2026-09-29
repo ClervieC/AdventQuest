@@ -29,6 +29,8 @@ export function Game2048({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'e
   const boardRef = useRef(board);
   boardRef.current = board;
   const scoreRef = useRef(score);
+  // Score au moment où la tuile objectif est atteinte : ce qui vient après est du bonus (non plafonné)
+  const scoreAtGoalRef = useRef<number | null>(null);
   scoreRef.current = score;
   const endedRef = useRef(false);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,7 +41,8 @@ export function Game2048({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'e
   const finish = (success: boolean) => {
     if (endedRef.current) return;
     endedRef.current = true;
-    onGameEnd({ success, score: scoreRef.current });
+    const bonus = scoreAtGoalRef.current === null ? 0 : scoreRef.current - scoreAtGoalRef.current;
+    onGameEnd({ success, score: scoreRef.current, bonus });
   };
 
   const play = (direction: Direction) => {
@@ -57,7 +60,10 @@ export function Game2048({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'e
     setScore(scoreRef.current);
     setHint(null);
     const after = maxTile(next);
-    if (before < goal && after >= goal) playSfx('victory');
+    if (before < goal && after >= goal) {
+      scoreAtGoalRef.current = scoreRef.current;
+      playSfx('victory');
+    }
     else playSfx(result.gained > 0 ? 'place' : 'tap');
     // Plateau bloqué : gagné si la tuile objectif a été atteinte
     if (isStuck(next)) setTimeout(() => finish(after >= goal), 500);

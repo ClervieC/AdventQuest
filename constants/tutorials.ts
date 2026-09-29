@@ -77,11 +77,11 @@ const STEPS = {
   ],
   spaceinvaders: [
     { icon: '🚀', text: { fr: 'Garde le doigt appuyé et glisse pour déplacer ta fusée : elle tire des boules de neige toute seule.', en: 'Keep your finger down and slide to move your rocket: it fires snowballs on its own.' } },
-    { icon: '🧊', text: { fr: 'Abrite-toi derrière les blocs de glace. Tu as 3 vies ❤️ ; les lutins du haut rapportent le plus.', en: 'Take cover behind the ice blocks. You have 3 lives ❤️; the top elves are worth the most.' } },
-    { icon: '🛷', text: { fr: 'Touche le traîneau de Grimnoir quand il passe : +300 ! 💡 Le tir triple dure 6 s.', en: 'Hit Grimnoir’s sleigh when it flies by: +300! 💡 The triple shot lasts 6 s.' } },
+    { icon: '❤️', text: { fr: 'Esquive les glaçons : tu as 3 vies. Les lutins du haut rapportent le plus.', en: 'Dodge the icicles: you have 3 lives. The top elves are worth the most.' } },
+    { icon: '💡', text: { fr: 'Le bouton doré « Tir triple » (en haut à droite) tire 3 boules de neige pendant 6 s. Touche aussi le traîneau de Grimnoir qui passe : +300 !', en: 'The gold “Triple shot” button (top right) fires 3 snowballs for 6 s. Also hit Grimnoir’s passing sleigh: +300!' } },
   ],
   snake: [
-    { icon: '👉', text: { fr: 'Glisse le doigt dans une direction pour faire tourner la guirlande.', en: 'Swipe in a direction to turn the garland.' } },
+    { icon: '👉', text: { fr: 'Touche les flèches sous la grille (ou glisse le doigt) pour faire tourner la guirlande.', en: 'Tap the arrows under the grid (or swipe) to turn the garland.' } },
     { icon: '🍎', text: { fr: 'Mange au moins 15 pommes pour gagner, puis continue pour des points bonus : chaque pomme accélère la guirlande.', en: 'Eat at least 15 apples to win, then keep going for bonus points: every apple speeds the garland up.' } },
     { icon: '💥', text: { fr: 'Tu traverses les bords, mais ne te mords pas la queue !', en: 'You can go through the edges, but don’t bite your own tail!' } },
   ],

@@ -3,6 +3,13 @@ import type { PropsWithChildren } from 'react';
 
 // Page HTML racine de la version web (build statique, Vercel).
 // Les icônes sont dans public/ (servies à la racine du site) et générées à partir de assets/images/logo.png.
+const REGISTER_SERVICE_WORKER = `
+if ('serviceWorker' in navigator && !/^(localhost|127\\.0\\.0\\.1)$/.test(location.hostname)) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () {});
+  });
+}`;
+
 export default function Root({ children }: PropsWithChildren) {
   return (
     <html lang="fr">
@@ -21,6 +28,9 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="manifest" href="/manifest.webmanifest" />
         {/* Moteur des jeux Phaser : téléchargé en arrière-plan pour que le premier jeu s'ouvre vite */}
         <link rel="prefetch" href="/phaser.min.js" as="script" />
+        {/* Appli gardée sur l'appareil pour s'ouvrir sans réseau (public/sw.js). Pas en local (localhost) :
+            pendant le développement, on veut toujours le code tout frais. */}
+        <script dangerouslySetInnerHTML={{ __html: REGISTER_SERVICE_WORKER }} />
 
         {/* Ajout à l'écran d'accueil sur iPhone : nom sous l'icône et barre d'état sombre */}
         <meta name="apple-mobile-web-app-title" content="AdventQuest" />

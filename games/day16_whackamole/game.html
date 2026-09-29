@@ -31,8 +31,9 @@
     function T(fr, en) {
       return window.GAME_LANG === 'en' ? en : fr;
     }
-    function endGame(success, score) {
-      sendToReactNative({ type: 'GAME_OVER', success, score });
+    // bonus : part du score gagnée en temps additionnel (non plafonnée par l'app ; le reste l'est à 2 000)
+    function endGame(success, score, bonus) {
+      sendToReactNative({ type: 'GAME_OVER', success, score, bonus: bonus || 0 });
     }
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });
@@ -90,6 +91,7 @@
     let timeRemaining = GAME_DURATION_MS;
     let elapsedMs = 0;
     let bonusMode = false;
+    let scoreAtBonus = 0; // score au début du temps additionnel : ce qui vient après est du bonus
     let stopButton = null;
 
     function preload() {}
@@ -301,6 +303,7 @@
 
     // 45 s tenues : on continue pour des points en plus
     function startBonus() {
+      scoreAtBonus = Math.floor(score);
       bonusMode = true;
       timeRemaining = BONUS_MAX_MS;
       sfx('powerup');
@@ -323,7 +326,7 @@
 
       const success = score > 0;
       scene.time.delayedCall(300, () => {
-        endGame(success, score);
+        endGame(success, score, bonusMode ? score - scoreAtBonus : 0);
       });
     }
 

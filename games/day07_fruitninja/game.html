@@ -31,8 +31,9 @@
     function T(fr, en) {
       return window.GAME_LANG === 'en' ? en : fr;
     }
-    function endGame(success, score) {
-      sendToReactNative({ type: 'GAME_OVER', success, score });
+    // bonus : part du score gagnée en temps additionnel (non plafonnée par l'app ; le reste l'est à 2 000)
+    function endGame(success, score, bonus) {
+      sendToReactNative({ type: 'GAME_OVER', success, score, bonus: bonus || 0 });
     }
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });
@@ -121,7 +122,7 @@
     function startGame() {
       resetGame();
       // Consigne claire au démarrage
-      const hint = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.4, T('Coupe les friandises 🍎🍪🪵\nÉvite les bombes 💣 !', 'Slice the treats 🍎🍪🪵\nAvoid the bombs 💣!'), {
+      const hint = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.4, T('Coupe les friandises 🍎🍪🍬\nÉvite les bombes 💣 !', 'Slice the treats 🍎🍪🍬\nAvoid the bombs 💣!'), {
         fontSize: '20px', color: '#ffffff', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
       }).setOrigin(0.5).setDepth(20);
       scene.tweens.add({ targets: hint, alpha: 0, delay: 2600, duration: 700, onComplete: () => hint.destroy() });
@@ -137,13 +138,14 @@
     // Poser le doigt dessus ou le glisser lentement ne tranche rien.
     const SLICE_MIN_SPEED = 0.45;
     const TRAIL_LIFETIME_MS = 140;
-    const JUICE_COLORS = { '🍎': 0xef4444, '🍊': 0xfb923c, '🍐': 0xa3e635, '🍪': 0xd6a26b, '🧁': 0xf9a8d4, '🍭': 0xe879f9, '🪵': 0x92400e };
+    const JUICE_COLORS = { '🍎': 0xef4444, '🍊': 0xfb923c, '🍐': 0xa3e635, '🍪': 0xd6a26b, '🧁': 0xf9a8d4, '🍭': 0xe879f9, '🍬': 0x60a5fa };
     const GRAVITY = 1100;
     // Hauteur de montée, en part de la hauteur d'écran : les fruits montent entre 55 % et 85 % de l'écran
     const RISE_MIN = 0.55;
     const RISE_MAX = 0.85;
     const OBJECT_RADIUS = 28;
-    const TREATS = ['🍎', '🍊', '🍐', '🍪', '🧁', '🍭', '🪵']; // 🪵 = la bûche de Noël
+    // Que des friandises évidentes à couper (la bûche 🪵 ressemblait à un obstacle : retour testeur)
+    const TREATS = ['🍎', '🍊', '🍐', '🍪', '🧁', '🍭', '🍬'];
 
     let scene;
     let objects = [];        // { sprite, x, y, vx, vy, gravity, isBomb, sliced, emoji }
@@ -155,6 +157,7 @@
     let scoreText, timerText;
     let elapsedMs = 0;
     let bonusMode = false;
+    let scoreAtBonus = 0; // score au début du temps additionnel : ce qui vient après est du bonus
     let stopButton = null;
     let isPointerDown = false;
     let lastPointerPos = null;
@@ -419,6 +422,7 @@
 
     // 60 s tenues : fragment gagné, on continue pour des points en plus
     function startBonus() {
+      scoreAtBonus = Math.floor(score);
       bonusMode = true;
       sfx('powerup');
       timerText.setText('Bonus ' + Math.round(BONUS_MAX_MS / 1000) + 's').setColor('#fbbf24');
@@ -438,7 +442,7 @@
       if (spawnTimer) { spawnTimer.remove(); spawnTimer = null; }
 
       scene.time.delayedCall(300, () => {
-        endGame(success && score > 0, score);
+        endGame(success && score > 0, score, bonusMode ? score - scoreAtBonus : 0);
       });
     }
 

@@ -91,7 +91,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
 
         // Un jeu ne peut pas se terminer avant que le joueur ait appuyé sur Jouer
         if (data.type === 'GAME_OVER' && isStarted) {
-          onGameEnd({ success: data.success, score: data.score });
+          onGameEnd({ success: data.success, score: data.score, bonus: data.bonus ?? 0 });
         }
 
         if (data.type === 'GAME_READY') {

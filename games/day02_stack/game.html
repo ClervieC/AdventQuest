@@ -31,8 +31,9 @@
     function T(fr, en) {
       return window.GAME_LANG === 'en' ? en : fr;
     }
-    function endGame(success, score) {
-      sendToReactNative({ type: 'GAME_OVER', success, score });
+    // bonus : part du score gagnée en temps additionnel (non plafonnée par l'app ; le reste l'est à 2 000)
+    function endGame(success, score, bonus) {
+      sendToReactNative({ type: 'GAME_OVER', success, score, bonus: bonus || 0 });
     }
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });
@@ -57,20 +58,22 @@
 
     const DIFFICULTY_SETTINGS = {
       // perfectTolerance : décalage (px) encore compté comme "parfait" (bloc non réduit)
-      easy:      { speed: 130, targetFloors: 15, perfectTolerance: 6 },
-      medium:    { speed: 170, targetFloors: 16, perfectTolerance: 4 },
-      hard:      { speed: 210, targetFloors: 18, perfectTolerance: 3 },
-      very_hard: { speed: 250, targetFloors: 20, perfectTolerance: 2 },
+      // Retour testeur « trop simple » : blocs plus rapides et marge « parfait » plus petite
+      easy:      { speed: 145, targetFloors: 15, perfectTolerance: 5 },
+      medium:    { speed: 195, targetFloors: 16, perfectTolerance: 3 },
+      hard:      { speed: 235, targetFloors: 18, perfectTolerance: 2 },
+      very_hard: { speed: 270, targetFloors: 20, perfectTolerance: 2 },
     };
 
     let settings = DIFFICULTY_SETTINGS.easy;
 
-    // Objectif atteint : on peut continuer d'empiler, 15 blocs bonus au plus. Chaque bloc bonus rapporte
-    // 50 points de plus et le bloc suivant va 6 % plus vite (≈ 2× plus vite au dernier).
-    const BONUS_MAX_FLOORS = 15;
+    // Objectif atteint : on peut continuer d'empiler, 25 blocs bonus au plus. Chaque bloc bonus rapporte 50 points
+    // de plus et le bloc suivant va 8 % plus vite (jusqu'à 3,5× la vitesse de départ).
+    const BONUS_MAX_FLOORS = 25;
     const POINTS_PER_FLOOR = 100;
     const BONUS_POINTS_PER_FLOOR = 50;
-    const BONUS_SPEEDUP_PER_FLOOR = 0.06;
+    const BONUS_SPEEDUP_PER_FLOOR = 0.08;
+    const MAX_SPEED_FACTOR = 3.5;
     // Précision : en fin de partie, jusqu'à 500 points selon la largeur qu'il reste au dernier bloc posé
     // (100 % = aucun décalage de toute la partie). Plus on empile proprement, plus ça rapporte.
     const WIDTH_BONUS_MAX = 500;
@@ -179,7 +182,7 @@
     function currentSpeed() {
       // Sans fin : +4 % par bloc, jusqu'à 3× la vitesse de départ
       if (arcadeMode) return settings.speed * Math.min(3, 1 + 0.04 * floorsBuilt);
-      return settings.speed * (1 + BONUS_SPEEDUP_PER_FLOOR * bonusFloors());
+      return settings.speed * Math.min(MAX_SPEED_FACTOR, 1 + BONUS_SPEEDUP_PER_FLOOR * bonusFloors());
     }
 
     // Part de la largeur de départ qu'il reste au dernier bloc posé (1 = rien n'a été coupé)
@@ -341,7 +344,8 @@
       const score = currentScore();
       // petite pause visuelle avant de transmettre le résultat
       scene.time.delayedCall(400, () => {
-        endGame(success && floorsBuilt > 0, score);
+        // Blocs au-delà de l'objectif = bonus (hors plafond) ; l'onglet Jeux n'est pas plafonné
+        endGame(success && floorsBuilt > 0, score, arcadeMode ? 0 : bonusFloors() * (POINTS_PER_FLOOR + BONUS_POINTS_PER_FLOOR));
       });
     }
 

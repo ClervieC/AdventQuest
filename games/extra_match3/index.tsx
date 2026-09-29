@@ -37,6 +37,8 @@ export function Match3Game({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
   const busyRef = useRef(false);
   const endedRef = useRef(false);
   const scoreRef = useRef(0);
+  // Score au moment où l'objectif est atteint : les échanges suivants rapportent du bonus (non plafonné)
+  const scoreAtTargetRef = useRef<number | null>(null);
   const movesRef = useRef(moves);
   const selectedRef = useRef<Cell | null>(null);
   selectedRef.current = selected;
@@ -45,7 +47,8 @@ export function Match3Game({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
   const finish = (success: boolean) => {
     if (endedRef.current) return;
     endedRef.current = true;
-    onGameEnd({ success, score: scoreRef.current });
+    const bonus = scoreAtTargetRef.current === null ? 0 : scoreRef.current - scoreAtTargetRef.current;
+    onGameEnd({ success, score: scoreRef.current, bonus });
   };
 
   const attempt = (a: Cell, b: Cell) => {
@@ -95,7 +98,10 @@ export function Match3Game({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
         }, 500);
         return;
       }
-      if (!arcade && before < target && scoreRef.current >= target) playSfx('fragment');
+      if (!arcade && before < target && scoreRef.current >= target) {
+        scoreAtTargetRef.current = scoreRef.current;
+        playSfx('fragment');
+      }
       busyRef.current = false;
       if (movesRef.current <= 0) setTimeout(() => finish(arcade || scoreRef.current >= target), 400);
     }, FLASH_MS);

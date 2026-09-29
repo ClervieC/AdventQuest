@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useGameKeys } from '../../hooks/use-game-keys';
@@ -20,6 +20,7 @@ import { useI18n } from '../../services/i18n';
 const GRID_SIZE = 10;
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 const CELL_PIXEL_SIZE = 28;
+const PAD_BUTTON = 58;
 
 // Pas de chrono : la partie dure tant que la guirlande ne se mord pas la queue.
 // Au moins MIN_APPLES pommes pour gagner le fragment ; chaque pomme accélère (voir logic.ts).
@@ -52,7 +53,12 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
   // Fin : collision avec soi-même, ou grille entièrement remplie (partie parfaite)
   useEffect(() => {
     if (gameState.isDead || gameState.isFull) {
-      onGameEnd({ success: isSnakeSuccess(gameState.score), score: calculateFinalScore(gameState.score) });
+      // Pommes au-delà du minimum = bonus (non plafonné)
+      onGameEnd({
+        success: isSnakeSuccess(gameState.score),
+        score: calculateFinalScore(gameState.score),
+        bonus: calculateFinalScore(Math.max(0, gameState.score - MIN_APPLES)),
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState.isDead, gameState.isFull]);
@@ -72,6 +78,8 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
   // Détection de swipe pour changer de direction
   const panGesture = Gesture.Pan().runOnJS(true).onEnd((event) => {
     const { translationX, translationY } = event;
+    // Un simple toucher (sur une flèche par exemple) n'est pas un glissé
+    if (Math.abs(translationX) < 20 && Math.abs(translationY) < 20) return;
     if (Math.abs(translationX) > Math.abs(translationY)) {
       changeDirection(translationX > 0 ? 'right' : 'left');
     } else {
@@ -98,14 +106,49 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
           <SnakeBody snake={gameState.snake} direction={gameState.direction} />
         </View>
 
+        {/* Croix directionnelle : sur Android, glisser vers la droite depuis le bord ramène à la page précédente
+            du navigateur. Les boutons réagissent dès qu'on pose le doigt (onPressIn), sans attendre qu'on le lève. */}
+        <View style={styles.pad}>
+          <DirectionButton direction="up" onPress={changeDirection} />
+          <View style={styles.padRow}>
+            <DirectionButton direction="left" onPress={changeDirection} />
+            <View style={styles.padCenter} />
+            <DirectionButton direction="right" onPress={changeDirection} />
+          </View>
+          <DirectionButton direction="down" onPress={changeDirection} />
+        </View>
+
         <Text style={styles.hint}>
           {tr(
-            `Glisse pour diriger. Au moins ${MIN_APPLES} pommes, puis continue tant que tu ne te mords pas la queue : ça accélère !`,
-            `Swipe to steer. At least ${MIN_APPLES} apples, then keep going until you bite your tail: it speeds up!`
+            `Flèches ou glisser pour diriger. Au moins ${MIN_APPLES} pommes, puis continue tant que tu ne te mords pas la queue : ça accélère !`,
+            `Arrows or swipe to steer. At least ${MIN_APPLES} apples, then keep going until you bite your tail: it speeds up!`
           )}
         </Text>
       </View>
     </GestureDetector>
+  );
+}
+
+const ARROWS: Record<Direction, string> = { up: '▲', down: '▼', left: '◀', right: '▶' };
+const ARROW_LABELS: Record<Direction, { fr: string; en: string }> = {
+  up: { fr: 'Haut', en: 'Up' },
+  down: { fr: 'Bas', en: 'Down' },
+  left: { fr: 'Gauche', en: 'Left' },
+  right: { fr: 'Droite', en: 'Right' },
+};
+
+function DirectionButton({ direction, onPress, style }: { direction: Direction; onPress: (d: Direction) => void; style?: object }) {
+  const { l } = useI18n();
+  return (
+    <Pressable
+      onPressIn={() => onPress(direction)}
+      accessibilityRole="button"
+      accessibilityLabel={l(ARROW_LABELS[direction])}
+      hitSlop={6}
+      style={({ pressed }) => [styles.padButton, pressed && styles.padButtonPressed, style]}
+    >
+      <Text style={styles.padArrow}>{ARROWS[direction]}</Text>
+    </Pressable>
   );
 }
 
@@ -272,6 +315,37 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: '#ef4444',
     borderRadius: 1.5,
+  },
+  pad: {
+    marginTop: 14,
+    alignItems: 'center',
+    gap: 6,
+  },
+  padRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  padCenter: {
+    width: PAD_BUTTON,
+    height: PAD_BUTTON,
+  },
+  padButton: {
+    width: PAD_BUTTON,
+    height: PAD_BUTTON,
+    borderRadius: 16,
+    backgroundColor: '#16233a',
+    borderWidth: 1,
+    borderColor: '#3a5a82',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  padButtonPressed: {
+    backgroundColor: '#2e1a5c',
+    borderColor: '#a78bfa',
+  },
+  padArrow: {
+    fontSize: 22,
+    color: '#c4b5fd',
   },
   hint: {
     fontSize: 11,

@@ -2,6 +2,7 @@ import {
     bonusDelayMs,
     calculateSequenceScore,
     DIFFICULTY_CONFIGS,
+    MIN_DELAY_MS,
     checkPlayerInput,
     sequenceDelayMs,
     extendSequence,
@@ -120,7 +121,7 @@ describe('bonus au-delà de l’objectif', () => {
     expect(bonusDelayMs(650, 0)).toBe(650);
     expect(bonusDelayMs(650, 1)).toBeLessThan(650);
     expect(bonusDelayMs(650, 3)).toBeLessThan(bonusDelayMs(650, 2));
-    expect(bonusDelayMs(650, 50)).toBe(220);
+    expect(bonusDelayMs(650, 50)).toBe(MIN_DELAY_MS);
   });
 
   test('la longueur maximale dépasse toujours l’objectif', () => {

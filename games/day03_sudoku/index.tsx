@@ -9,6 +9,7 @@ import {
   calculateSudokuScore,
   clearNotesAfterPlacement,
   completedNumbers,
+  conflictingCells,
   emptyNotes,
   Grid,
   Notes,
@@ -95,8 +96,18 @@ function SudokuBoard({
   };
 
   const finished = completedNumbers(grid, puzzle.gridSize);
+  // Doublons (même chiffre deux fois dans une ligne, une colonne ou un carré) : en rouge, pour trouver l'erreur
+  const conflicts = conflictingCells(grid, puzzle.gridSize);
+  const gridFull = grid.every((row) => row.every((cell) => cell !== null));
 
   const isOriginalCell = (row: number, col: number) => puzzle.initialGrid[row][col] !== null;
+
+  // Grille reprise depuis la sauvegarde déjà complète et juste (remplie puis appli fermée avant la fin) :
+  // elle est validée tout de suite, sinon il n'y aurait plus aucun chiffre à poser pour la valider
+  useEffect(() => {
+    checkAndFinish(grid, hintsUsedThisGame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCellPress = (row: number, col: number) => {
     if (isOriginalCell(row, col)) return;
@@ -104,6 +115,7 @@ function SudokuBoard({
   };
 
   const checkAndFinish = (newGrid: Grid, hintsUsed: number) => {
+    if (finishedRef.current) return;
     if (isSolved(newGrid, puzzle.gridSize)) {
       // Grille gagnée : plus de sauvegarde, la prochaine fois ce sera une nouvelle grille
       finishedRef.current = true;
@@ -223,6 +235,7 @@ function SudokuBoard({
                     styles.cell,
                     isOriginal && styles.cellOriginal,
                     isSelected && styles.cellSelected,
+                    conflicts.has(`${rowIndex},${colIndex}`) && styles.cellConflict,
                     isThickRight && styles.thickRightBorder,
                     isThickBottom && styles.thickBottomBorder,
                   ]}
@@ -236,7 +249,7 @@ function SudokuBoard({
                       ))}
                     </View>
                   ) : (
-                    <Text style={[styles.cellText, isOriginal && styles.cellTextOriginal]}>
+                    <Text style={[styles.cellText, isOriginal && styles.cellTextOriginal, conflicts.has(`${rowIndex},${colIndex}`) && styles.cellTextConflict]}>
                       {cell ?? ''}
                     </Text>
                   )}
@@ -246,6 +259,15 @@ function SudokuBoard({
           </View>
         ))}
       </View>
+
+      {gridFull && conflicts.size > 0 && (
+        <Text style={styles.conflictMessage}>
+          {tr(
+            '⚠️ La grille est pleine, mais un chiffre apparaît deux fois (en rouge) : corrige-le pour valider.',
+            '⚠️ The grid is full, but a number appears twice (in red): fix it to finish.'
+          )}
+        </Text>
+      )}
 
       {/* Notes et indice sur une seule ligne : activer les notes ne décale rien vers le bas */}
       <View style={styles.toolsRow}>
@@ -371,6 +393,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#c4b5fd',
+  },
+  cellConflict: {
+    backgroundColor: '#4c1d1d',
+  },
+  cellTextConflict: {
+    color: '#fca5a5',
+  },
+  conflictMessage: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fca5a5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   cellTextOriginal: {
     color: '#b7c8da',

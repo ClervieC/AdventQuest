@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguageToggle } from '../../components/LanguageToggle';
 import { LegalLinks } from '../../components/Legal';
 import { SurveyInvite } from '../../components/SurveyInvite';
+import { TesterInfoModal } from '../../components/TesterWelcome';
 import { ApiError } from '../../services/api';
 import { Localized, useI18n } from '../../services/i18n';
 import { pageColumn } from '../../constants/layout';
@@ -17,6 +18,7 @@ export default function ProfileScreen() {
   const { tr, locale } = useI18n();
   const { username, timezone, hints, days, totalFragments, role, testerDays } = useGameStore();
   const fragments = totalFragments();
+  const [testerInfoOpen, setTesterInfoOpen] = useState(false);
   const totalScore = Object.values(days).reduce((sum, day) => sum + day.bestScore, 0);
 
   return (
@@ -33,6 +35,13 @@ export default function ProfileScreen() {
               )}
         </Text>
       )}
+      {/* Testeurs : relire le message du mode testeur (affiché une seule fois à l'accueil) */}
+      {role === 'tester' && (
+        <Pressable onPress={() => setTesterInfoOpen(true)} hitSlop={8} accessibilityRole="button" style={styles.testerInfoLink}>
+          <Text style={styles.testerInfoText}>{tr('ℹ️ À propos du mode testeur', 'ℹ️ About tester mode')}</Text>
+        </Pressable>
+      )}
+      <TesterInfoModal visible={testerInfoOpen} onClose={() => setTesterInfoOpen(false)} />
       {role === 'admin' && (
         <Pressable style={styles.adminButton} onPress={() => router.push('/admin')}>
           <Text style={styles.adminButtonText}>{tr('🛠️ Administration : utilisateurs et retours', '🛠️ Admin: users and feedback')}</Text>
@@ -263,6 +272,16 @@ function DeleteAccountSection() {
 }
 
 const styles = StyleSheet.create({
+  testerInfoLink: {
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  testerInfoText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#34d399',
+    textDecorationLine: 'underline',
+  },
   roleBadge: {
     fontSize: 12,
     color: '#a78bfa',

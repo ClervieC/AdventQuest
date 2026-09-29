@@ -9,7 +9,6 @@ import { useGameStore } from '../../store/gameStore';
 const keyFor = (username: string | null) => `adventquest.testerWelcome.v1.${username ?? 'anonyme'}`;
 
 export function TesterWelcome() {
-  const { tr } = useI18n();
   const role = useGameStore((state) => state.role);
   const username = useGameStore((state) => state.username);
   const [visible, setVisible] = useState(false);
@@ -32,6 +31,12 @@ export function TesterWelcome() {
     AsyncStorage.setItem(keyFor(username), '1').catch(() => {});
   };
 
+  return <TesterInfoModal visible={visible} onClose={close} />;
+}
+
+/** Le message des testeurs lui-même : à l'accueil la première fois, et à la demande depuis le Profil */
+export function TesterInfoModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { tr } = useI18n();
   if (!visible) return null;
 
   const points = [
@@ -66,7 +71,7 @@ export function TesterWelcome() {
   ];
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={close}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           <ScrollView contentContainerStyle={styles.content}>
@@ -82,7 +87,7 @@ export function TesterWelcome() {
               </View>
             ))}
           </ScrollView>
-          <Pressable style={styles.button} onPress={close} accessibilityRole="button">
+          <Pressable style={styles.button} onPress={onClose} accessibilityRole="button">
             <Text style={styles.buttonText}>{tr('C’est parti !', 'Let’s go!')}</Text>
           </Pressable>
         </View>

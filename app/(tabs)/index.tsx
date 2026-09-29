@@ -14,7 +14,7 @@ import { useI18n } from '../../services/i18n';
 import { useGameStore } from '../../store/gameStore';
 
 export default function CalendarScreen() {
-  const { currentDay, totalFragments, username } = useGameStore();
+  const { currentDay, totalFragments, username, offline } = useGameStore();
   const insets = useSafeAreaInsets();
   const { tr } = useI18n();
   const fragments = totalFragments();
@@ -55,6 +55,16 @@ export default function CalendarScreen() {
         </Text>
       </View>
 
+      {offline && (
+        <View style={[styles.seasonBanner, styles.offlineBanner]}>
+          <Text style={styles.seasonText}>
+            {tr(
+              '📴 Hors ligne : tu peux jouer, tes parties seront envoyées dès le retour du réseau.',
+              '📴 Offline: you can play, your games will be sent as soon as you’re back online.'
+            )}
+          </Text>
+        </View>
+      )}
       {currentDay === 0 && (
         <View style={styles.seasonBanner}>
           <Text style={styles.seasonText}>{tr("🎄 L'aventure commence le 1er décembre : la première case s'ouvrira à minuit.", '🎄 The adventure starts on 1 December: the first door opens at midnight.')}</Text>
@@ -66,11 +76,14 @@ export default function CalendarScreen() {
         </View>
       )}
 
-      <SurveyInvite place="home" />
-
       <FragmentProgress fragments={fragments} />
 
       <Calendar />
+
+      {/* Sondage de fin de saison : tout en bas, après le jour 24 */}
+      <View style={styles.surveyBottom}>
+        <SurveyInvite place="home" />
+      </View>
       </ScrollView>
       <AllFragmentsCelebration visible={celebrate} onClose={() => setCelebrate(false)} />
       <TesterWelcome />
@@ -122,6 +135,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8ea6c0',
     marginTop: 4,
+  },
+  // Les marges sur les côtés viennent de la carte elle-même (SurveyInvite, place="home")
+  surveyBottom: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  offlineBanner: {
+    backgroundColor: '#1f2937',
+    borderColor: '#4b5563',
   },
   seasonBanner: {
     backgroundColor: '#221647',

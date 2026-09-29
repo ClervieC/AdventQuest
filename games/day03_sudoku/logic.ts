@@ -136,3 +136,15 @@ export function clearNotesAfterPlacement(notes: Notes, row: number, col: number,
     })
   );
 }
+
+/** Cases en conflit : même chiffre deux fois dans une ligne, une colonne ou un carré (clés "ligne,colonne") */
+export function conflictingCells(grid: Grid, gridSize: number): Set<string> {
+  const conflicts = new Set<string>();
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      const value = grid[row][col];
+      if (value !== null && !isValidPlacement(grid, row, col, value, gridSize)) conflicts.add(`${row},${col}`);
+    }
+  }
+  return conflicts;
+}

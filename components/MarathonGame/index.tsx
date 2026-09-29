@@ -26,12 +26,15 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
   const [state, setState] = useState<MarathonState>(initialMarathonState);
   const stateRef = useRef(state);
   stateRef.current = state;
+  // Points de temps additionnel cumulés sur les épreuves (non plafonnés, voir constants/scoring.ts)
+  const bonusRef = useRef(0);
 
   // "Rejouer" : GameWrapper garde ce composant monté, on repart de la première épreuve
   const wasStartedRef = useRef(isStarted);
   useEffect(() => {
     if (isStarted && !wasStartedRef.current && isFinished(stateRef.current)) {
       setState(initialMarathonState());
+      bonusRef.current = 0;
     }
     wasStartedRef.current = isStarted;
   }, [isStarted]);
@@ -39,12 +42,13 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
   const handleStageEnd = (result: GameResult) => {
     const next = applyStageResult(stateRef.current, result, stages.length);
     if (next === stateRef.current) return;
+    bonusRef.current += result.bonus ?? 0;
     const recordKey = stages[stateRef.current.stageIndex]?.recordKey;
     if (recordKey) useRecordsStore.getState().submit(recordKey, result.score);
     stateRef.current = next;
     setState(next);
     if (isFinished(next)) {
-      onGameEnd({ success: next.status === 'won', score: totalScore(next) });
+      onGameEnd({ success: next.status === 'won', score: totalScore(next), bonus: bonusRef.current });
     }
   };
 

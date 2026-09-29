@@ -1,4 +1,5 @@
 /// <reference types="jest" />
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as api from '../services/api';
 import * as pending from '../services/pendingAttempts';
 import { useGameStore } from './gameStore';
@@ -39,8 +40,9 @@ const mockedPending = pending as jest.Mocked<typeof pending>;
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // Réinitialise le store avant chaque test pour éviter les interférences
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  await AsyncStorage.clear(); // pas d'état « hors ligne » gardé d'un test à l'autre
   useGameStore.setState({
     status: 'ready',
     currentDay: 5,
@@ -164,7 +166,20 @@ describe('gameStore - synchronisation avec le serveur', () => {
     expect(useGameStore.getState().status).toBe('needs_profile');
   });
 
-  test('serveur injoignable : écran d’erreur, pas de plantage', async () => {
+  test('sans réseau, l’appli s’ouvre sur le dernier état connu (et le signale)', async () => {
+    mockedApi.fetchPlayerState.mockResolvedValueOnce(serverState({ current_day: 4 }));
+    await useGameStore.getState().init();
+    await flush();
+    mockedApi.fetchPlayerState.mockRejectedValueOnce(new mockedApi.ApiError('network', 'Network request failed'));
+    await useGameStore.getState().init();
+    const state = useGameStore.getState();
+    expect(state.status).toBe('ready');
+    expect(state.offline).toBe(true);
+    expect(state.currentDay).toBe(4);
+    expect(state.username).toBe('Clervie');
+  });
+
+  test('serveur injoignable sans état gardé : écran d’erreur, pas de plantage', async () => {
     mockedApi.fetchPlayerState.mockRejectedValueOnce(new Error('Network request failed'));
     await useGameStore.getState().init();
     expect(useGameStore.getState().status).toBe('error');

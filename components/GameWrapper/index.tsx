@@ -15,6 +15,7 @@ import { SoundToggle } from '../SoundToggle';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 import { dayRecordKey, useRecordsStore } from '../../store/recordsStore';
 import { CONTENT_WIDTH, pageColumn } from '../../constants/layout';
+import { BASE_SCORE_CAP, capScore, CappedScore, DAY_SCORE_INFO } from '../../constants/scoring';
 import { GameResult } from './types';
 
 interface GameWrapperProps {
@@ -32,7 +33,7 @@ interface GameWrapperProps {
 
 export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutorial, arcade = false, recordKey, recordFloor = 0, introExtra, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
-  const { tr, l } = useI18n();
+  const { tr, l, locale } = useI18n();
   // Haut de la zone de jeu (sous l'en-tête) : le jeu préchargé pendant l'intro est placé exactement là,
   // sinon Phaser calcule sa mise en page sur une autre taille (éléments coupés à droite, grille décalée)
   const [gameTop, setGameTop] = useState(0);
@@ -49,6 +50,8 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   const [celebrateAll, setCelebrateAll] = useState(false);
   // Record personnel : celui d'avant la partie, et si la partie vient de le battre
   const [recordInfo, setRecordInfo] = useState<{ previous: number; isNew: boolean } | null>(null);
+  // Détail du score : partie normale (plafonnée à 2 000) + temps additionnel
+  const [scoreDetail, setScoreDetail] = useState<CappedScore | null>(null);
 
   // Hints de test déjà utilisés sur ce jour (partie reprise après être sorti) : on ne repart pas à 3
   useEffect(() => {
@@ -71,7 +74,11 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   const home = arcade ? '/games' : '/';
   const canGiveFeedback = role === 'tester' || role === 'admin';
 
-  const handleGameEnd = (gameResult: GameResult) => {
+  const handleGameEnd = (rawResult: GameResult) => {
+    // Calendrier (et entraînement) : partie normale plafonnée à 2 000, bonus par-dessus. Onglet Jeux : pas de plafond.
+    const detail = arcade ? null : capScore(rawResult.score, rawResult.bonus ?? 0);
+    const gameResult: GameResult = detail ? { ...rawResult, score: detail.total } : rawResult;
+    setScoreDetail(detail);
     // Ce fragment est le 24e : grande fête, juste après l'arrivée du fragment autour du cœur
     const completesAll = !isPractice && gameResult.success && !alreadyWon && totalFragments() === 23;
     if (completesAll) {
@@ -260,6 +267,22 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
           <Text style={styles.title}>{fragmentIcon} {fragmentName}</Text>
           <Text style={styles.story}>{storyIntro}</Text>
 
+          {/* Points à gagner : partie normale (plafonnée à 2 000) et temps additionnel (sans plafond) */}
+          {!arcade && DAY_SCORE_INFO[day] && (
+            <View style={styles.scoreInfo}>
+              <Text style={styles.scoreInfoLine}>
+                {tr('🎯 Partie : jusqu’à ', '🎯 Game: up to ')}
+                {DAY_SCORE_INFO[day].approx ? '≈ ' : ''}
+                {DAY_SCORE_INFO[day].baseMax.toLocaleString(locale)} pts
+              </Text>
+              <Text style={styles.scoreInfoBonus}>
+                {DAY_SCORE_INFO[day].bonus
+                  ? `⏱️ ${tr('En plus du plafond', 'On top of the cap')} : ${l(DAY_SCORE_INFO[day].bonus!)}`
+                  : tr('Pas de temps additionnel sur ce jeu.', 'No extra time in this game.')}
+              </Text>
+            </View>
+          )}
+
           {tutorial && <GameTutorial tutorial={tutorial} />}
           {introExtra}
 
@@ -358,6 +381,14 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
               : tr('Fragment obtenu !', 'Shard won!')}
           </Text>
           <Text style={styles.resultScore}>{tr('Score : ', 'Score: ')}{result.score}</Text>
+          {scoreDetail && (scoreDetail.bonus > 0 || scoreDetail.capped) && (
+            <Text style={styles.scoreDetail}>
+              {tr('Partie : ', 'Game: ')}
+              {scoreDetail.base}
+              {scoreDetail.capped ? tr(` (plafond ${BASE_SCORE_CAP})`, ` (cap ${BASE_SCORE_CAP})`) : ''}
+              {scoreDetail.bonus > 0 ? tr(` + bonus ${scoreDetail.bonus}`, ` + bonus ${scoreDetail.bonus}`) : ''}
+            </Text>
+          )}
           {recordInfo && (
             <Text style={[styles.record, recordInfo.isNew && styles.recordNew]}>
               {recordInfo.isNew
@@ -526,6 +557,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginTop: 12,
+  },
+  scoreInfo: {
+    marginTop: 14,
+    backgroundColor: '#1f1a0c',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#6b5410',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  scoreInfoLine: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  scoreInfoBonus: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#e5d3a1',
+  },
+  scoreDetail: {
+    fontSize: 12,
+    color: '#fbbf24',
+    marginTop: 4,
   },
   record: {
     fontSize: 13,

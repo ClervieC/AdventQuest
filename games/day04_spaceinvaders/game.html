@@ -31,8 +31,9 @@
     function T(fr, en) {
       return window.GAME_LANG === 'en' ? en : fr;
     }
-    function endGame(success, score) {
-      sendToReactNative({ type: 'GAME_OVER', success, score });
+    // bonus : part du score gagnée en temps additionnel (non plafonnée par l'app ; le reste l'est à 2 000)
+    function endGame(success, score, bonus) {
+      sendToReactNative({ type: 'GAME_OVER', success, score, bonus: bonus || 0 });
     }
     function notifyReady() {
       sendToReactNative({ type: 'GAME_READY' });
@@ -59,15 +60,16 @@
     // CONFIG SPÉCIFIQUE SPACE INVADERS DE NOËL
     // ============================================
 
-    // Les lutins de Grimnoir descendent par vagues. On les abat à coups de boules de neige depuis la fusée,
-    // abrité derrière des blocs de glace qui s'usent. 3 vies. Les rangées du haut rapportent plus.
+    // Les lutins de Grimnoir descendent par vagues. On les abat à coups de boules de neige depuis la fusée.
+    // 3 vies. Les rangées du haut rapportent plus. (Les blocs de glace protecteurs ont été retirés : ils gênaient.)
     // Onglet Jeux : vagues sans fin, chacune plus rapide et plus agressive.
     // enemySpeed en px/s ; shootEveryMs = délai moyen entre deux tirs ennemis
     const DIFFICULTY_SETTINGS = {
-      easy:      { wavesCount: 3, rows: 3, enemySpeed: 28, shootEveryMs: 1400, descendStep: 16 },
-      medium:    { wavesCount: 4, rows: 3, enemySpeed: 36, shootEveryMs: 1100, descendStep: 20 },
-      hard:      { wavesCount: 5, rows: 4, enemySpeed: 44, shootEveryMs: 900,  descendStep: 22 },
-      very_hard: { wavesCount: 5, rows: 4, enemySpeed: 52, shootEveryMs: 750,  descendStep: 26 },
+      // Sans blocs de glace pour s'abriter, les ennemis tirent un peu moins souvent
+      easy:      { wavesCount: 3, rows: 3, enemySpeed: 28, shootEveryMs: 1700, descendStep: 16 },
+      medium:    { wavesCount: 4, rows: 3, enemySpeed: 36, shootEveryMs: 1400, descendStep: 20 },
+      hard:      { wavesCount: 5, rows: 4, enemySpeed: 44, shootEveryMs: 1150, descendStep: 22 },
+      very_hard: { wavesCount: 5, rows: 4, enemySpeed: 52, shootEveryMs: 950,  descendStep: 26 },
     };
 
     let settings = DIFFICULTY_SETTINGS.easy;
@@ -94,9 +96,6 @@
     const TRIPLE_SHOT_MS = 6000;
     const SLEIGH_POINTS = 300;
     const WAVE_BONUS_PER_LIFE = 100;
-    const SHIELD_CELL = 7;
-    const SHIELD_COLS = 7;
-    const SHIELD_ROWS = 3;
 
     let scene;
     let width, height, groundY, playerY, topY;
@@ -105,7 +104,6 @@
     let formation = { x: 0, dir: 1 };
     let playerBullets = [];  // { sprite, x, y, vx }
     let enemyBullets = [];   // { sprite, x, y }
-    let shieldCells = [];    // { sprite, x, y, alive }
     let snow = [];
     let sleigh = null;       // { sprite, x, y, vx }
     let score = 0;
@@ -139,8 +137,9 @@
       scoreText = this.add.text(16, 14, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setDepth(10);
       livesText = this.add.text(16, 38, '', { fontSize: '15px' }).setDepth(10);
       waveText = this.add.text(0, 14, '', { fontSize: '15px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(10);
-      hintButton = this.add.rectangle(0, 38, 132, 30, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
-      hintText = this.add.text(0, 53, '', { fontSize: '12px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
+      // Bouton d'indice doré, bien visible (retour testeur : on ne le remarquait pas)
+      hintButton = this.add.rectangle(0, 38, 132, 30, 0xfbbf24).setOrigin(1, 0).setStrokeStyle(2, 0xfde68a).setDepth(10);
+      hintText = this.add.text(0, 53, '', { fontSize: '12px', color: '#1c1402', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
       messageText = this.add.text(0, 0, '', {
         fontSize: '30px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 6,
       }).setOrigin(0.5).setDepth(20).setAlpha(0);
@@ -216,12 +215,10 @@
       enemies.forEach((e) => e.sprite.destroy());
       playerBullets.forEach((b) => b.sprite.destroy());
       enemyBullets.forEach((b) => b.sprite.destroy());
-      shieldCells.forEach((c) => c.sprite.destroy());
       if (sleigh) sleigh.sprite.destroy();
       enemies = [];
       playerBullets = [];
       enemyBullets = [];
-      shieldCells = [];
       sleigh = null;
     }
 
@@ -238,31 +235,22 @@
       pointerTargetX = null;
       isPointerDown = false;
       player.setText('🚀').setAlpha(1).setPosition(width / 2, playerY);
-      buildShields();
       spawnWave();
       nextSleighAt = scene.time.now + Phaser.Math.Between(14000, 22000);
       updateHud();
+      if (hintsLeft > 0) showHintTip();
     }
 
-    // Blocs de glace devant la fusée, faits de petits cubes qui cassent un par un
-    function buildShields() {
-      const count = width < 360 ? 3 : 4;
-      const blockW = SHIELD_COLS * SHIELD_CELL;
-      const gap = (width - count * blockW) / (count + 1);
-      const shieldTop = playerY - 78;
-      for (let s = 0; s < count; s++) {
-        const left = gap + s * (blockW + gap);
-        for (let r = 0; r < SHIELD_ROWS; r++) {
-          for (let c = 0; c < SHIELD_COLS; c++) {
-            // Coins du haut arrondis
-            if (r === 0 && (c === 0 || c === SHIELD_COLS - 1)) continue;
-            const x = left + c * SHIELD_CELL + SHIELD_CELL / 2;
-            const y = shieldTop + r * SHIELD_CELL + SHIELD_CELL / 2;
-            const sprite = scene.add.rectangle(x, y, SHIELD_CELL - 1, SHIELD_CELL - 1, 0x93c5fd, 0.85).setDepth(3);
-            shieldCells.push({ sprite, x, y, alive: true });
-          }
-        }
-      }
+    // Bulle qui montre le bouton du tir triple au début de la partie (sinon on ne le remarque pas)
+    function showHintTip() {
+      // Alignée sur le bord droit du bouton : elle ne dépasse jamais de l'écran
+      const tip = scene.add.text(hintButton.x, hintButton.y + hintButton.height + 10,
+        T('👆 Essaie le tir triple !', '👆 Try the triple shot!'), {
+          fontSize: '14px', color: '#1c1402', fontStyle: 'bold', backgroundColor: '#fde68a', padding: { x: 8, y: 5 },
+        }).setOrigin(1, 0).setDepth(20);
+      scene.tweens.add({ targets: tip, y: tip.y + 6, duration: 400, yoyo: true, repeat: 5, onComplete: () => {
+        scene.tweens.add({ targets: tip, alpha: 0, duration: 400, onComplete: () => tip.destroy() });
+      } });
     }
 
     function spawnWave() {
@@ -348,9 +336,9 @@
       });
       const shooters = Object.values(bottoms);
       if (shooters.length === 0) return;
-      // Plutôt ceux qui sont au-dessus du joueur
+      // Une fois sur trois, celui qui est juste au-dessus du joueur ; sinon un lutin au hasard
       shooters.sort((a, b) => Math.abs(a.x - player.x) - Math.abs(b.x - player.x));
-      const shooter = Math.random() < 0.55 ? shooters[0] : shooters[Math.floor(Math.random() * shooters.length)];
+      const shooter = Math.random() < 0.35 ? shooters[0] : shooters[Math.floor(Math.random() * shooters.length)];
       const sprite = scene.add.triangle(shooter.x, shooter.y + 18, 0, 0, 10, 0, 5, 18, 0x7dd3fc).setDepth(4);
       enemyBullets.push({ sprite, x: shooter.x, y: shooter.y + 18 });
     }
@@ -422,10 +410,6 @@
         if (!e.alive) return;
         e.x = formation.x + e.col * formation.spacingX;
         e.sprite.setPosition(e.x, e.y).setAngle(wobble);
-        // Un lutin qui touche la glace la détruit ; s'il atteint la fusée, c'est perdu
-        shieldCells.forEach((c) => {
-          if (c.alive && Math.abs(c.x - e.x) < ENEMY_SIZE / 2 && Math.abs(c.y - e.y) < ENEMY_SIZE / 2) destroyCell(c);
-        });
       });
       if (alive.some((e) => e.y > playerY - 26)) {
         lives = 0;
@@ -440,9 +424,6 @@
         b.x += b.vx * dt;
         b.sprite.setPosition(b.x, b.y);
         if (b.y < topY - 40 || b.x < 0 || b.x > width) { b.sprite.destroy(); return false; }
-        // Glace : la boule de neige s'y écrase
-        const cell = shieldCells.find((c) => c.alive && Math.abs(c.x - b.x) < SHIELD_CELL && Math.abs(c.y - b.y) < SHIELD_CELL);
-        if (cell) { destroyCell(cell); b.sprite.destroy(); return false; }
         // Traîneau de Grimnoir
         if (sleigh && Math.abs(sleigh.x - b.x) < 26 && Math.abs(sleigh.y - b.y) < 18) {
           hitSleigh();
@@ -465,8 +446,6 @@
         b.y += speed * dt;
         b.sprite.setPosition(b.x, b.y);
         if (b.y > groundY) { b.sprite.destroy(); return false; }
-        const cell = shieldCells.find((c) => c.alive && Math.abs(c.x - b.x) < SHIELD_CELL && Math.abs(c.y - b.y) < SHIELD_CELL);
-        if (cell) { destroyCell(cell); b.sprite.destroy(); return false; }
         if (time >= invulnerableUntil && Math.abs(b.x - player.x) < 16 && Math.abs(b.y - playerY) < 18) {
           b.sprite.destroy();
           hitPlayer(time);
@@ -474,11 +453,6 @@
         }
         return true;
       });
-    }
-
-    function destroyCell(cell) {
-      cell.alive = false;
-      cell.sprite.destroy();
     }
 
     function killEnemy(enemy) {
