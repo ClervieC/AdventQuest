@@ -3,43 +3,54 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar } from '../../components/Calendar';
 import { FragmentProgress } from '../../components/FragmentProgress';
 import { Snowfall } from '../../components/Snowfall';
+import { LanguageButton } from '../../components/LanguageToggle';
 import { SoundToggle } from '../../components/SoundToggle';
 import { SurveyInvite } from '../../components/SurveyInvite';
 import { contentColumn } from '../../constants/layout';
+import { useI18n } from '../../services/i18n';
 import { useGameStore } from '../../store/gameStore';
 
 export default function CalendarScreen() {
   const { currentDay, totalFragments } = useGameStore();
   const insets = useSafeAreaInsets();
+  const { tr } = useI18n();
+  const fragments = totalFragments();
 
   return (
     <View style={styles.container}>
       <Snowfall />
-      <SoundToggle style={[styles.soundToggle, { top: insets.top + 10 }]} />
+      {/* En haut à droite : langue et son */}
+      <View style={[styles.topButtons, { top: insets.top + 10 }]}>
+        <LanguageButton />
+        <SoundToggle />
+      </View>
       <ScrollView style={styles.scroll} contentContainerStyle={[{ paddingTop: insets.top + 12 }, contentColumn]}>
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Avent magique · Décembre 2026</Text>
+        <Text style={styles.eyebrow}>{tr('Avent magique · Décembre 2026', 'Magical Advent · December 2026')}</Text>
         <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.subtitle}>
-          {currentDay >= 1 && currentDay <= 24 ? `Jour ${currentDay} · ` : ''}
-          {totalFragments()} fragment{totalFragments() > 1 ? 's' : ''} collecté{totalFragments() > 1 ? 's' : ''}
+          {currentDay >= 1 && currentDay <= 24 ? `${tr('Jour', 'Day')} ${currentDay} · ` : ''}
+          {tr(
+            `${fragments} fragment${fragments > 1 ? 's' : ''} collecté${fragments > 1 ? 's' : ''}`,
+            `${fragments} shard${fragments === 1 ? '' : 's'} collected`
+          )}
         </Text>
       </View>
 
       {currentDay === 0 && (
         <View style={styles.seasonBanner}>
-          <Text style={styles.seasonText}>🎄 L&apos;aventure commence le 1er décembre : la première case s&apos;ouvrira à minuit.</Text>
+          <Text style={styles.seasonText}>{tr("🎄 L'aventure commence le 1er décembre : la première case s'ouvrira à minuit.", '🎄 The adventure starts on 1 December: the first door opens at midnight.')}</Text>
         </View>
       )}
       {currentDay > 24 && (
         <View style={styles.seasonBanner}>
-          <Text style={styles.seasonText}>✨ L&apos;Avent est terminé ! Tu peux rejouer toutes les cases pour t&apos;entraîner.</Text>
+          <Text style={styles.seasonText}>{tr("✨ L'Avent est terminé ! Tu peux rejouer toutes les cases pour t'entraîner.", '✨ Advent is over! You can replay every door for practice.')}</Text>
         </View>
       )}
 
       <SurveyInvite place="home" />
 
-      <FragmentProgress fragments={totalFragments()} />
+      <FragmentProgress fragments={fragments} />
 
       <Calendar />
       </ScrollView>
@@ -52,10 +63,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0c1521',
   },
-  soundToggle: {
+  topButtons: {
     position: 'absolute',
     right: 16,
     zIndex: 10,
+    flexDirection: 'row',
+    gap: 8,
   },
   scroll: {
     flex: 1,

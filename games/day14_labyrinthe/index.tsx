@@ -13,6 +13,7 @@ import {
     Maze,
     Position,
 } from './logic';
+import { useI18n } from '../../services/i18n';
 
 const MAZE_SIZE = 8;
 const CELL_PIXEL_SIZE = 32;
@@ -21,6 +22,7 @@ const WALL_THICKNESS = 2;
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 
 export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
+  const { tr } = useI18n();
   const [maze] = useState<Maze>(() => generateMaze(MAZE_SIZE));
   const [playerPosition, setPlayerPosition] = useState<Position>({ row: 0, col: 0 });
   const movesCountRef = useRef(0);
@@ -74,7 +76,7 @@ export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
   return (
     <GestureDetector gesture={panGesture}>
       <View style={styles.container}>
-        <Text style={styles.hint}>Glisse pour te déplacer jusqu&apos;à la sortie 🎁</Text>
+        <Text style={styles.hint}>{tr("Glisse pour te déplacer jusqu'à la sortie 🎁", 'Swipe to move to the exit 🎁')}</Text>
 
         <View style={[styles.mazeContainer, { width: MAZE_SIZE * CELL_PIXEL_SIZE, height: MAZE_SIZE * CELL_PIXEL_SIZE }]}>
           {maze.map((row, rowIndex) =>

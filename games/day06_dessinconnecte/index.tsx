@@ -6,8 +6,10 @@ import { GameComponentProps } from '../../components/GameWrapper/types';
 import { playSfx } from '../../services/sfx';
 import { getRandomDrawing } from './drawings';
 import { calculateDrawingScore, findNearestPoint, isDrawingComplete, isNextValidPoint } from './logic';
+import { useI18n } from '../../services/i18n';
 
 export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
+  const { tr } = useI18n();
   const [drawing] = useState(() => getRandomDrawing());
   const [lastValidatedId, setLastValidatedId] = useState(0);
   const [currentTouchPosition, setCurrentTouchPosition] = useState<{ x: number; y: number } | null>(null);
@@ -69,7 +71,7 @@ export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{drawing.name}</Text>
+      <Text style={styles.title}>{tr(drawing.name, drawing.nameEn)}</Text>
       <Text style={styles.progress}>
         Point {lastValidatedId} / {drawing.points.length}
       </Text>
@@ -118,7 +120,7 @@ export function DessinConnecteGame({ onGameEnd }: GameComponentProps) {
         </View>
       </GestureDetector>
 
-      <Text style={styles.hint}>Glisse ton doigt du point 1 jusqu&apos;au dernier point</Text>
+      <Text style={styles.hint}>{tr("Glisse ton doigt du point 1 jusqu'au dernier point", 'Slide your finger from dot 1 to the last dot')}</Text>
     </View>
   );
 }

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { submitFeedback } from '../../services/api';
+import { useI18n } from '../../services/i18n';
 
 /** Commentaire de testeur après une partie : ce qui a plu, ce qui peut changer, une note. Envoyé à l'admin. */
 export function FeedbackForm({ day }: { day: number }) {
+  const { tr } = useI18n();
   const [rating, setRating] = useState<number | null>(null);
   const [liked, setLiked] = useState('');
   const [toChange, setToChange] = useState('');
@@ -25,17 +27,17 @@ export function FeedbackForm({ day }: { day: number }) {
   if (status === 'sent') {
     return (
       <View style={styles.card}>
-        <Text style={styles.sent}>✅ Merci ! Ton retour a été envoyé à l’admin.</Text>
+        <Text style={styles.sent}>{tr('✅ Merci ! Ton retour a été envoyé à l’admin.', '✅ Thanks! Your feedback has been sent to the admin.')}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>🧪 Ton avis de testeur</Text>
+      <Text style={styles.title}>{tr('🧪 Ton avis de testeur', '🧪 Your tester feedback')}</Text>
       <View style={styles.stars}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable key={n} onPress={() => setRating(rating === n ? null : n)} hitSlop={6} accessibilityLabel={`${n} étoile${n > 1 ? 's' : ''}`}>
+          <Pressable key={n} onPress={() => setRating(rating === n ? null : n)} hitSlop={6} accessibilityLabel={tr(`${n} étoile${n > 1 ? 's' : ''}`, `${n} star${n > 1 ? 's' : ''}`)}>
             <Text style={[styles.star, rating !== null && n <= rating && styles.starOn]}>★</Text>
           </Pressable>
         ))}
@@ -43,7 +45,7 @@ export function FeedbackForm({ day }: { day: number }) {
       <TextInput
         value={liked}
         onChangeText={setLiked}
-        placeholder="Ce qui t’a plu"
+        placeholder={tr('Ce qui t’a plu', 'What you liked')}
         placeholderTextColor="#8ea6c0"
         multiline
         maxLength={2000}
@@ -52,15 +54,15 @@ export function FeedbackForm({ day }: { day: number }) {
       <TextInput
         value={toChange}
         onChangeText={setToChange}
-        placeholder="Ce qui peut être changé ou amélioré"
+        placeholder={tr('Ce qui peut être changé ou amélioré', 'What could be changed or improved')}
         placeholderTextColor="#8ea6c0"
         multiline
         maxLength={2000}
         style={styles.input}
       />
-      {status === 'error' && <Text style={styles.error}>Envoi impossible, vérifie ta connexion et réessaie.</Text>}
+      {status === 'error' && <Text style={styles.error}>{tr('Envoi impossible, vérifie ta connexion et réessaie.', 'Couldn’t send, check your connection and try again.')}</Text>}
       <Pressable style={[styles.button, !canSend && styles.disabled]} onPress={handleSend} disabled={!canSend}>
-        {status === 'sending' ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Envoyer mon retour</Text>}
+        {status === 'sending' ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{tr('Envoyer mon retour', 'Send my feedback')}</Text>}
       </Pressable>
     </View>
   );

@@ -1,10 +1,11 @@
 import { ComponentType, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Localized, useI18n } from '../../services/i18n';
 import { GameComponentProps, GameResult } from '../GameWrapper/types';
 import { applyStageResult, continueMarathon, initialMarathonState, isFinished, MarathonState, totalScore } from './logic';
 
 export interface MarathonStage {
-  label: string;
+  label: Localized;
   icon: string;
   component: ComponentType<any>;
   difficulty?: GameComponentProps['difficulty'];
@@ -19,6 +20,7 @@ interface MarathonGameProps extends GameComponentProps {
 }
 
 export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onUseHint, difficulty }: MarathonGameProps) {
+  const { tr, l } = useI18n();
   const [state, setState] = useState<MarathonState>(initialMarathonState);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -56,16 +58,16 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
             const done = i < state.stageIndex || (i === state.stageIndex && (state.status === 'interlude' || state.status === 'won'));
             const active = i === state.stageIndex && state.status === 'playing';
             return (
-              <View key={stage.label} style={[styles.step, done && styles.stepDone, active && styles.stepActive]}>
+              <View key={stage.icon + i} style={[styles.step, done && styles.stepDone, active && styles.stepActive]}>
                 <Text style={styles.stepText}>{stage.icon}</Text>
               </View>
             );
           })}
         </View>
         <Text style={styles.progressText}>
-          Épreuve {Math.min(state.stageIndex + 1, stages.length)}/{stages.length} · {current?.label}
+          {tr('Épreuve', 'Trial')} {Math.min(state.stageIndex + 1, stages.length)}/{stages.length} · {current && l(current.label)}
         </Text>
-        <Text style={styles.totalText}>Total : {totalScore(state)}</Text>
+        <Text style={styles.totalText}>{tr('Total : ', 'Total: ')}{totalScore(state)}</Text>
       </View>
 
       <View style={styles.stageArea}>
@@ -92,14 +94,14 @@ export function MarathonGame({ stages, isStarted, onGameEnd, hintsAvailable, onU
         {state.status === 'interlude' && next && (
           <View style={styles.interlude}>
             <Text style={styles.interludeIcon}>✅</Text>
-            <Text style={styles.interludeTitle}>Épreuve {state.stageIndex + 1} réussie !</Text>
-            <Text style={styles.interludeScore}>+{lastScore} points · total {totalScore(state)}</Text>
+            <Text style={styles.interludeTitle}>{tr(`Épreuve ${state.stageIndex + 1} réussie !`, `Trial ${state.stageIndex + 1} passed!`)}</Text>
+            <Text style={styles.interludeScore}>+{lastScore} points · {tr('total', 'total')} {totalScore(state)}</Text>
             <View style={styles.nextCard}>
-              <Text style={styles.nextLabel}>Épreuve suivante</Text>
-              <Text style={styles.nextName}>{next.icon} {next.label}</Text>
+              <Text style={styles.nextLabel}>{tr('Épreuve suivante', 'Next trial')}</Text>
+              <Text style={styles.nextName}>{next.icon} {l(next.label)}</Text>
             </View>
             <Pressable style={styles.continueButton} onPress={handleContinue}>
-              <Text style={styles.continueButtonText}>▶ Continuer</Text>
+              <Text style={styles.continueButtonText}>{tr('▶ Continuer', '▶ Continue')}</Text>
             </Pressable>
           </View>
         )}

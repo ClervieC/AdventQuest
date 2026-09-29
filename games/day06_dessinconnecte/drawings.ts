@@ -3,6 +3,7 @@ import { Drawing } from './logic';
 /** Étoile à 5 branches — 10 points alternant pointes et creux dans l'ordre de tracé */
 export const DRAWING_STAR: Drawing = {
   name: 'Étoile magique',
+  nameEn: 'Magic star',
   points: [
     { id:  1, x: 50, y: 10 }, // pointe haut
     { id:  2, x: 60, y: 36 }, // creux haut-droite

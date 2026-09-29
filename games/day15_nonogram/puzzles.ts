@@ -6,6 +6,7 @@ const _ = false;
 /** Flocon de neige simple, 5x5 */
 export const NONOGRAM_SNOWFLAKE: NonogramPuzzle = {
   name: 'Flocon de neige',
+  nameEn: 'Snowflake',
   size: 5,
   solution: [
     [_, F, _, F, _],
@@ -19,6 +20,7 @@ export const NONOGRAM_SNOWFLAKE: NonogramPuzzle = {
 /** Étoile simple, 5x5 */
 export const NONOGRAM_STAR: NonogramPuzzle = {
   name: 'Étoile magique',
+  nameEn: 'Magic star',
   size: 5,
   solution: [
     [_, _, F, _, _],
@@ -32,6 +34,7 @@ export const NONOGRAM_STAR: NonogramPuzzle = {
 /** Sapin de Noël 7x7 (marathon du jour 23) : étoile, 3 étages de branches, tronc. Solution unique. */
 export const NONOGRAM_TREE: NonogramPuzzle = {
   name: 'Sapin de Noël',
+  nameEn: 'Christmas tree',
   size: 7,
   solution: [
     [_, _, _, F, _, _, _],

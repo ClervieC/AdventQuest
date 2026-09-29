@@ -4,8 +4,8 @@ import { SpaceInvadersGame } from '../day04_spaceinvaders';
 import { BubbleShooterGame } from '../day09_bubbleshooter';
 
 const STAGES: MarathonStage[] = [
-  { label: 'Space Invaders', icon: '🛸', component: SpaceInvadersGame },
-  { label: 'Bubble Shooter', icon: '🫧', component: BubbleShooterGame },
+  { label: { fr: 'Space Invaders', en: 'Space Invaders' }, icon: '🛸', component: SpaceInvadersGame },
+  { label: { fr: 'Bubble Shooter', en: 'Bubble Shooter' }, icon: '🫧', component: BubbleShooterGame },
 ];
 
 export function Day22MarathonGame(props: GameComponentProps & { isStarted: boolean }) {

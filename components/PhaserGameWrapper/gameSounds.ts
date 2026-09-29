@@ -96,3 +96,8 @@ export const GAME_SOUNDS_SCRIPT = `
 })();
 true;
 `;
+
+/** Langue du joueur, injectée avant le chargement du jeu : les game.html affichent leurs textes avec T('fr', 'en') */
+export function gameLangScript(lang: 'fr' | 'en'): string {
+  return `window.GAME_LANG = ${JSON.stringify(lang)};`;
+}

@@ -3,17 +3,19 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SeasonSurvey } from '../components/SeasonSurvey';
 import { pageColumn } from '../constants/layout';
+import { useI18n } from '../services/i18n';
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
 // Sondage de fin de saison, ouvert depuis l'accueil ou le profil (à partir du 24 décembre au soir)
 export default function SurveyScreen() {
   const insets = useSafeAreaInsets();
+  const { tr } = useI18n();
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.column}>
         <Pressable onPress={goBack} hitSlop={12} style={styles.back}>
-          <Text style={styles.backText}>‹ Retour</Text>
+          <Text style={styles.backText}>{tr('‹ Retour', '‹ Back')}</Text>
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={[styles.column, { paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">

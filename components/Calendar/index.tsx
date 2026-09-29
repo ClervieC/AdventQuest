@@ -3,12 +3,14 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { DAYS_CONFIG } from '../../constants/days';
 import { CALENDAR_PADDING, WIDE_BREAKPOINT, WIDE_CELL_GAP, WIDE_CELL_SIZE } from '../../constants/layout';
 import { ZONES } from '../../constants/zones';
+import { useI18n } from '../../services/i18n';
 import { playSfx } from '../../services/sfx';
 import { useGameStore } from '../../store/gameStore';
 import { DayCell } from '../DayCell';
 
 export function Calendar() {
   const { currentDay, days, canTest } = useGameStore();
+  const { tr, l } = useI18n();
   // Grand écran (ordi) : cases de taille fixe, les 5 jours d'une zone sur une ligne, centrés
   const isWide = useWindowDimensions().width >= WIDE_BREAKPOINT;
 
@@ -23,13 +25,13 @@ export function Calendar() {
           <View key={zone.id} style={styles.zone}>
             <View style={[styles.zoneHeader, isCurrentZone && styles.zoneHeaderCurrent]}>
               <Text style={[styles.zoneName, isFutureZone && styles.zoneNameFuture]}>
-                {zone.icon} {zone.name}
+                {zone.icon} {l(zone.name)}
               </Text>
               <Text style={styles.zoneDays}>
-                {zone.firstDay === zone.lastDay ? `Jour ${zone.firstDay}` : `Jours ${zone.firstDay}–${zone.lastDay}`}
+                {zone.firstDay === zone.lastDay ? `${tr('Jour', 'Day')} ${zone.firstDay}` : `${tr('Jours', 'Days')} ${zone.firstDay}–${zone.lastDay}`}
               </Text>
               {/* Le texte narratif n'est affiché que pour la zone en cours, pour ne rien dévoiler de la suite */}
-              {isCurrentZone && <Text style={styles.zoneBanner}>{zone.banner}</Text>}
+              {isCurrentZone && <Text style={styles.zoneBanner}>{l(zone.banner)}</Text>}
             </View>
 
             <View style={[styles.grid, isWide && styles.gridWide]}>

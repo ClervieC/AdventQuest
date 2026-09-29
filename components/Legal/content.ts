@@ -184,3 +184,181 @@ export const MENTIONS: LegalDocument = {
     },
   ],
 };
+
+// ---------- Version anglaise (traduction : la version française fait foi) ----------
+
+const TRANSLATION_NOTE: LegalSection = {
+  title: 'Translation',
+  paragraphs: ['This is a translation provided for convenience. In case of any difference, the French version prevails.'],
+};
+
+export const TERMS_EN: LegalDocument = {
+  title: 'Terms of use',
+  updatedAt: '26 September 2026',
+  sections: [
+    {
+      title: '1. Purpose',
+      paragraphs: [
+        `AdventQuest is an interactive Advent calendar offering one mini-game a day from 1 to 24 December, published by ${EDITOR}. These terms govern the use of the app and the website. By creating an account, you accept them.`,
+      ],
+    },
+    {
+      title: '2. Account',
+      paragraphs: [
+        'An account consists of a username and a password. No email address is required: if you forget your password, it cannot be recovered automatically.',
+        'You are responsible for keeping your password confidential and for the use of your account. One account per person.',
+        'Your username is visible to other players (leaderboard, friend search). It must remain respectful: no insults, shocking content, impersonation or personal information (full name, address...).',
+      ],
+    },
+    {
+      title: '3. Game rules',
+      paragraphs: [
+        'Each day can only be played for real on that day; past days can be replayed as practice, with no effect on the score. Each player’s day is determined by the server.',
+        'Any attempt to cheat (modifying the app, the exchanges with the server, the time or time zone, multiple accounts...) is forbidden and may lead to scores or the account being deleted.',
+      ],
+    },
+    {
+      title: '4. Testers',
+      paragraphs: [
+        'Some players may be given “tester” access to try days in advance and send comments. Their test games count in the leaderboard, where they are marked with 🧪, and may be reset by the publisher (for example before launch). Comments sent may be used freely to improve the game.',
+      ],
+    },
+    {
+      title: '5. Moderation and deletion',
+      paragraphs: [
+        'The publisher may suspend or delete an account that does not comply with these terms, in particular in case of an inappropriate username or cheating.',
+        'You can delete your account at any time from the Profile tab: all your game data is then permanently erased.',
+      ],
+    },
+    {
+      title: '6. Intellectual property',
+      paragraphs: [
+        'The games, texts, illustrations, sounds and the AdventQuest name belong to the publisher or their authors. They may not be copied or reused without permission.',
+      ],
+    },
+    {
+      title: '7. Availability and liability',
+      paragraphs: [
+        'The service is provided free of charge, “as is”. The publisher does their best to keep it working properly but cannot guarantee permanent availability or the absence of errors. An internet connection is required.',
+      ],
+    },
+    {
+      title: '8. Changes',
+      paragraphs: ['These terms may change. The date of the last update is shown at the top of this page.'],
+    },
+    {
+      title: '9. Contact and governing law',
+      paragraphs: [`For any question: ${CONTACT}. These terms are governed by French law.`],
+    },
+    TRANSLATION_NOTE,
+  ],
+};
+
+export const PRIVACY_EN: LegalDocument = {
+  title: 'Privacy policy',
+  updatedAt: '28 September 2026',
+  sections: [
+    {
+      title: '1. Who is responsible for your data?',
+      paragraphs: [`The data controller is ${EDITOR}. Contact: ${CONTACT}.`],
+    },
+    {
+      title: '2. The data we use',
+      paragraphs: [
+        '• Your username and password (stored only in encrypted form, never readable, not even by the publisher).',
+        '• A technical address generated automatically for signing in: it is not your email, and no message is ever sent to it.',
+        '• Your device’s time zone when you sign up, so that each day opens at your midnight.',
+        '• Your progress: shards won, scores, number of attempts, hints.',
+        '• The players you follow.',
+        '• If you are a tester: the comments you send.',
+        '• If you answer the end-of-season survey (optional): your rating, your favourite games, your wishes and your comments for next year.',
+        '• Technical connection data (session token).',
+        'We never ask for your name, email, phone number or location.',
+      ],
+    },
+    {
+      title: '3. Why?',
+      paragraphs: [
+        'Only to run the game: sign you in on your devices, save your progress, show the leaderboard and friends, prevent cheating, and improve the game thanks to testers’ feedback and the end-of-season survey. Legal basis: performance of the service you use.',
+      ],
+    },
+    {
+      title: '4. Who can see what?',
+      paragraphs: [
+        '• All players can see your username, total score, number of shards and streak in the leaderboard, and can find you by your username.',
+        '• Your detailed progress, your time zone and the list of players you follow are visible only to you.',
+        '• The game’s administrators can see the list of accounts (username, role, score), testers’ comments and answers to the end-of-season survey, to manage and improve the app.',
+        'No data is sold or used for advertising. The app contains no advertising trackers.',
+      ],
+    },
+    {
+      title: '5. Hosting',
+      paragraphs: [
+        'Game data (accounts, progress, leaderboard, friends, feedback, survey) is stored by Supabase (database and authentication) in the European Union, “Central EU” region (Frankfurt, Germany).',
+        'The website is served by Vercel, which may process technical connection data (such as your IP address) while delivering the pages; no game data is stored there.',
+      ],
+    },
+    {
+      title: '6. How long?',
+      paragraphs: [
+        'As long as your account exists. When you delete your account (Profile tab), your profile, progress, leaderboard entry, follows and survey answer are erased immediately and permanently. Tester comments already sent are kept anonymously.',
+      ],
+    },
+    {
+      title: '7. Your rights',
+      paragraphs: [
+        'You can access, correct or delete your data (“Delete my account” button), object to its processing or ask for its portability by writing to ' + CONTACT + '. You can also lodge a complaint with the CNIL, the French data protection authority (cnil.fr).',
+      ],
+    },
+    {
+      title: '8. Children',
+      paragraphs: [
+        'AdventQuest can be enjoyed as a family. In France, a child under 15 needs a parent’s consent to create an account. We recommend choosing a username that does not identify the child.',
+      ],
+    },
+    {
+      title: '9. Storage on your device',
+      paragraphs: [
+        'The app keeps your login session on your device and, if you play offline, the games waiting to be sent. These are not advertising cookies.',
+      ],
+    },
+    TRANSLATION_NOTE,
+  ],
+};
+
+export const MENTIONS_EN: LegalDocument = {
+  title: 'Legal notice',
+  updatedAt: '27 September 2026',
+  sections: [
+    {
+      title: 'Publisher',
+      paragraphs: [
+        `AdventQuest is published by ${EDITOR}, as a private individual.`,
+        `Contact: ${CONTACT}`,
+        `Publication director: ${EDITOR}.`,
+      ],
+    },
+    {
+      title: 'Website hosting',
+      paragraphs: ['Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, United States — vercel.com'],
+    },
+    {
+      title: 'Data hosting',
+      paragraphs: [
+        'Supabase Pte. Ltd., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 — supabase.com',
+        'Game data is stored in the European Union (“Central EU” region, Frankfurt, Germany).',
+      ],
+    },
+    {
+      title: 'Intellectual property',
+      paragraphs: [
+        'The games, texts, illustrations, sounds and the AdventQuest name are protected. Any reproduction without permission is forbidden.',
+      ],
+    },
+    {
+      title: 'Personal data',
+      paragraphs: ['See the privacy policy, available from the login screen and the Profile tab.'],
+    },
+    TRANSLATION_NOTE,
+  ],
+};

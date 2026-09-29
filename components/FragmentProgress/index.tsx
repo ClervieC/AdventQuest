@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useI18n } from '../../services/i18n';
 import { FRAGMENT_THRESHOLD } from '../../store/gameStore';
 
 const TOTAL_FRAGMENTS = 24;
 
 /** Barre des fragments collectés, avec le repère des 12 fragments qui ouvrent le portail du boss */
 export function FragmentProgress({ fragments }: { fragments: number }) {
+  const { tr } = useI18n();
   const fill = useSharedValue(0);
   const unlocked = fragments >= FRAGMENT_THRESHOLD;
 
@@ -22,10 +24,10 @@ export function FragmentProgress({ fragments }: { fragments: number }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.count}>
-          ✦ {fragments} <Text style={styles.total}>/ {TOTAL_FRAGMENTS} fragments</Text>
+          ✦ {fragments} <Text style={styles.total}>/ {TOTAL_FRAGMENTS} {tr('fragments', 'shards')}</Text>
         </Text>
         <Text style={[styles.status, unlocked && styles.statusUnlocked]}>
-          {unlocked ? '🔓 Portail du boss ouvert' : `🔒 Encore ${missing} pour le boss`}
+          {unlocked ? tr('🔓 Portail du boss ouvert', '🔓 Boss portal open') : tr(`🔒 Encore ${missing} pour le boss`, `🔒 ${missing} more for the boss`)}
         </Text>
       </View>
 
@@ -35,7 +37,7 @@ export function FragmentProgress({ fragments }: { fragments: number }) {
       </View>
 
       <View style={styles.markerLabelRow}>
-        <Text style={[styles.markerLabel, { left: thresholdLeft }]}>12 · portail</Text>
+        <Text style={[styles.markerLabel, { left: thresholdLeft }]}>{tr('12 · portail', '12 · portal')}</Text>
       </View>
     </View>
   );

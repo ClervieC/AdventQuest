@@ -7,6 +7,7 @@ import { GameTutorial as Tutorial } from '../../constants/tutorials';
 import { FeedbackForm } from '../FeedbackForm';
 import { GameTutorial } from '../GameTutorial';
 import { FragmentHeart } from '../FragmentHeart';
+import { useI18n } from '../../services/i18n';
 import { playSfx } from '../../services/sfx';
 import { SoundToggle } from '../SoundToggle';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
@@ -24,6 +25,7 @@ interface GameWrapperProps {
 
 export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutorial, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
+  const { tr, l } = useI18n();
   // Haut de la zone de jeu (sous l'en-tête) : le jeu préchargé pendant l'intro est placé exactement là,
   // sinon Phaser calcule sa mise en page sur une autre taille (éléments coupés à droite, grille décalée)
   const [gameTop, setGameTop] = useState(0);
@@ -159,13 +161,13 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   const backButton = (
     <View style={[styles.headerRow, styles.column]} onLayout={(e) => setGameTop(e.nativeEvent.layout.y + e.nativeEvent.layout.height + HEADER_MARGIN)}>
       <Pressable style={styles.headerBack} onPress={handleBackToCalendar} hitSlop={12}>
-        <Text style={styles.headerBackText}>‹ Calendrier</Text>
+        <Text style={styles.headerBackText}>{tr('‹ Calendrier', '‹ Calendar')}</Text>
       </Pressable>
       <View style={styles.headerActions}>
         {/* Testeurs : donner son avis à tout moment, même si le jeu ne va pas jusqu'au bout */}
         {canGiveFeedback && phase !== 'result' && (
-          <Pressable style={styles.feedbackButton} onPress={() => setFeedbackOpen(true)} hitSlop={6} accessibilityLabel="Donner mon avis de testeur">
-            <Text style={styles.feedbackButtonText}>💬 Avis</Text>
+          <Pressable style={styles.feedbackButton} onPress={() => setFeedbackOpen(true)} hitSlop={6} accessibilityLabel={tr('Donner mon avis de testeur', 'Give my tester feedback')}>
+            <Text style={styles.feedbackButtonText}>{tr('💬 Avis', '💬 Feedback')}</Text>
           </Pressable>
         )}
         <SoundToggle />
@@ -180,10 +182,13 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {backButton}
         <View style={[styles.introContainer, styles.column]}>
-          <Text style={styles.dayLabel}>Jour {day} / 24</Text>
-          <Text style={styles.title}>🔒 Le portail est scellé</Text>
+          <Text style={styles.dayLabel}>{tr('Jour', 'Day')} {day} / 24</Text>
+          <Text style={styles.title}>{tr('🔒 Le portail est scellé', '🔒 The portal is sealed')}</Text>
           <Text style={styles.story}>
-            Il faut {FRAGMENT_THRESHOLD} fragments pour affronter Grimnoir. Tu en as {totalFragments()} : il t&apos;en manque {missing}.
+            {tr(
+              `Il faut ${FRAGMENT_THRESHOLD} fragments pour affronter Grimnoir. Tu en as ${totalFragments()} : il t'en manque ${missing}.`,
+              `You need ${FRAGMENT_THRESHOLD} shards to face Grimnoir. You have ${totalFragments()}: ${missing} to go.`
+            )}
           </Text>
         </View>
       </View>
@@ -196,9 +201,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
       <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
         {backButton}
         <View style={[styles.introContainer, styles.column]}>
-          <Text style={styles.dayLabel}>Jour {day} / 24</Text>
-          <Text style={styles.title}>🔒 Pas encore disponible</Text>
-          <Text style={styles.story}>Reviens le jour {day} pour tenter de récupérer ce fragment.</Text>
+          <Text style={styles.dayLabel}>{tr('Jour', 'Day')} {day} / 24</Text>
+          <Text style={styles.title}>{tr('🔒 Pas encore disponible', '🔒 Not available yet')}</Text>
+          <Text style={styles.story}>{tr(`Reviens le jour ${day} pour tenter de récupérer ce fragment.`, `Come back on day ${day} to try and win this shard.`)}</Text>
         </View>
       </View>
     );
@@ -211,7 +216,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
       {phase === 'intro' && (
         <ScrollView style={styles.introScroll} contentContainerStyle={[styles.introContainer, styles.column]}>
           <Text style={styles.dayLabel}>
-            Jour {day} / 24 · {getZoneForDay(day).icon} {getZoneForDay(day).name}
+            {tr('Jour', 'Day')} {day} / 24 · {getZoneForDay(day).icon} {l(getZoneForDay(day).name)}
           </Text>
           <Text style={styles.title}>{fragmentIcon} {fragmentName}</Text>
           <Text style={styles.story}>{storyIntro}</Text>
@@ -220,46 +225,58 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
 
           {isTestMode && (
             <View style={[styles.practiceBanner, styles.testBanner]}>
-              <Text style={styles.practiceTitle}>🧪 Mode test</Text>
+              <Text style={styles.practiceTitle}>{tr('🧪 Mode test', '🧪 Test mode')}</Text>
               <Text style={styles.practiceText}>
-                Ce jour est ouvert en avance pour toi. {`Ton score compte dans le classement (marqué 🧪). Tu as ${TEST_HINTS_PER_GAME} hints offerts pour les tester, et le bouton « 💬 Avis » en haut reste disponible pendant toute la partie.`}
+                {tr(
+                  `Ce jour est ouvert en avance pour toi. Ton score compte dans le classement (marqué 🧪). Tu as ${TEST_HINTS_PER_GAME} hints offerts pour les tester, et le bouton « 💬 Avis » en haut reste disponible pendant toute la partie.`,
+                  `This day is open early for you. Your score counts in the leaderboard (marked 🧪). You get ${TEST_HINTS_PER_GAME} free hints to try them out, and the “💬 Feedback” button at the top stays available throughout the game.`
+                )}
               </Text>
             </View>
           )}
 
           {isPractice && (
             <View style={styles.practiceBanner}>
-              <Text style={styles.practiceTitle}>🔁 Mode entraînement</Text>
+              <Text style={styles.practiceTitle}>{tr('🔁 Mode entraînement', '🔁 Practice mode')}</Text>
               <Text style={styles.practiceText}>
-                Ce jour est passé : tu peux rejouer, mais ton score ne sera pas enregistré et aucun hint ne sera utilisé.
+                {tr(
+                  'Ce jour est passé : tu peux rejouer, mais ton score ne sera pas enregistré et aucun hint ne sera utilisé.',
+                  'This day is over: you can play again, but your score won’t be saved and no hints will be used.'
+                )}
               </Text>
               <Text style={alreadyWon ? styles.practiceWon : styles.practiceLost}>
                 {alreadyWon
-                  ? `✅ Fragment obtenu — score retenu : ${dayState?.bestScore ?? 0}`
-                  : '❌ Fragment perdu'}
+                  ? tr(`✅ Fragment obtenu — score retenu : ${dayState?.bestScore ?? 0}`, `✅ Shard won — score kept: ${dayState?.bestScore ?? 0}`)
+                  : tr('❌ Fragment perdu', '❌ Shard lost')}
               </Text>
             </View>
           )}
 
           {!isPractice && dayState && dayState.attempts > 0 && (
-            <Text style={styles.bestScore}>Meilleur score : {dayState.bestScore}</Text>
+            <Text style={styles.bestScore}>{tr('Meilleur score : ', 'Best score: ')}{dayState.bestScore}</Text>
           )}
 
           {!isPractice && (
             <View style={styles.hintsRow}>
               <Text style={styles.hintsLabel}>
                 {isBoss
-                  ? '🚫 Aucun hint contre le boss'
+                  ? tr('🚫 Aucun hint contre le boss', '🚫 No hints against the boss')
                   : isTestMode
-                  ? `💡 ${TEST_HINTS_PER_GAME} hints offerts pour le test`
-                  : `💡 ${hints} hints disponibles`}
+                  ? tr(`💡 ${TEST_HINTS_PER_GAME} hints offerts pour le test`, `💡 ${TEST_HINTS_PER_GAME} free hints for testing`)
+                  : tr(`💡 ${hints} hints disponibles`, `💡 ${hints} hints available`)}
               </Text>
             </View>
           )}
 
           <Pressable style={styles.playButton} onPress={handleStart}>
             <Text style={styles.playButtonText}>
-              {isTestMode ? '▶ Tester' : isPractice ? "▶ S'entraîner" : dayState && dayState.attempts > 0 ? '↩ Rejouer' : '▶ Jouer maintenant'}
+              {isTestMode
+                ? tr('▶ Tester', '▶ Test')
+                : isPractice
+                ? tr("▶ S'entraîner", '▶ Practise')
+                : dayState && dayState.attempts > 0
+                ? tr('↩ Rejouer', '↩ Play again')
+                : tr('▶ Jouer maintenant', '▶ Play now')}
             </Text>
           </Pressable>
         </ScrollView>
@@ -285,11 +302,11 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
         <ScrollView style={styles.resultScroll} contentContainerStyle={[styles.resultContainer, styles.column]} keyboardShouldPersistTaps="handled">
           <Text style={styles.resultIcon}>{result.success ? '🎉' : '😔'}</Text>
           <Text style={styles.resultTitle}>
-            {!result.success ? 'Pas cette fois...' : isPractice ? 'Bien joué !' : 'Fragment obtenu !'}
+            {!result.success ? tr('Pas cette fois...', 'Not this time...') : isPractice ? tr('Bien joué !', 'Well played!') : tr('Fragment obtenu !', 'Shard won!')}
           </Text>
-          <Text style={styles.resultScore}>Score : {result.score}</Text>
-          {isPractice && <Text style={styles.practiceText}>Entraînement — score non enregistré</Text>}
-          {isTestMode && <Text style={styles.practiceText}>🧪 Mode test — score enregistré</Text>}
+          <Text style={styles.resultScore}>{tr('Score : ', 'Score: ')}{result.score}</Text>
+          {isPractice && <Text style={styles.practiceText}>{tr('Entraînement — score non enregistré', 'Practice — score not saved')}</Text>}
+          {isTestMode && <Text style={styles.practiceText}>{tr('🧪 Mode test — score enregistré', '🧪 Test mode — score saved')}</Text>}
 
           {result.success && !isPractice && (
             <FragmentHeart
@@ -305,11 +322,11 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
           <View style={styles.resultButtons}>
             {(!isLocked(day) || isTestMode) && (
               <Pressable style={styles.retryButton} onPress={handleRetry}>
-                <Text style={styles.retryButtonText}>↩ Rejouer</Text>
+                <Text style={styles.retryButtonText}>{tr('↩ Rejouer', '↩ Play again')}</Text>
               </Pressable>
             )}
             <Pressable style={styles.backButton} onPress={handleBackToCalendar}>
-              <Text style={styles.backButtonText}>Retour au calendrier</Text>
+              <Text style={styles.backButtonText}>{tr('Retour au calendrier', 'Back to the calendar')}</Text>
             </Pressable>
           </View>
 
@@ -321,16 +338,18 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
       {confirmLeave && (
         <View style={styles.overlay}>
           <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>Quitter la partie ?</Text>
+            <Text style={styles.dialogTitle}>{tr('Quitter la partie ?', 'Quit the game?')}</Text>
             <Text style={styles.dialogText}>
-              {isPractice || isTestMode ? 'La partie en cours sera perdue.' : 'La partie en cours sera perdue et ne comptera pas.'}
+              {isPractice || isTestMode
+                ? tr('La partie en cours sera perdue.', 'The current game will be lost.')
+                : tr('La partie en cours sera perdue et ne comptera pas.', 'The current game will be lost and won’t count.')}
             </Text>
             <View style={styles.dialogButtons}>
               <Pressable style={[styles.dialogButton, styles.dialogStay]} onPress={() => setConfirmLeave(false)}>
-                <Text style={styles.dialogStayText}>Continuer à jouer</Text>
+                <Text style={styles.dialogStayText}>{tr('Continuer à jouer', 'Keep playing')}</Text>
               </Pressable>
               <Pressable style={[styles.dialogButton, styles.dialogLeave]} onPress={leaveNow}>
-                <Text style={styles.dialogLeaveText}>Quitter</Text>
+                <Text style={styles.dialogLeaveText}>{tr('Quitter', 'Quit')}</Text>
               </Pressable>
             </View>
           </View>
@@ -341,7 +360,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
         <View style={styles.overlay}>
           <ScrollView style={styles.feedbackScroll} contentContainerStyle={styles.feedbackContent} keyboardShouldPersistTaps="handled">
             <Pressable onPress={() => setFeedbackOpen(false)} style={styles.feedbackClose} hitSlop={10}>
-              <Text style={styles.feedbackCloseText}>✕ Fermer et revenir au jeu</Text>
+              <Text style={styles.feedbackCloseText}>{tr('✕ Fermer et revenir au jeu', '✕ Close and return to the game')}</Text>
             </Pressable>
             <FeedbackForm day={day} />
           </ScrollView>

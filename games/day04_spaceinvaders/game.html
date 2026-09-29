@@ -27,6 +27,10 @@
     function sfx(name) {
       if (window.GameSounds) window.GameSounds.play(name);
     }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -113,7 +117,7 @@
       keys = this.input.keyboard.createCursorKeys();
 
       this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' });
-      this.waveText = this.add.text(width - 110, 20, 'Vague 1', { fontSize: '16px', color: '#f59e0b' });
+      this.waveText = this.add.text(width - 110, 20, T('Vague 1', 'Wave 1'), { fontSize: '16px', color: '#f59e0b' });
 
       notifyReady();
     }
@@ -134,7 +138,7 @@
       pointerTargetX = null;
       isPointerDown = false;
       scene.scoreText.setText('Score: 0');
-      scene.waveText.setText('Vague 1');
+      scene.waveText.setText(T('Vague 1', 'Wave 1'));
       layoutPlayer();
       player.x = scene.scale.width / 2;
       spawnWave();
@@ -282,7 +286,7 @@
         } else {
           currentWave += 1;
           sfx('powerup');
-          scene.waveText.setText('Vague ' + currentWave);
+          scene.waveText.setText(T('Vague ', 'Wave ') + currentWave);
           enemyDirection = 1;
           spawnWave();
         }

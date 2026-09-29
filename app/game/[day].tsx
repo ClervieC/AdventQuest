@@ -15,6 +15,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameWrapper } from '../../components/GameWrapper';
 import { GameType, getDayConfig } from '../../constants/days';
 import { TUTORIALS } from '../../constants/tutorials';
+import { useI18n } from '../../services/i18n';
 import { QuizGame } from '../../games/day01_quiz';
 import { SudokuGame } from '../../games/day03_sudoku';
 import { WhackAMoleGame } from '../../games/day16_whackamole';
@@ -68,11 +69,12 @@ export default function GameScreen() {
   const { day } = useLocalSearchParams<{ day: string }>();
   const dayNumber = parseInt(day, 10);
   const config = getDayConfig(dayNumber);
+  const { tr, l } = useI18n();
 
   if (!config) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Configuration manquante pour le jour {dayNumber}</Text>
+        <Text style={styles.text}>{tr('Configuration manquante pour le jour', 'Missing configuration for day')} {dayNumber}</Text>
         <BackButton />
       </View>
     );
@@ -83,7 +85,7 @@ export default function GameScreen() {
   if (!GameComponent) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>🎮 Jeu « {config.game} » — pas encore implémenté</Text>
+        <Text style={styles.text}>{tr(`🎮 Jeu « ${config.game} » — pas encore implémenté`, `🎮 Game “${config.game}” — not implemented yet`)}</Text>
         <BackButton />
       </View>
     );
@@ -92,9 +94,9 @@ export default function GameScreen() {
   return (
     <GameWrapper
       day={config.day}
-      fragmentName={config.fragmentName}
+      fragmentName={l(config.fragmentName)}
       fragmentIcon={config.fragmentIcon}
-      storyIntro={config.storyIntro}
+      storyIntro={l(config.storyIntro)}
       tutorial={TUTORIALS[config.game]}
     >
       {(gameProps) =>
@@ -113,9 +115,10 @@ export default function GameScreen() {
 }
 
 function BackButton() {
+  const { tr } = useI18n();
   return (
     <Pressable style={styles.backButton} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
-      <Text style={styles.backButtonText}>Retour au calendrier</Text>
+      <Text style={styles.backButtonText}>{tr('Retour au calendrier', 'Back to the calendar')}</Text>
     </Pressable>
   );
 }

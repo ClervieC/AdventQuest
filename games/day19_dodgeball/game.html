@@ -27,6 +27,10 @@
     function sfx(name) {
       if (window.GameSounds) window.GameSounds.play(name);
     }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -116,7 +120,7 @@
       timeText = this.add.text(0, 20, '', { fontSize: '20px', color: '#f59e0b', fontStyle: 'bold' }).setOrigin(1, 0).setDepth(10);
       hintButton = this.add.rectangle(0, 42, 120, 34, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
       hintText = this.add.text(0, 59, '', { fontSize: '13px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
-      messageText = this.add.text(0, 0, 'Glisse le doigt pour esquiver\nAttrape les 🎁 pour des bonus', {
+      messageText = this.add.text(0, 0, T('Glisse le doigt pour esquiver\nAttrape les 🎁 pour des bonus', 'Slide your finger to dodge\nCatch the 🎁 for bonuses'), {
         fontSize: '14px', color: '#7a9ab8', align: 'center',
       }).setOrigin(0.5).setDepth(10);
 
@@ -214,7 +218,7 @@
     }
 
     function updateHintButton() {
-      hintText.setText(shieldActive ? '🛡️ Bouclier actif' : '💡 Bouclier (' + hintsLeft + ')');
+      hintText.setText(shieldActive ? T('🛡️ Bouclier actif', '🛡️ Shield active') : T('💡 Bouclier (', '💡 Shield (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || shieldActive ? 1 : 0.4);
     }
 
@@ -243,7 +247,7 @@
       shieldSprite.setVisible(true).setScale(0.5);
       scene.tweens.add({ targets: shieldSprite, scale: 1, duration: 200, ease: 'Back.easeOut' });
       notifyHintUsed();
-      flashFeedback(playerX, playerY - 50, '🛡️ Bouclier !', '#7dd3fc');
+      flashFeedback(playerX, playerY - 50, T('🛡️ Bouclier !', '🛡️ Shield!'), '#7dd3fc');
       updateHintButton();
     }
 
@@ -337,7 +341,7 @@
             sfx('bounce');
             scene.tweens.add({ targets: shieldSprite, scale: 1.8, alpha: 0, duration: 250, onComplete: () => shieldSprite.setVisible(false).setAlpha(1).setScale(1) });
             scene.cameras.main.shake(120, 0.006);
-            flashFeedback(playerX, playerY - 50, 'Bloqué !', '#7dd3fc');
+            flashFeedback(playerX, playerY - 50, T('Bloqué !', 'Blocked!'), '#7dd3fc');
             updateHintButton();
           } else {
             hitPlayer();
@@ -356,7 +360,7 @@
       sfx('explode');
       scene.cameras.main.shake(250, 0.015);
       playerSprite.setText('💫');
-      flashFeedback(playerX, playerY - 50, 'Touché !', '#ef4444');
+      flashFeedback(playerX, playerY - 50, T('Touché !', 'Hit!'), '#ef4444');
       finishGame(false);
     }
 

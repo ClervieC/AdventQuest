@@ -4,6 +4,7 @@ import { GameComponentProps } from '../../components/GameWrapper/types';
 import { playSfx } from '../../services/sfx';
 import { calculatePipeScore, connectedFrom, isPathConnected, PipeTile, rotateTile } from './logic';
 import { generatePipePuzzle, PIPE_SIZE_BY_DIFFICULTY } from './puzzles';
+import { useI18n } from '../../services/i18n';
 
 const PIPE_SYMBOLS: Record<string, string> = {
   straight: '┃',
@@ -14,6 +15,7 @@ const PIPE_SYMBOLS: Record<string, string> = {
 };
 
 export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy' }: GameComponentProps) {
+  const { tr } = useI18n();
   // Nouvelle grille à chaque partie, plus grande selon la difficulté
   const [puzzle] = useState(() => generatePipePuzzle(PIPE_SIZE_BY_DIFFICULTY[difficulty]));
   const [grid, setGrid] = useState<PipeTile[][]>(() => puzzle.grid.map((row) => row.map((t) => ({ ...t }))));
@@ -57,8 +59,10 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficult
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Connecte la Source à la Sortie</Text>
-      <Text style={styles.subtitle}>Touche un tuyau pour le tourner · les tuyaux reliés à la Source s’allument en vert</Text>
+      <Text style={styles.title}>{tr('Connecte la Source à la Sortie', 'Connect the Source to the Exit')}</Text>
+      <Text style={styles.subtitle}>
+        {tr('Touche un tuyau pour le tourner · les tuyaux reliés à la Source s’allument en vert', 'Tap a pipe to rotate it · pipes connected to the Source light up green')}
+      </Text>
 
       <View style={styles.grid}>
         {grid.map((row, rowIndex) => (
@@ -87,8 +91,8 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficult
                   >
                     {PIPE_SYMBOLS[tile.type]}
                   </Text>
-                  {isStart && <Text style={styles.cellLabel}>Source</Text>}
-                  {isEnd && <Text style={styles.cellLabel}>Sortie</Text>}
+                  {isStart && <Text style={styles.cellLabel}>{tr('Source', 'Source')}</Text>}
+                  {isEnd && <Text style={styles.cellLabel}>{tr('Sortie', 'Exit')}</Text>}
                 </Pressable>
               );
             })}
@@ -101,7 +105,7 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficult
         onPress={handleHint}
         disabled={hintsAvailable === 0}
       >
-        <Text style={styles.hintButtonText}>💡 Indice</Text>
+        <Text style={styles.hintButtonText}>{tr('💡 Indice', '💡 Hint')}</Text>
       </Pressable>
     </View>
   );

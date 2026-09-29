@@ -6,6 +6,7 @@ export interface Point {
 
 export interface Drawing {
   name: string;
+  nameEn: string;
   points: Point[];   // déjà triés par id croissant
 }
 

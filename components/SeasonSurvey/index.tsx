@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { COME_BACK_LABELS, SURVEY_GAMES, SURVEY_WISHES } from '../../constants/survey';
 import { ComeBack, fetchSeasonSurveyStatus, submitSeasonSurvey } from '../../services/api';
+import { useI18n } from '../../services/i18n';
 
 type Status = 'loading' | 'closed' | 'idle' | 'sending' | 'sent' | 'error';
 
@@ -11,6 +12,7 @@ type Status = 'loading' | 'closed' | 'idle' | 'sending' | 'sent' | 'error';
  * Une réponse par joueur (un nouvel envoi la remplace).
  */
 export function SeasonSurvey({ onSent }: { onSent?: () => void }) {
+  const { tr, l } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [alreadyAnswered, setAlreadyAnswered] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
@@ -66,8 +68,8 @@ export function SeasonSurvey({ onSent }: { onSent?: () => void }) {
   if (status === 'closed') {
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>🎁 Sondage de fin de saison</Text>
-        <Text style={styles.thanks}>Le sondage ouvrira le 24 décembre au soir, après la dernière épreuve. À bientôt !</Text>
+        <Text style={styles.title}>{tr('🎁 Sondage de fin de saison', '🎁 End-of-season survey')}</Text>
+        <Text style={styles.thanks}>{tr('Le sondage ouvrira le 24 décembre au soir, après la dernière épreuve. À bientôt !', 'The survey opens on the evening of 24 December, after the last trial. See you soon!')}</Text>
       </View>
     );
   }
@@ -75,12 +77,14 @@ export function SeasonSurvey({ onSent }: { onSent?: () => void }) {
   if (status === 'sent') {
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>🎁 Sondage de fin de saison</Text>
+        <Text style={styles.title}>{tr('🎁 Sondage de fin de saison', '🎁 End-of-season survey')}</Text>
         <Text style={styles.thanks}>
-          {alreadyAnswered ? 'Tu as déjà répondu au sondage, merci ! 💜' : 'Merci pour tes réponses ! 💜 Elles vont aider à préparer l’an prochain.'}
+          {alreadyAnswered
+            ? tr('Tu as déjà répondu au sondage, merci ! 💜', 'You’ve already answered the survey, thank you! 💜')
+            : tr('Merci pour tes réponses ! 💜 Elles vont aider à préparer l’an prochain.', 'Thanks for your answers! 💜 They’ll help us prepare next year.')}
         </Text>
         <Pressable onPress={() => { setAlreadyAnswered(false); setStatus('idle'); }} hitSlop={8}>
-          <Text style={styles.link}>Répondre à nouveau (remplace ta réponse)</Text>
+          <Text style={styles.link}>{tr('Répondre à nouveau (remplace ta réponse)', 'Answer again (replaces your answer)')}</Text>
         </Pressable>
       </View>
     );
@@ -88,48 +92,48 @@ export function SeasonSurvey({ onSent }: { onSent?: () => void }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>🎁 Sondage de fin de saison</Text>
-      <Text style={styles.intro}>Quelques questions pour préparer l’année prochaine. Tout est facultatif.</Text>
+      <Text style={styles.title}>{tr('🎁 Sondage de fin de saison', '🎁 End-of-season survey')}</Text>
+      <Text style={styles.intro}>{tr('Quelques questions pour préparer l’année prochaine. Tout est facultatif.', 'A few questions to help prepare next year. Everything is optional.')}</Text>
 
-      <Text style={styles.question}>Ta note pour AdventQuest</Text>
+      <Text style={styles.question}>{tr('Ta note pour AdventQuest', 'Your rating for AdventQuest')}</Text>
       <View style={styles.stars}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable key={n} onPress={() => setRating(rating === n ? null : n)} hitSlop={6} accessibilityLabel={`${n} étoile${n > 1 ? 's' : ''}`}>
+          <Pressable key={n} onPress={() => setRating(rating === n ? null : n)} hitSlop={6} accessibilityLabel={tr(`${n} étoile${n > 1 ? 's' : ''}`, `${n} star${n > 1 ? 's' : ''}`)}>
             <Text style={[styles.star, rating !== null && n <= rating && styles.starOn]}>★</Text>
           </Pressable>
         ))}
       </View>
 
-      <Text style={styles.question}>Tes jeux préférés</Text>
+      <Text style={styles.question}>{tr('Tes jeux préférés', 'Your favourite games')}</Text>
       <View style={styles.chips}>
         {SURVEY_GAMES.map((game) => {
           const on = favoriteGames.includes(game.key);
           return (
             <Pressable key={game.key} onPress={() => toggle(favoriteGames, game.key, setFavoriteGames)} style={[styles.chip, on && styles.chipOn]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{game.label}</Text>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{l(game.label)}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      <Text style={styles.question}>Ce que tu as le plus apprécié</Text>
+      <Text style={styles.question}>{tr('Ce que tu as le plus apprécié', 'What you enjoyed most')}</Text>
       <TextInput
         value={liked}
         onChangeText={setLiked}
-        placeholder="L’histoire, un jeu en particulier, le classement…"
+        placeholder={tr('L’histoire, un jeu en particulier, le classement…', 'The story, a particular game, the leaderboard…')}
         placeholderTextColor="#8ea6c0"
         multiline
         maxLength={2000}
         style={styles.input}
       />
 
-      <Text style={styles.question}>L’année prochaine, tu aimerais…</Text>
+      <Text style={styles.question}>{tr('L’année prochaine, tu aimerais…', 'Next year, you’d like…')}</Text>
       <View style={styles.chips}>
         {SURVEY_WISHES.map((wish) => {
-          const on = wishes.includes(wish);
+          const on = wishes.includes(wish.value);
           return (
-            <Pressable key={wish} onPress={() => toggle(wishes, wish, setWishes)} style={[styles.chip, on && styles.chipOn]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{wish}</Text>
+            <Pressable key={wish.value} onPress={() => toggle(wishes, wish.value, setWishes)} style={[styles.chip, on && styles.chipOn]}>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{l(wish.label)}</Text>
             </Pressable>
           );
         })}
@@ -137,28 +141,28 @@ export function SeasonSurvey({ onSent }: { onSent?: () => void }) {
       <TextInput
         value={nextYear}
         onChangeText={setNextYear}
-        placeholder="D’autres idées pour l’an prochain ?"
+        placeholder={tr('D’autres idées pour l’an prochain ?', 'Any other ideas for next year?')}
         placeholderTextColor="#8ea6c0"
         multiline
         maxLength={2000}
         style={styles.input}
       />
 
-      <Text style={styles.question}>Tu rejoueras l’année prochaine ?</Text>
+      <Text style={styles.question}>{tr('Tu rejoueras l’année prochaine ?', 'Will you play again next year?')}</Text>
       <View style={styles.chips}>
         {(Object.keys(COME_BACK_LABELS) as ComeBack[]).map((value) => {
           const on = comeBack === value;
           return (
             <Pressable key={value} onPress={() => setComeBack(on ? null : value)} style={[styles.chip, on && styles.chipOn]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{COME_BACK_LABELS[value]}</Text>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{l(COME_BACK_LABELS[value])}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      {status === 'error' && <Text style={styles.error}>Envoi impossible, vérifie ta connexion et réessaie.</Text>}
+      {status === 'error' && <Text style={styles.error}>{tr('Envoi impossible, vérifie ta connexion et réessaie.', 'Couldn’t send, check your connection and try again.')}</Text>}
       <Pressable style={[styles.button, !canSend && styles.disabled]} onPress={handleSend} disabled={!canSend}>
-        {status === 'sending' ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Envoyer mes réponses</Text>}
+        {status === 'sending' ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{tr('Envoyer mes réponses', 'Send my answers')}</Text>}
       </Pressable>
     </View>
   );

@@ -21,6 +21,7 @@ import {
   pointsFor,
   summarize,
 } from './logic';
+import { Localized, useI18n } from '../../services/i18n';
 
 const LANE_ICONS = ['🔔', '❄️', '🎁', '⭐'];
 const LANE_COLORS = ['#ef4444', '#60a5fa', '#34d399', '#fbbf24'];
@@ -38,11 +39,11 @@ const RESYNC_THRESHOLD_MS = 60;
 const CARILLON_AUDIO = require('./audio/carillon.wav');
 const VALSE_AUDIO = require('./audio/valse.wav');
 
-const FEEDBACK: Record<Judgement | 'empty', { text: string; color: string }> = {
-  perfect: { text: 'Parfait !', color: '#34d399' },
-  good: { text: 'Bien', color: '#60a5fa' },
-  miss: { text: 'Raté', color: '#f87171' },
-  empty: { text: 'Trop tôt', color: '#b7c8da' },
+const FEEDBACK: Record<Judgement | 'empty', { text: Localized; color: string }> = {
+  perfect: { text: { fr: 'Parfait !', en: 'Perfect!' }, color: '#34d399' },
+  good: { text: { fr: 'Bien', en: 'Good' }, color: '#60a5fa' },
+  miss: { text: { fr: 'Raté', en: 'Miss' }, color: '#f87171' },
+  empty: { text: { fr: 'Trop tôt', en: 'Too early' }, color: '#b7c8da' },
 };
 
 // Ce composant n'est monté qu'au clic sur "Jouer" (voir app/game/[day].tsx) : le morceau démarre au montage
@@ -50,6 +51,7 @@ const FEEDBACK: Record<Judgement | 'empty', { text: string; color: string }> = {
 const LANE_KEYS = [['d', '1'], ['f', '2'], ['j', '3'], ['k', '4']];
 
 export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }: GameComponentProps) {
+  const { tr, l } = useI18n();
   const chart = useMemo(() => getChart(difficulty), [difficulty]);
   const lastNoteTime = chart.notes[chart.notes.length - 1].time;
 
@@ -75,7 +77,7 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
 
   const [now, setNow] = useState(0);
   const [fieldHeight, setFieldHeight] = useState(0);
-  const [feedback, setFeedback] = useState<{ text: string; color: string; id: number } | null>(null);
+  const [feedback, setFeedback] = useState<{ text: Localized; color: string; id: number } | null>(null);
   const [pressedLane, setPressedLane] = useState<Lane | null>(null);
 
   const showFeedback = (kind: Judgement | 'empty') => {
@@ -250,14 +252,16 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
         <View>
           <Text style={styles.score}>{scoreRef.current}</Text>
           <Text style={styles.songName}>
-            {startRef.current === null ? '🎵 Chargement de la musique...' : `🎵 ${chart.name}${muted ? ' (son coupé)' : silentMode ? ' (sans son)' : ''}`}
+            {startRef.current === null
+              ? tr('🎵 Chargement de la musique...', '🎵 Loading the music...')
+              : `🎵 ${tr(chart.name, chart.nameEn)}${muted ? tr(' (son coupé)', ' (muted)') : silentMode ? tr(' (sans son)', ' (no sound)') : ''}`}
           </Text>
         </View>
         <View style={styles.headerRight}>
           <Text style={styles.combo}>
             {comboRef.current >= 2 ? `Combo ${comboRef.current} · ×${comboMultiplier(comboRef.current)}` : ' '}
           </Text>
-          <Text style={[styles.accuracy, accuracy < 70 && styles.accuracyLow]}>Précision {accuracy} %</Text>
+          <Text style={[styles.accuracy, accuracy < 70 && styles.accuracyLow]}>{tr(`Précision ${accuracy} %`, `Accuracy ${accuracy}%`)}</Text>
         </View>
       </View>
       <View style={styles.progressTrack}>
@@ -297,7 +301,7 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
 
         {feedback && (
           <Text key={feedback.id} style={[styles.feedback, { color: feedback.color }]}>
-            {feedback.text}
+            {l(feedback.text)}
           </Text>
         )}
       </View>
@@ -327,7 +331,7 @@ export function RythmeGame({ onGameEnd, hintsAvailable, onUseHint, difficulty }:
         disabled={hintsAvailable === 0 || hintActive}
       >
         <Text style={styles.hintButtonText}>
-          {hintActive ? "👂 Oreille d'elfe active" : "💡 Oreille d'elfe (plus de tolérance 8 s)"}
+          {hintActive ? tr("👂 Oreille d'elfe active", '👂 Elf ear active') : tr("💡 Oreille d'elfe (plus de tolérance 8 s)", '💡 Elf ear (more tolerance for 8 s)')}
         </Text>
       </Pressable>
     </View>

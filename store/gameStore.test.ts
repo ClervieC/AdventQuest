@@ -27,6 +27,8 @@ jest.mock('../services/api', () => {
     deleteMyAccount: jest.fn(() => Promise.resolve()),
   };
 });
+// Réglages de l'appareil (langue) : stockage en mémoire
+jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
 jest.mock('../services/pendingAttempts', () => ({
   loadPendingAttempts: jest.fn(() => Promise.resolve([])),
   savePendingAttempts: jest.fn(() => Promise.resolve()),

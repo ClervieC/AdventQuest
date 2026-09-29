@@ -10,8 +10,8 @@ function TreeNonogramGame(props: GameComponentProps) {
 }
 
 const STAGES: MarathonStage[] = [
-  { label: 'Dodge Ball', icon: '🛡️', component: DodgeBallGame },
-  { label: 'Nonogram', icon: '🎄', component: TreeNonogramGame, preload: false },
+  { label: { fr: 'Dodge Ball', en: 'Dodge Ball' }, icon: '🛡️', component: DodgeBallGame },
+  { label: { fr: 'Nonogram', en: 'Nonogram' }, icon: '🎄', component: TreeNonogramGame, preload: false },
 ];
 
 export function Day23MarathonGame(props: GameComponentProps & { isStarted: boolean }) {

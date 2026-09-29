@@ -1,25 +1,28 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pageColumn } from '../../constants/layout';
-import { MENTIONS, PRIVACY, TERMS } from './content';
+import { useI18n } from '../../services/i18n';
+import { MENTIONS, MENTIONS_EN, PRIVACY, PRIVACY_EN, TERMS, TERMS_EN } from './content';
 
 export type LegalKind = 'terms' | 'privacy' | 'mentions';
 
 /** Affiche les CGU ou la politique de confidentialité, avec un bouton retour */
 export function LegalView({ kind, onBack }: { kind: LegalKind; onBack: () => void }) {
   const insets = useSafeAreaInsets();
-  const doc = kind === 'terms' ? TERMS : kind === 'privacy' ? PRIVACY : MENTIONS;
+  const { lang, tr } = useI18n();
+  const en = lang === 'en';
+  const doc = kind === 'terms' ? (en ? TERMS_EN : TERMS) : kind === 'privacy' ? (en ? PRIVACY_EN : PRIVACY) : en ? MENTIONS_EN : MENTIONS;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.column}>
         <Pressable onPress={onBack} hitSlop={12} style={styles.back}>
-          <Text style={styles.backText}>‹ Retour</Text>
+          <Text style={styles.backText}>{tr('‹ Retour', '‹ Back')}</Text>
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
         <Text style={styles.title}>{doc.title}</Text>
-        <Text style={styles.updated}>Dernière mise à jour : {doc.updatedAt}</Text>
+        <Text style={styles.updated}>{tr('Dernière mise à jour : ', 'Last updated: ')}{doc.updatedAt}</Text>
         {doc.sections.map((section) => (
           <View key={section.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -37,18 +40,19 @@ export function LegalView({ kind, onBack }: { kind: LegalKind; onBack: () => voi
 
 /** Liens vers les deux documents (écran de connexion, profil) */
 export function LegalLinks({ onOpen }: { onOpen: (kind: LegalKind) => void }) {
+  const { tr } = useI18n();
   return (
     <View style={styles.links}>
       <Pressable onPress={() => onOpen('terms')} hitSlop={8}>
-        <Text style={styles.link}>Conditions d’utilisation</Text>
+        <Text style={styles.link}>{tr('Conditions d’utilisation', 'Terms of use')}</Text>
       </Pressable>
       <Text style={styles.linkSeparator}>·</Text>
       <Pressable onPress={() => onOpen('privacy')} hitSlop={8}>
-        <Text style={styles.link}>Confidentialité</Text>
+        <Text style={styles.link}>{tr('Confidentialité', 'Privacy')}</Text>
       </Pressable>
       <Text style={styles.linkSeparator}>·</Text>
       <Pressable onPress={() => onOpen('mentions')} hitSlop={8}>
-        <Text style={styles.link}>Mentions légales</Text>
+        <Text style={styles.link}>{tr('Mentions légales', 'Legal notice')}</Text>
       </Pressable>
     </View>
   );

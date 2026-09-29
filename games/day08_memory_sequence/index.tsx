@@ -13,6 +13,7 @@ import {
     sequenceDelayMs,
     SymbolIndex,
 } from './logic';
+import { useI18n } from '../../services/i18n';
 
 const SYMBOL_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308']; // rouge, bleu, vert, jaune
 const SYMBOL_LABELS = ['🔴', '🔵', '🟢', '🟡'];
@@ -21,6 +22,7 @@ type GamePhase = 'ready' | 'showing' | 'waiting_input' | 'checking';
 
 
 export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy' }: GameComponentProps) {
+  const { tr } = useI18n();
   const config = DIFFICULTY_CONFIGS[difficulty] ?? DIFFICULTY_CONFIGS.easy;
 
   const [sequence, setSequence] = useState<SymbolIndex[]>(() => generateSequence(config.startLength));
@@ -129,20 +131,20 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
       {/* Bandeau très visible : qui joue ? (retour testeur : "pas clair quand ce n'est plus à toi") */}
       <View style={[styles.turnBanner, phase === 'waiting_input' ? styles.turnBannerYou : styles.turnBannerWatch]}>
         <Text style={styles.turnTitle}>
-          {phase === 'waiting_input' ? '👉 À toi !' : phase === 'ready' ? '🎵 Prêt ?' : '👀 Regarde bien…'}
+          {phase === 'waiting_input' ? tr('👉 À toi !', '👉 Your turn!') : phase === 'ready' ? tr('🎵 Prêt ?', '🎵 Ready?') : tr('👀 Regarde bien…', '👀 Watch closely…')}
         </Text>
         <Text style={styles.turnDetail}>
           {phase === 'waiting_input'
-            ? `Reproduis la séquence : ${playerInput.length} / ${sequence.length}`
+            ? tr(`Reproduis la séquence : ${playerInput.length} / ${sequence.length}`, `Repeat the sequence: ${playerInput.length} / ${sequence.length}`)
             : phase === 'ready'
-            ? 'Les couleurs vont s’allumer une par une : retiens leur ordre'
-            : 'Retiens l’ordre des couleurs'}
+            ? tr('Les couleurs vont s’allumer une par une : retiens leur ordre', 'The colours will light up one by one: remember their order')
+            : tr('Retiens l’ordre des couleurs', 'Remember the order of the colours')}
         </Text>
       </View>
 
       {phase === 'ready' && (
         <Pressable style={styles.readyButton} onPress={handleReady} accessibilityRole="button">
-          <Text style={styles.readyButtonText}>▶ Je suis prêt</Text>
+          <Text style={styles.readyButtonText}>{tr('▶ Je suis prêt', '▶ I’m ready')}</Text>
         </Pressable>
       )}
 
@@ -170,7 +172,7 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
         onPress={handleHint}
         disabled={hintsAvailable === 0 || phase !== 'waiting_input'}
       >
-        <Text style={styles.hintButtonText}>💡 Revoir la séquence</Text>
+        <Text style={styles.hintButtonText}>{tr('💡 Revoir la séquence', '💡 See the sequence again')}</Text>
       </Pressable>
     </View>
   );

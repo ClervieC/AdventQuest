@@ -13,6 +13,7 @@ import {
     NonogramPuzzle
 } from './logic';
 import { getRandomNonogram } from './puzzles';
+import { useI18n } from '../../services/i18n';
 
 interface NonogramGameProps extends GameComponentProps {
   // Dessin imposé (ex. le sapin du marathon du jour 23) ; sinon tirage au hasard selon la difficulté
@@ -20,6 +21,7 @@ interface NonogramGameProps extends GameComponentProps {
 }
 
 export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty, puzzle: forcedPuzzle }: NonogramGameProps) {
+  const { tr } = useI18n();
   const puzzleDifficulty = difficulty === 'hard' || difficulty === 'very_hard' ? 'hard' : 'easy';
   const [puzzle] = useState(() => forcedPuzzle ?? getRandomNonogram(puzzleDifficulty));
   const [grid, setGrid] = useState<Grid>(() => createEmptyGrid(puzzle.size));
@@ -86,7 +88,7 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{puzzle.name}</Text>
+      <Text style={styles.title}>{tr(puzzle.name, puzzle.nameEn)}</Text>
 
       <View style={styles.gridWrapper}>
         {/* Indices de colonnes en haut */}
@@ -133,7 +135,7 @@ export function NonogramGame({ onGameEnd, hintsAvailable, onUseHint, difficulty,
         onPress={handleHint}
         disabled={hintsAvailable === 0}
       >
-        <Text style={styles.hintButtonText}>💡 Révéler une case</Text>
+        <Text style={styles.hintButtonText}>{tr('💡 Révéler une case', '💡 Reveal a square')}</Text>
       </Pressable>
     </View>
   );

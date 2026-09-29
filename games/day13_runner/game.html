@@ -27,6 +27,10 @@
     function sfx(name) {
       if (window.GameSounds) window.GameSounds.play(name);
     }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -123,7 +127,7 @@
       livesText = this.add.text(20, 44, getLivesString(), { fontSize: '16px' }).setDepth(10);
       hintButton = this.add.rectangle(0, 0, 110, 40, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
       hintText = this.add.text(0, 0, '', { fontSize: '14px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
-      messageText = this.add.text(0, 0, 'Tap : sauter (2× = double saut)\nSwipe ↓ : glisser', {
+      messageText = this.add.text(0, 0, T('Tap : sauter (2× = double saut)\nSwipe ↓ : glisser', 'Tap: jump (2× = double jump)\nSwipe ↓: slide'), {
         fontSize: '14px', color: '#7a9ab8', align: 'center',
       }).setOrigin(0.5, 0).setDepth(10);
 
@@ -234,7 +238,7 @@
 
     function updateHintButton() {
       const slowActive = scene.time.now < slowUntil;
-      hintText.setText(slowActive ? '🐢 Ralenti' : '💡 Ralentir (' + hintsLeft + ')');
+      hintText.setText(slowActive ? T('🐢 Ralenti', '🐢 Slowed') : T('💡 Ralentir (', '💡 Slow down (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || slowActive ? 1 : 0.4);
     }
 
@@ -307,7 +311,7 @@
       slowUntil = scene.time.now + HINT_SLOW_MS;
       sfx('powerup');
       notifyHintUsed();
-      flashFeedback(width / 2, groundY - 160, '🐢 Ralenti 5s', '#a78bfa');
+      flashFeedback(width / 2, groundY - 160, T('🐢 Ralenti 5s', '🐢 Slowed 5s'), '#a78bfa');
       updateHintButton();
       scene.time.delayedCall(HINT_SLOW_MS, updateHintButton);
     }
@@ -468,7 +472,7 @@
       livesText.setText(getLivesString());
       invulnerableUntil = time + INVULNERABLE_MS;
       scene.cameras.main.shake(200, 0.01);
-      flashFeedback(playerX, player.y - 70, 'Aïe !', '#ef4444');
+      flashFeedback(playerX, player.y - 70, T('Aïe !', 'Ouch!'), '#ef4444');
       if (lives <= 0) finishGame(false);
     }
 

@@ -11,6 +11,7 @@ export interface ChartNote {
 
 export interface Chart {
   name: string;
+  nameEn: string;
   bpm: number;
   approachMs: number; // temps de descente d'une note, du haut jusqu'à la ligne
   notes: ChartNote[];

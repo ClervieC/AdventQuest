@@ -20,6 +20,7 @@ import {
 
 const TEST_CHART: Chart = {
   name: 'Test',
+  nameEn: 'Test',
   bpm: 60,
   approachMs: 1000,
   notes: [

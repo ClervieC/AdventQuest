@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useGameKeys } from '../../hooks/use-game-keys';
+import { useI18n } from '../../services/i18n';
 import { playSfx } from '../../services/sfx';
 import { calculateScore, eliminateWrongAnswers, isAnswerCorrect, isSuccess } from './logic';
-import { pickQuizQuestions } from './questions';
+import { pickQuizQuestions, quizQuestionsFor } from './questions';
 
 
 export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponentProps) {
-  // 5 questions tirées au hasard à chaque partie (le composant est recréé à chaque "Jouer")
-  const [questions] = useState(() => pickQuizQuestions());
+  const { lang, tr } = useI18n();
+  // 10 questions tirées au hasard dans la langue du joueur, à chaque partie (le composant est recréé à chaque "Jouer")
+  const [questions] = useState(() => pickQuizQuestions(undefined, quizQuestionsFor(lang)));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
@@ -97,7 +99,7 @@ export function QuizGame({ onGameEnd, hintsAvailable, onUseHint }: GameComponent
         onPress={handleHint}
         disabled={hintsAvailable === 0 || eliminatedOptions.length > 0}
       >
-        <Text style={styles.hintButtonText}>💡 Éliminer 2 mauvaises réponses</Text>
+        <Text style={styles.hintButtonText}>{tr('💡 Éliminer 2 mauvaises réponses', '💡 Remove 2 wrong answers')}</Text>
       </Pressable>
     </View>
   );

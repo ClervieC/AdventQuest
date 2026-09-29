@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSettingsStore } from '../../store/settingsStore';
 import { GameComponentProps } from '../GameWrapper/types';
-import { GAME_SOUNDS_SCRIPT } from './gameSounds';
+import { GAME_SOUNDS_SCRIPT, gameLangScript } from './gameSounds';
 
 interface PhaserGameWrapperProps extends GameComponentProps {
   htmlSource: any; // résultat de require('../../games/dayXX_nom/game.html')
@@ -18,6 +18,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   const hintsRef = useRef(hintsAvailable);
   hintsRef.current = hintsAvailable;
   const muted = useSettingsStore((state) => state.muted);
+  const lang = useSettingsStore((state) => state.lang);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
 
@@ -78,7 +79,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
         ref={webViewRef}
         source={htmlSource}
         onMessage={handleMessage}
-        injectedJavaScriptBeforeContentLoaded={GAME_SOUNDS_SCRIPT}
+        injectedJavaScriptBeforeContentLoaded={gameLangScript(lang) + GAME_SOUNDS_SCRIPT}
         mediaPlaybackRequiresUserAction={false}
         style={styles.webview}
         originWhitelist={['*']}

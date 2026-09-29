@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSettingsStore } from '../../store/settingsStore';
 import { GameComponentProps } from '../GameWrapper/types';
-import { GAME_SOUNDS_SCRIPT } from './gameSounds';
+import { GAME_SOUNDS_SCRIPT, gameLangScript } from './gameSounds';
 
 // Version web : react-native-webview ne marche pas dans le navigateur, on utilise une <iframe>.
 // Un faux window.ReactNativeWebView est injecté dans le game.html pour garder le même protocole de messages.
@@ -34,6 +34,7 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
   const hintsRef = useRef(hintsAvailable);
   hintsRef.current = hintsAvailable;
   const muted = useSettingsStore((state) => state.muted);
+  const lang = useSettingsStore((state) => state.lang);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
 
@@ -42,13 +43,13 @@ export function PhaserGameWrapper({ onGameEnd, hintsAvailable, onUseHint, htmlSo
     fetch(resolveHtmlUri(htmlSource))
       .then((response) => response.text())
       .then((html) => {
-        if (!cancelled) setSrcDoc(html.replace(/<head>/i, '<head>' + BRIDGE_SCRIPT + '<script>' + GAME_SOUNDS_SCRIPT + '</script>'));
+        if (!cancelled) setSrcDoc(html.replace(/<head>/i, '<head>' + BRIDGE_SCRIPT + '<script>' + gameLangScript(lang) + GAME_SOUNDS_SCRIPT + '</script>'));
       })
       .catch((error) => console.warn('Chargement du jeu Phaser impossible:', error));
     return () => {
       cancelled = true;
     };
-  }, [htmlSource]);
+  }, [htmlSource, lang]);
 
   const sendMessageToGame = (message: object) => {
     iframeRef.current?.contentWindow?.postMessage(JSON.stringify(message), '*');

@@ -27,6 +27,10 @@
     function sfx(name) {
       if (window.GameSounds) window.GameSounds.play(name);
     }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -85,11 +89,11 @@
 
     // Bonus (✨) et malus (💀) contenus dans certains blocs de glace
     const POWERS = {
-      multi:  { emoji: '🔮', label: 'Balle double !',       good: true },
-      wide:   { emoji: '↔️', label: 'Raquette large !',     good: true },
+      multi:  { emoji: '🔮', label: T('Balle double !', 'Double ball!'), good: true },
+      wide:   { emoji: '↔️', label: T('Raquette large !', 'Wide paddle!'), good: true },
       time:   { emoji: '⏳', label: '+10 s',                good: true },
-      invert: { emoji: '🌀', label: 'Commandes inversées !', good: false },
-      fast:   { emoji: '⚡', label: 'Balle rapide !',        good: false },
+      invert: { emoji: '🌀', label: T('Commandes inversées !', 'Reversed controls!'), good: false },
+      fast:   { emoji: '⚡', label: T('Balle rapide !', 'Fast ball!'), good: false },
     };
     const GOOD_POWERS = ['multi', 'wide', 'time'];
     const BAD_POWERS = ['invert', 'fast'];
@@ -133,7 +137,7 @@
       hintButton = this.add.rectangle(0, 46, 120, 32, 0x1e0d40).setOrigin(1, 0).setStrokeStyle(1, 0x7c3aed).setDepth(10);
       hintText = this.add.text(0, 62, '', { fontSize: '13px', color: '#c4b5fd', fontStyle: 'bold' }).setOrigin(0.5).setDepth(11);
       effectText = this.add.text(0, 0, '', { fontSize: '13px', color: '#c4b5fd', align: 'center' }).setOrigin(0.5).setDepth(10);
-      messageText = this.add.text(0, 0, 'Glisse le doigt pour bouger la raquette\nTape pour lancer la balle', {
+      messageText = this.add.text(0, 0, T('Glisse le doigt pour bouger la raquette\nTape pour lancer la balle', 'Slide your finger to move the paddle\nTap to launch the ball'), {
         fontSize: '14px', color: '#7a9ab8', align: 'center',
       }).setOrigin(0.5).setDepth(10);
 
@@ -305,7 +309,7 @@
     }
 
     function updateHintButton() {
-      hintText.setText(netActive ? '🕸️ Filet actif' : '💡 Filet (' + hintsLeft + ')');
+      hintText.setText(netActive ? T('🕸️ Filet actif', '🕸️ Net active') : T('💡 Filet (', '💡 Net (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || netActive ? 1 : 0.4);
     }
 
@@ -357,7 +361,7 @@
       netSprite.setVisible(true).setAlpha(0);
       scene.tweens.add({ targets: netSprite, alpha: 0.8, duration: 250 });
       notifyHintUsed();
-      flashFeedback(width / 2, paddleY - 60, '🕸️ Filet de secours !', '#7dd3fc');
+      flashFeedback(width / 2, paddleY - 60, T('🕸️ Filet de secours !', '🕸️ Safety net!'), '#7dd3fc');
       updateHintButton();
     }
 
@@ -434,7 +438,7 @@
           netActive = false;
           sfx('bounce');
           scene.tweens.add({ targets: netSprite, alpha: 0, duration: 300, onComplete: () => netSprite.setVisible(false) });
-          flashFeedback(ball.x, paddleY, 'Sauvé !', '#7dd3fc');
+          flashFeedback(ball.x, paddleY, T('Sauvé !', 'Saved!'), '#7dd3fc');
           updateHintButton();
         }
 
@@ -574,7 +578,7 @@
       const secondsLeft = Math.max(0, Math.ceil((settings.durationMs + bonusTimeMs - elapsedMs) / 1000));
       score += secondsLeft * TIME_BONUS_PER_SECOND;
       scoreText.setText('Score: ' + score);
-      flashFeedback(width / 2, height / 2, 'Glace brisée ! +' + secondsLeft * TIME_BONUS_PER_SECOND, '#34d399');
+      flashFeedback(width / 2, height / 2, T('Glace brisée ! +', 'Ice broken! +') + secondsLeft * TIME_BONUS_PER_SECOND, '#34d399');
       finishGame(true);
     }
 

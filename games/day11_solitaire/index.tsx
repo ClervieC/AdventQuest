@@ -24,6 +24,7 @@ import {
   shuffleDeck,
 } from './logic';
 import { SOLVABLE_SEEDS } from './solvableSeeds';
+import { useI18n } from '../../services/i18n';
 
 /** Donne tirée parmi celles dont une solution a été vérifiée (voir solver.ts) : la partie est toujours gagnable */
 function dealSolvableGame(): GameState {
@@ -165,6 +166,7 @@ function SolitaireBoard({
   saved,
   onNewGame,
 }: GameComponentProps & { saveId: string; saved: SolitaireSave | null; onNewGame: () => void }) {
+  const { tr } = useI18n();
   const [state, setState] = useState<GameState>(() => saved?.state ?? dealSolvableGame());
   // Annulation d'un seul coup : on ne garde que la position d'avant le dernier coup
   const [previous, setPrevious] = useState<GameState | null>(saved?.previous ?? null);
@@ -462,22 +464,22 @@ function SolitaireBoard({
         </View>
       </GestureDetector>
 
-      <Text style={styles.help}>Glisse une carte, ou touche-la puis touche sa destination.</Text>
+      <Text style={styles.help}>{tr('Glisse une carte, ou touche-la puis touche sa destination.', 'Drag a card, or tap it then tap where it should go.')}</Text>
       <View style={styles.buttonsRow}>
         <Pressable
           style={[styles.undoButton, !previous && styles.hintButtonDisabled]}
           onPress={handleUndo}
           disabled={!previous}
-          accessibilityLabel="Annuler le dernier coup"
+          accessibilityLabel={tr('Annuler le dernier coup', 'Undo the last move')}
         >
-          <Text style={styles.undoButtonText}>↶ Annuler</Text>
+          <Text style={styles.undoButtonText}>{tr('↶ Annuler', '↶ Undo')}</Text>
         </Pressable>
         <Pressable
           style={[styles.hintButton, hintsAvailable === 0 && styles.hintButtonDisabled]}
           onPress={handleHint}
           disabled={hintsAvailable === 0}
         >
-          <Text style={styles.hintButtonText}>💡 Indice : montre un coup</Text>
+          <Text style={styles.hintButtonText}>{tr('💡 Indice : montre un coup', '💡 Hint: show a move')}</Text>
         </Pressable>
       </View>
       <View style={styles.newGameRow}>

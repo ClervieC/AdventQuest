@@ -2,9 +2,11 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LanguageToggle } from '../../components/LanguageToggle';
 import { LegalLinks } from '../../components/Legal';
 import { SurveyInvite } from '../../components/SurveyInvite';
 import { ApiError } from '../../services/api';
+import { Localized, useI18n } from '../../services/i18n';
 import { pageColumn } from '../../constants/layout';
 import { FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 
@@ -12,6 +14,7 @@ const MIN_PASSWORD_LENGTH = 6;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { tr, locale } = useI18n();
   const { username, timezone, hints, days, totalFragments, role, testerDays } = useGameStore();
   const fragments = totalFragments();
   const totalScore = Object.values(days).reduce((sum, day) => sum + day.bestScore, 0);
@@ -19,33 +22,50 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.container, pageColumn(20), { paddingTop: insets.top + 24 }]}>
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.title}>{username ?? 'Gardien des Fêtes'}</Text>
+      <Text style={styles.title}>{username ?? tr('Gardien des Fêtes', 'Keeper of the Holidays')}</Text>
       {role !== 'player' && (
         <Text style={styles.roleBadge}>
-          {role === 'admin' ? '🛠️ Administrateur' : `🧪 Testeur · ${testerDays.length} jour${testerDays.length > 1 ? 's' : ''} ouvert${testerDays.length > 1 ? 's' : ''} en avance`}
+          {role === 'admin'
+            ? tr('🛠️ Administrateur', '🛠️ Administrator')
+            : tr(
+                `🧪 Testeur · ${testerDays.length} jour${testerDays.length > 1 ? 's' : ''} ouvert${testerDays.length > 1 ? 's' : ''} en avance`,
+                `🧪 Tester · ${testerDays.length} day${testerDays.length === 1 ? '' : 's'} open early`
+              )}
         </Text>
       )}
       {role === 'admin' && (
         <Pressable style={styles.adminButton} onPress={() => router.push('/admin')}>
-          <Text style={styles.adminButtonText}>🛠️ Administration : utilisateurs et retours</Text>
+          <Text style={styles.adminButtonText}>{tr('🛠️ Administration : utilisateurs et retours', '🛠️ Admin: users and feedback')}</Text>
         </Pressable>
       )}
 
       <View style={styles.stats}>
-        <Stat value={`${fragments} / 24`} label="fragments" />
-        <Stat value={totalScore.toLocaleString('fr-FR')} label="points" />
+        <Stat value={`${fragments} / 24`} label={tr('fragments', 'shards')} />
+        <Stat value={totalScore.toLocaleString(locale)} label="points" />
         <Stat value={`${hints}`} label="hints" />
       </View>
 
       <Text style={styles.info}>
         {fragments >= FRAGMENT_THRESHOLD
-          ? '✅ Le portail du boss s’ouvrira pour toi le jour 24.'
-          : `Encore ${FRAGMENT_THRESHOLD - fragments} fragment${FRAGMENT_THRESHOLD - fragments > 1 ? 's' : ''} pour pouvoir affronter Grimnoir le jour 24.`}
+          ? tr('✅ Le portail du boss s’ouvrira pour toi le jour 24.', '✅ The boss portal will open for you on day 24.')
+          : tr(
+              `Encore ${FRAGMENT_THRESHOLD - fragments} fragment${FRAGMENT_THRESHOLD - fragments > 1 ? 's' : ''} pour pouvoir affronter Grimnoir le jour 24.`,
+              `${FRAGMENT_THRESHOLD - fragments} more shard${FRAGMENT_THRESHOLD - fragments === 1 ? '' : 's'} to be able to face Grimnoir on day 24.`
+            )}
       </Text>
-      {timezone && <Text style={styles.detail}>Une nouvelle case s&apos;ouvre chaque jour à minuit ({timezone}).</Text>}
+      {timezone && (
+        <Text style={styles.detail}>
+          {tr(`Une nouvelle case s'ouvre chaque jour à minuit (${timezone}).`, `A new door opens every day at midnight (${timezone}).`)}
+        </Text>
+      )}
 
       <View style={styles.survey}>
         <SurveyInvite place="profile" />
+      </View>
+
+      <View style={styles.languageCard}>
+        <Text style={styles.languageTitle}>{tr('🌍 Langue', '🌍 Language')}</Text>
+        <LanguageToggle />
       </View>
 
       <AccountSection />
@@ -64,15 +84,21 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const ACCOUNT_ERRORS: Partial<Record<string, string>> = {
-  weak_password: `Mot de passe trop faible : au moins ${MIN_PASSWORD_LENGTH} caractères.`,
-  email_confirmation_enabled:
-    'La protection des comptes n’est pas encore activée sur le serveur (réglage « Confirm email » à désactiver dans Supabase).',
+const ACCOUNT_ERRORS: Partial<Record<string, Localized>> = {
+  weak_password: {
+    fr: `Mot de passe trop faible : au moins ${MIN_PASSWORD_LENGTH} caractères.`,
+    en: `Password too weak: at least ${MIN_PASSWORD_LENGTH} characters.`,
+  },
+  email_confirmation_enabled: {
+    fr: 'La protection des comptes n’est pas encore activée sur le serveur (réglage « Confirm email » à désactiver dans Supabase).',
+    en: 'Account protection isn’t enabled on the server yet (the “Confirm email” setting must be turned off in Supabase).',
+  },
 };
 
 // Compte : protéger par un mot de passe (pour jouer sur plusieurs appareils), ou se déconnecter
 function AccountSection() {
   const { username, hasAccount, passwordSetupFailed, protectAccount, logout } = useGameStore();
+  const { tr, l } = useI18n();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
@@ -92,7 +118,8 @@ function AccountSection() {
       setConfirmation('');
     } catch (e) {
       const code = e instanceof ApiError ? e.code : 'network';
-      setError(ACCOUNT_ERRORS[code] ?? 'Impossible d’enregistrer le mot de passe, vérifie ta connexion.');
+      const known = ACCOUNT_ERRORS[code];
+      setError(known ? l(known) : tr('Impossible d’enregistrer le mot de passe, vérifie ta connexion.', 'Couldn’t save the password, check your connection.'));
     }
     setBusy(false);
   };
@@ -105,21 +132,24 @@ function AccountSection() {
   if (hasAccount) {
     return (
       <View style={styles.accountCard}>
-        <Text style={styles.accountTitle}>🔒 Compte protégé</Text>
+        <Text style={styles.accountTitle}>{tr('🔒 Compte protégé', '🔒 Protected account')}</Text>
         <Text style={styles.accountText}>
-          Sur un autre téléphone ou ordinateur, choisis « J’ai déjà un compte » et connecte-toi avec le pseudo « {username} » et ton mot de passe.
+          {tr(
+            `Sur un autre téléphone ou ordinateur, choisis « J’ai déjà un compte » et connecte-toi avec le pseudo « ${username} » et ton mot de passe.`,
+            `On another phone or computer, choose “I already have an account” and log in with the username “${username}” and your password.`
+          )}
         </Text>
         {!confirmLogout ? (
           <Pressable style={styles.secondaryButton} onPress={() => setConfirmLogout(true)}>
-            <Text style={styles.secondaryButtonText}>Se déconnecter</Text>
+            <Text style={styles.secondaryButtonText}>{tr('Se déconnecter', 'Log out')}</Text>
           </Pressable>
         ) : (
           <View style={styles.confirmRow}>
             <Pressable style={[styles.secondaryButton, styles.flex]} onPress={() => setConfirmLogout(false)} disabled={busy}>
-              <Text style={styles.secondaryButtonText}>Annuler</Text>
+              <Text style={styles.secondaryButtonText}>{tr('Annuler', 'Cancel')}</Text>
             </Pressable>
             <Pressable style={[styles.dangerButton, styles.flex]} onPress={handleLogout} disabled={busy}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Oui, me déconnecter</Text>}
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{tr('Oui, me déconnecter', 'Yes, log me out')}</Text>}
             </Pressable>
           </View>
         )}
@@ -129,17 +159,22 @@ function AccountSection() {
 
   return (
     <View style={styles.accountCard}>
-      <Text style={styles.accountTitle}>🔓 Protéger mon compte</Text>
+      <Text style={styles.accountTitle}>{tr('🔓 Protéger mon compte', '🔓 Protect my account')}</Text>
       {passwordSetupFailed && (
-        <Text style={styles.error}>Ton mot de passe n’a pas pu être enregistré à l’inscription : choisis-le à nouveau ici.</Text>
+        <Text style={styles.error}>
+          {tr('Ton mot de passe n’a pas pu être enregistré à l’inscription : choisis-le à nouveau ici.', 'Your password couldn’t be saved when you signed up: choose it again here.')}
+        </Text>
       )}
       <Text style={styles.accountText}>
-        Pour l’instant, ta progression n’existe que sur cet appareil. Choisis un mot de passe pour jouer sur ton téléphone et ton ordinateur, ou changer de téléphone sans rien perdre.
+        {tr(
+          'Pour l’instant, ta progression n’existe que sur cet appareil. Choisis un mot de passe pour jouer sur ton téléphone et ton ordinateur, ou changer de téléphone sans rien perdre.',
+          'For now, your progress only exists on this device. Choose a password to play on your phone and your computer, or switch phones without losing anything.'
+        )}
       </Text>
       <TextInput
         value={password}
         onChangeText={setPassword}
-        placeholder={`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`}
+        placeholder={tr(`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`, `Password (at least ${MIN_PASSWORD_LENGTH} characters)`)}
         placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
@@ -149,18 +184,18 @@ function AccountSection() {
         value={confirmation}
         onChangeText={setConfirmation}
         onSubmitEditing={handleProtect}
-        placeholder="Confirme le mot de passe"
+        placeholder={tr('Confirme le mot de passe', 'Confirm your password')}
         placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={styles.input}
       />
-      {mismatch && <Text style={styles.error}>Les deux mots de passe ne sont pas identiques.</Text>}
+      {mismatch && <Text style={styles.error}>{tr('Les deux mots de passe ne sont pas identiques.', 'The two passwords don’t match.')}</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={[styles.primaryButton, !canProtect && styles.disabled]} onPress={handleProtect} disabled={!canProtect}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>🔒 Protéger mon compte</Text>}
+        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{tr('🔒 Protéger mon compte', '🔒 Protect my account')}</Text>}
       </Pressable>
-      <Text style={styles.accountHint}>Retiens bien ton mot de passe : sans e-mail, il ne peut pas être récupéré.</Text>
+      <Text style={styles.accountHint}>{tr('Retiens bien ton mot de passe : sans e-mail, il ne peut pas être récupéré.', 'Remember your password well: without an email, it can’t be recovered.')}</Text>
     </View>
   );
 }
@@ -168,6 +203,7 @@ function AccountSection() {
 // Suppression définitive du compte : il faut retaper son pseudo pour confirmer
 function DeleteAccountSection() {
   const { username, deleteAccount } = useGameStore();
+  const { tr } = useI18n();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
@@ -182,7 +218,7 @@ function DeleteAccountSection() {
     try {
       await deleteAccount();
     } catch {
-      setError('Suppression impossible, vérifie ta connexion et réessaie.');
+      setError(tr('Suppression impossible, vérifie ta connexion et réessaie.', 'Couldn’t delete, check your connection and try again.'));
       setBusy(false);
     }
   };
@@ -190,16 +226,19 @@ function DeleteAccountSection() {
   if (!open) {
     return (
       <Pressable style={styles.deleteLink} onPress={() => setOpen(true)}>
-        <Text style={styles.deleteLinkText}>Supprimer mon compte</Text>
+        <Text style={styles.deleteLinkText}>{tr('Supprimer mon compte', 'Delete my account')}</Text>
       </Pressable>
     );
   }
 
   return (
     <View style={[styles.accountCard, styles.dangerCard]}>
-      <Text style={[styles.accountTitle, styles.dangerTitle]}>🗑️ Supprimer mon compte</Text>
+      <Text style={[styles.accountTitle, styles.dangerTitle]}>{tr('🗑️ Supprimer mon compte', '🗑️ Delete my account')}</Text>
       <Text style={styles.accountText}>
-        Ton profil, tes fragments, tes scores et tes amis seront effacés définitivement. Cette action est irréversible. Pour confirmer, tape ton pseudo « {username} ».
+        {tr(
+          `Ton profil, tes fragments, tes scores et tes amis seront effacés définitivement. Cette action est irréversible. Pour confirmer, tape ton pseudo « ${username} ».`,
+          `Your profile, shards, scores and friends will be permanently erased. This can’t be undone. To confirm, type your username “${username}”.`
+        )}
       </Text>
       <TextInput
         value={typed}
@@ -213,10 +252,10 @@ function DeleteAccountSection() {
       {error && <Text style={styles.error}>{error}</Text>}
       <View style={styles.confirmRow}>
         <Pressable style={[styles.secondaryButton, styles.flex]} onPress={() => { setOpen(false); setTyped(''); }} disabled={busy}>
-          <Text style={styles.secondaryButtonText}>Annuler</Text>
+          <Text style={styles.secondaryButtonText}>{tr('Annuler', 'Cancel')}</Text>
         </Pressable>
         <Pressable style={[styles.dangerButton, styles.flex, !matches && styles.disabled]} onPress={handleDelete} disabled={!matches || busy}>
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Supprimer</Text>}
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{tr('Supprimer', 'Delete')}</Text>}
         </Pressable>
       </View>
     </View>
@@ -228,6 +267,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#a78bfa',
     marginTop: 6,
+  },
+  languageCard: {
+    alignSelf: 'stretch',
+    marginTop: 20,
+    gap: 10,
+  },
+  languageTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#c4b5fd',
+    textAlign: 'center',
   },
   survey: {
     alignSelf: 'stretch',

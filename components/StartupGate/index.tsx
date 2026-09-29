@@ -2,6 +2,8 @@ import { usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, getMyUserId, subscribeMyProfile } from '../../services/api';
+import { Localized, useI18n } from '../../services/i18n';
+import { LanguageToggle } from '../LanguageToggle';
 import { LegalKind, LegalLinks, LegalView } from '../Legal';
 import { useGameStore } from '../../store/gameStore';
 import { pageColumn } from '../../constants/layout';
@@ -44,6 +46,12 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
     };
   }, [status, username, refresh]);
 
+  // Web : langue de la page (lecteurs d'écran, traduction automatique du navigateur)
+  const lang = useSettingsStore((s) => s.lang);
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') document.documentElement.lang = lang;
+  }, [lang]);
+
   // Les pages légales restent lisibles sans compte (liens demandés par les stores)
   if (status === 'ready' || pathname?.startsWith('/legal')) return <>{children}</>;
   if (legal) return <LegalView kind={legal} onBack={() => setLegal(null)} />;
@@ -51,6 +59,7 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.screen, pageColumn(24)]} keyboardShouldPersistTaps="handled">
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+      {status !== 'loading' && <LanguageToggle style={styles.languages} />}
       {status === 'loading' && <ActivityIndicator size="large" color="#7c3aed" />}
       {status === 'error' && <ErrorPanel message={errorMessage} onRetry={init} />}
       {status === 'needs_profile' && <WelcomeForms onOpenLegal={setLegal} />}
@@ -60,35 +69,42 @@ export function StartupGate({ children }: { children: React.ReactNode }) {
 }
 
 function ErrorPanel({ message, onRetry }: { message: string | null; onRetry: () => void }) {
+  const { tr } = useI18n();
   return (
     <View style={styles.panel}>
-      <Text style={styles.title}>Connexion impossible</Text>
+      <Text style={styles.title}>{tr('Connexion impossible', 'Can’t connect')}</Text>
       <Text style={styles.text}>
-        Le calendrier a besoin d&apos;internet pour savoir quel jour ouvrir et garder ta progression.
+        {tr(
+          "Le calendrier a besoin d'internet pour savoir quel jour ouvrir et garder ta progression.",
+          'The calendar needs the internet to know which day to open and to keep your progress.'
+        )}
       </Text>
       {message && <Text style={styles.detail}>{message}</Text>}
       <Pressable style={styles.button} onPress={onRetry}>
-        <Text style={styles.buttonText}>↻ Réessayer</Text>
+        <Text style={styles.buttonText}>{tr('↻ Réessayer', '↻ Try again')}</Text>
       </Pressable>
     </View>
   );
 }
 
-const ERROR_MESSAGES: Partial<Record<string, string>> = {
-  username_taken: 'Ce pseudo est déjà pris, essaie-en un autre.',
-  invalid_username: 'Entre 3 et 20 caractères : lettres, chiffres, espaces, - et _.',
-  invalid_credentials: 'Pseudo ou mot de passe incorrect.',
+const ERROR_MESSAGES: Partial<Record<string, Localized>> = {
+  username_taken: { fr: 'Ce pseudo est déjà pris, essaie-en un autre.', en: 'This username is already taken, try another one.' },
+  invalid_username: { fr: 'Entre 3 et 20 caractères : lettres, chiffres, espaces, - et _.', en: 'Between 3 and 20 characters: letters, numbers, spaces, - and _.' },
+  invalid_credentials: { fr: 'Pseudo ou mot de passe incorrect.', en: 'Wrong username or password.' },
 };
 
 // Connexion par défaut ; les nouveaux joueurs passent à la création de compte par le lien en dessous
 function WelcomeForms({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void }) {
+  const { tr } = useI18n();
   const [mode, setMode] = useState<'new' | 'login'>('login');
   return (
     <>
       {mode === 'new' ? <UsernameForm onOpenLegal={onOpenLegal} /> : <LoginForm />}
       <Pressable onPress={() => setMode(mode === 'new' ? 'login' : 'new')} style={styles.switchLink} hitSlop={8}>
         <Text style={styles.switchLinkText}>
-          {mode === 'new' ? '← J’ai déjà un compte : me connecter' : 'Pas encore de compte ? Créer mon compte →'}
+          {mode === 'new'
+            ? tr('← J’ai déjà un compte : me connecter', '← I already have an account: log in')
+            : tr('Pas encore de compte ? Créer mon compte →', 'No account yet? Create my account →')}
         </Text>
       </Pressable>
     </>
@@ -97,6 +113,7 @@ function WelcomeForms({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
 
 function LoginForm() {
   const login = useGameStore((state) => state.login);
+  const { tr, l } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -112,21 +129,25 @@ function LoginForm() {
       await login(username.trim(), password);
     } catch (e) {
       const code = e instanceof ApiError ? e.code : 'network';
-      setError(ERROR_MESSAGES[code] ?? 'Connexion impossible, vérifie ta connexion internet.');
+      const known = ERROR_MESSAGES[code];
+      setError(known ? l(known) : tr('Connexion impossible, vérifie ta connexion internet.', 'Couldn’t log in, check your internet connection.'));
       setSubmitting(false);
     }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.panel}>
-      <Text style={styles.title}>Connexion</Text>
+      <Text style={styles.title}>{tr('Connexion', 'Log in')}</Text>
       <Text style={styles.text}>
-        Grimnoir a brisé le Cœur de Noël en 24 fragments. Connecte-toi avec ton pseudo et ton mot de passe pour reprendre ta quête.
+        {tr(
+          'Grimnoir a brisé le Cœur de Noël en 24 fragments. Connecte-toi avec ton pseudo et ton mot de passe pour reprendre ta quête.',
+          'Grimnoir has shattered the Heart of Christmas into 24 shards. Log in with your username and password to resume your quest.'
+        )}
       </Text>
       <TextInput
         value={username}
         onChangeText={setUsername}
-        placeholder="Pseudo"
+        placeholder={tr('Pseudo', 'Username')}
         placeholderTextColor="#8ea6c0"
         autoCapitalize="none"
         autoCorrect={false}
@@ -136,7 +157,7 @@ function LoginForm() {
         value={password}
         onChangeText={setPassword}
         onSubmitEditing={handleSubmit}
-        placeholder="Mot de passe"
+        placeholder={tr('Mot de passe', 'Password')}
         placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
@@ -144,7 +165,7 @@ function LoginForm() {
       />
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={[styles.button, !canSubmit && styles.buttonDisabled]} onPress={handleSubmit} disabled={!canSubmit}>
-        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Se connecter</Text>}
+        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{tr('Se connecter', 'Log in')}</Text>}
       </Pressable>
     </KeyboardAvoidingView>
   );
@@ -152,6 +173,7 @@ function LoginForm() {
 
 function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void }) {
   const register = useGameStore((state) => state.register);
+  const { tr, l } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -172,21 +194,25 @@ function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
       await register(trimmed, password);
     } catch (e) {
       const code = e instanceof ApiError ? e.code : 'network';
-      setError(ERROR_MESSAGES[code] ?? 'Impossible de créer ton profil, vérifie ta connexion.');
+      const known = ERROR_MESSAGES[code];
+      setError(known ? l(known) : tr('Impossible de créer ton profil, vérifie ta connexion.', 'Couldn’t create your profile, check your connection.'));
       setSubmitting(false);
     }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.panel}>
-      <Text style={styles.title}>Bienvenue, Gardien des Fêtes !</Text>
+      <Text style={styles.title}>{tr('Bienvenue, Gardien des Fêtes !', 'Welcome, Keeper of the Holidays!')}</Text>
       <Text style={styles.text}>
-        Grimnoir a brisé le Cœur de Noël en 24 fragments. Crée ton compte de Gardien : ton pseudo apparaîtra dans le classement.
+        {tr(
+          'Grimnoir a brisé le Cœur de Noël en 24 fragments. Crée ton compte de Gardien : ton pseudo apparaîtra dans le classement.',
+          'Grimnoir has shattered the Heart of Christmas into 24 shards. Create your Keeper account: your username will appear in the leaderboard.'
+        )}
       </Text>
       <TextInput
         value={username}
         onChangeText={setUsername}
-        placeholder="Ton pseudo (3 à 20 caractères)"
+        placeholder={tr('Ton pseudo (3 à 20 caractères)', 'Your username (3 to 20 characters)')}
         placeholderTextColor="#8ea6c0"
         maxLength={20}
         autoCapitalize="none"
@@ -196,7 +222,7 @@ function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
       <TextInput
         value={password}
         onChangeText={setPassword}
-        placeholder={`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`}
+        placeholder={tr(`Mot de passe (${MIN_PASSWORD_LENGTH} caractères min.)`, `Password (at least ${MIN_PASSWORD_LENGTH} characters)`)}
         placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
@@ -206,30 +232,33 @@ function UsernameForm({ onOpenLegal }: { onOpenLegal: (kind: LegalKind) => void 
         value={confirmation}
         onChangeText={setConfirmation}
         onSubmitEditing={handleSubmit}
-        placeholder="Confirme le mot de passe"
+        placeholder={tr('Confirme le mot de passe', 'Confirm your password')}
         placeholderTextColor="#8ea6c0"
         secureTextEntry
         autoCapitalize="none"
         style={[styles.input, styles.inputStacked]}
       />
-      {mismatch && <Text style={styles.error}>Les deux mots de passe ne sont pas identiques.</Text>}
+      {mismatch && <Text style={styles.error}>{tr('Les deux mots de passe ne sont pas identiques.', 'The two passwords don’t match.')}</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={[styles.button, (!isValid || submitting) && styles.buttonDisabled]} onPress={handleSubmit} disabled={!isValid || submitting}>
-        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>✦ Commencer l&apos;aventure</Text>}
+        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{tr("✦ Commencer l'aventure", '✦ Start the adventure')}</Text>}
       </Pressable>
       <Text style={styles.consent}>
-        En créant ton compte, tu acceptes les{' '}
+        {tr('En créant ton compte, tu acceptes les', 'By creating your account, you accept the')}{' '}
         <Text style={styles.consentLink} onPress={() => onOpenLegal('terms')}>
-          conditions d’utilisation
+          {tr('conditions d’utilisation', 'terms of use')}
         </Text>{' '}
-        et la{' '}
+        {tr('et la', 'and the')}{' '}
         <Text style={styles.consentLink} onPress={() => onOpenLegal('privacy')}>
-          politique de confidentialité
+          {tr('politique de confidentialité', 'privacy policy')}
         </Text>
         .
       </Text>
       <Text style={styles.hint}>
-        Pas besoin d&apos;e-mail : avec ton pseudo et ton mot de passe, tu retrouves ta progression sur ton téléphone, ton ordinateur ou un nouvel appareil. Retiens-les bien, ils ne peuvent pas être récupérés.
+        {tr(
+          "Pas besoin d'e-mail : avec ton pseudo et ton mot de passe, tu retrouves ta progression sur ton téléphone, ton ordinateur ou un nouvel appareil. Retiens-les bien, ils ne peuvent pas être récupérés.",
+          'No email needed: with your username and password, you get your progress back on your phone, your computer or a new device. Remember them well, they can’t be recovered.'
+        )}
       </Text>
     </KeyboardAvoidingView>
   );
@@ -256,6 +285,9 @@ const styles = StyleSheet.create({
   consentLink: {
     color: '#a78bfa',
     textDecorationLine: 'underline',
+  },
+  languages: {
+    marginBottom: 16,
   },
   logo: {
     width: 120,

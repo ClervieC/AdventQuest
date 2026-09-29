@@ -6,9 +6,9 @@ import { CasseBriquesGame } from '../day20_cassebriques';
 
 // Boss final : les 3 épreuves à la suite, un seul échec et Grimnoir l'emporte
 const STAGES: MarathonStage[] = [
-  { label: 'Stack', icon: '🧱', component: StackGame },
-  { label: 'Casse-briques', icon: '🧊', component: CasseBriquesGame },
-  { label: 'Quiz final', icon: '❓', component: QuizGame, preload: false },
+  { label: { fr: 'Stack', en: 'Stack' }, icon: '🧱', component: StackGame },
+  { label: { fr: 'Casse-briques', en: 'Brick Breaker' }, icon: '🧊', component: CasseBriquesGame },
+  { label: { fr: 'Quiz final', en: 'Final quiz' }, icon: '❓', component: QuizGame, preload: false },
 ];
 
 export function BossGame(props: GameComponentProps & { isStarted: boolean }) {

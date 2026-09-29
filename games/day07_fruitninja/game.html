@@ -27,6 +27,10 @@
     function sfx(name) {
       if (window.GameSounds) window.GameSounds.play(name);
     }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -108,7 +112,7 @@
     function startGame() {
       resetGame();
       // Consigne claire au démarrage
-      const hint = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.4, 'Coupe les friandises 🍎🍪🪵\nÉvite les bombes 💣 !', {
+      const hint = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.4, T('Coupe les friandises 🍎🍪🪵\nÉvite les bombes 💣 !', 'Slice the treats 🍎🍪🪵\nAvoid the bombs 💣!'), {
         fontSize: '20px', color: '#ffffff', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
       }).setOrigin(0.5).setDepth(20);
       scene.tweens.add({ targets: hint, alpha: 0, delay: 2600, duration: 700, onComplete: () => hint.destroy() });
@@ -312,12 +316,12 @@
       bonusMode = true;
       sfx('powerup');
       timerText.setText('Bonus +0s').setColor('#fbbf24');
-      const banner = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.35, '🎉 Objectif atteint !\nContinue pour des points bonus', {
+      const banner = scene.add.text(scene.scale.width / 2, scene.scale.height * 0.35, T('🎉 Objectif atteint !\nContinue pour des points bonus', '🎉 Goal reached!\nKeep going for bonus points'), {
         fontSize: '17px', color: '#fbbf24', fontStyle: 'bold', align: 'center', stroke: '#0c1521', strokeThickness: 5,
         wordWrap: { width: scene.scale.width - 24 },
       }).setOrigin(0.5).setDepth(20);
       scene.tweens.add({ targets: banner, alpha: 0, delay: 2200, duration: 700, onComplete: () => banner.destroy() });
-      stopButton = scene.add.text(scene.scale.width - 20, 52, '✓ Terminer', {
+      stopButton = scene.add.text(scene.scale.width - 20, 52, T('✓ Terminer', '✓ Finish'), {
         fontSize: '15px', color: '#ffffff', fontStyle: 'bold', backgroundColor: '#7c3aed', padding: { x: 10, y: 6 },
       }).setOrigin(1, 0).setDepth(20);
     }

@@ -19,11 +19,16 @@ import {
   Role,
   SeasonSurveyEntry,
 } from '../services/api';
-import { COME_BACK_LABELS, gameLabel } from '../constants/survey';
+import { COME_BACK_LABELS, gameLabel, SURVEY_WISHES } from '../constants/survey';
 import { pageColumn } from '../constants/layout';
+import { Localized, useI18n } from '../services/i18n';
 import { useGameStore } from '../store/gameStore';
 
-const ROLE_LABELS: Record<Role, string> = { player: '🎮 Joueur', tester: '🧪 Testeur', admin: '🛠️ Admin' };
+const ROLE_LABELS: Record<Role, Localized> = {
+  player: { fr: '🎮 Joueur', en: '🎮 Player' },
+  tester: { fr: '🧪 Testeur', en: '🧪 Tester' },
+  admin: { fr: '🛠️ Admin', en: '🛠️ Admin' },
+};
 const ALL_DAYS = Array.from({ length: 24 }, (_, i) => i + 1);
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/profile'));
@@ -72,6 +77,7 @@ function usePullToRefresh(onRefresh: () => Promise<void>) {
 
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
+  const { tr } = useI18n();
   const role = useGameStore((state) => state.role);
   const [tab, setTab] = useState<'users' | 'feedback' | 'survey'>('users');
   const [users, setUsers] = useState<AdminUser[] | null>(null);
@@ -79,7 +85,7 @@ export default function AdminScreen() {
   const [myId, setMyId] = useState<string | null>(null);
   // null = pas encore chargé ; 'unavailable' = la table du sondage n'existe pas encore (SQL pas lancé)
   const [surveys, setSurveys] = useState<SeasonSurveyEntry[] | 'unavailable' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -87,11 +93,11 @@ export default function AdminScreen() {
       setUsers(list);
       setFeedback(entries);
       setMyId(me);
-      setError(null);
+      setError(false);
       // Chargé à part : si la migration du sondage n'est pas encore passée, le reste de l'admin marche quand même
       setSurveys(await adminListSeasonSurveys().catch(() => 'unavailable' as const));
     } catch {
-      setError('Chargement impossible. Vérifie ta connexion.');
+      setError(true);
     }
   }, []);
 
@@ -104,9 +110,9 @@ export default function AdminScreen() {
   if (role !== 'admin') {
     return (
       <View style={[styles.screen, styles.column, styles.centered, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.empty}>Cette page est réservée aux administrateurs.</Text>
+        <Text style={styles.empty}>{tr('Cette page est réservée aux administrateurs.', 'This page is for administrators only.')}</Text>
         <Pressable style={styles.secondaryButton} onPress={goBack}>
-          <Text style={styles.secondaryButtonText}>Retour</Text>
+          <Text style={styles.secondaryButtonText}>{tr('Retour', 'Back')}</Text>
         </Pressable>
       </View>
     );
@@ -117,15 +123,15 @@ export default function AdminScreen() {
       {/* En-tête centré à la largeur du calendrier ; les listes défilent sur toute la largeur de l'écran */}
       <View style={styles.column}>
       <Pressable onPress={goBack} hitSlop={12} style={styles.back}>
-        <Text style={styles.backText}>‹ Profil</Text>
+        <Text style={styles.backText}>{tr('‹ Profil', '‹ Profile')}</Text>
       </Pressable>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>🛠️ Administration</Text>
+        <Text style={styles.title}>{tr('🛠️ Administration', '🛠️ Admin')}</Text>
         {/* Sur le web la roue de RefreshControl ne s'affiche pas : on la montre ici, avec un bouton pour l'ordinateur */}
         {refreshing ? (
           <ActivityIndicator color="#a78bfa" />
         ) : (
-          <Pressable onPress={refresh} hitSlop={10} accessibilityLabel="Actualiser">
+          <Pressable onPress={refresh} hitSlop={10} accessibilityLabel={tr('Actualiser', 'Refresh')}>
             <Text style={styles.refreshText}>↻</Text>
           </Pressable>
         )}
@@ -133,26 +139,31 @@ export default function AdminScreen() {
 
       <View style={styles.segmented}>
         <Pressable onPress={() => setTab('users')} style={[styles.segment, tab === 'users' && styles.segmentActive]}>
-          <Text style={[styles.segmentText, tab === 'users' && styles.segmentTextActive]}>👥 Joueurs ({users?.length ?? '…'})</Text>
+          <Text style={[styles.segmentText, tab === 'users' && styles.segmentTextActive]}>{tr('👥 Joueurs', '👥 Players')} ({users?.length ?? '…'})</Text>
         </Pressable>
         <Pressable onPress={() => setTab('feedback')} style={[styles.segment, tab === 'feedback' && styles.segmentActive]}>
-          <Text style={[styles.segmentText, tab === 'feedback' && styles.segmentTextActive]}>💬 Retours ({feedback ? feedback.filter((f) => !f.resolved_at).length : '…'})</Text>
+          <Text style={[styles.segmentText, tab === 'feedback' && styles.segmentTextActive]}>{tr('💬 Retours', '💬 Feedback')} ({feedback ? feedback.filter((f) => !f.resolved_at).length : '…'})</Text>
         </Pressable>
         <Pressable onPress={() => setTab('survey')} style={[styles.segment, tab === 'survey' && styles.segmentActive]}>
           <Text style={[styles.segmentText, tab === 'survey' && styles.segmentTextActive]}>
-            📊 Sondage ({Array.isArray(surveys) ? surveys.length : '…'})
+            {tr('📊 Sondage', '📊 Survey')} ({Array.isArray(surveys) ? surveys.length : '…'})
           </Text>
         </Pressable>
       </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={styles.error}>{tr('Chargement impossible. Vérifie ta connexion.', 'Couldn’t load. Check your connection.')}</Text>}
       {!users && !error && <ActivityIndicator style={styles.loader} color="#7c3aed" />}
       </View>
       {users && tab === 'users' && <UsersTab users={users} myId={myId} onChanged={load} pull={pull} />}
       {feedback && tab === 'feedback' && <FeedbackTab entries={feedback} onChanged={load} pull={pull} />}
       {tab === 'survey' && surveys === 'unavailable' && (
         <View style={styles.column}>
-          <Text style={styles.empty}>Sondage indisponible : lance d’abord le SQL 20260929000000_season_survey.sql dans Supabase.</Text>
+          <Text style={styles.empty}>
+            {tr(
+              'Sondage indisponible : lance d’abord le SQL 20260929000000_season_survey.sql dans Supabase.',
+              'Survey unavailable: first run the SQL 20260929000000_season_survey.sql in Supabase.'
+            )}
+          </Text>
         </View>
       )}
       {tab === 'survey' && Array.isArray(surveys) && <SurveyTab entries={surveys} pull={pull} />}
@@ -163,6 +174,7 @@ export default function AdminScreen() {
 // ---------- Utilisateurs ----------
 
 function UsersTab({ users, myId, onChanged, pull }: { users: AdminUser[]; myId: string | null; onChanged: () => void; pull: PullToRefresh }) {
+  const { tr } = useI18n();
   const [filter, setFilter] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -182,13 +194,13 @@ function UsersTab({ users, myId, onChanged, pull }: { users: AdminUser[]; myId: 
         <TextInput
           value={filter}
           onChangeText={setFilter}
-          placeholder="🔎 Filtrer par pseudo"
+          placeholder={tr('🔎 Filtrer par pseudo', '🔎 Filter by username')}
           placeholderTextColor="#8ea6c0"
           autoCapitalize="none"
           style={styles.input}
         />
       }
-      ListEmptyComponent={<Text style={styles.empty}>Aucun utilisateur.</Text>}
+      ListEmptyComponent={<Text style={styles.empty}>{tr('Aucun utilisateur.', 'No users.')}</Text>}
       renderItem={({ item }) => (
         <UserRow
           user={item}
@@ -203,6 +215,7 @@ function UsersTab({ users, myId, onChanged, pull }: { users: AdminUser[]; myId: 
 }
 
 function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; isMe: boolean; open: boolean; onToggle: () => void; onChanged: () => void }) {
+  const { tr, l, locale } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState<number[]>(user.tester_days ?? []);
@@ -218,7 +231,7 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
       await action();
       onChanged();
     } catch {
-      setError('Action impossible, réessaie.');
+      setError(tr('Action impossible, réessaie.', 'Action failed, try again.'));
     }
     setBusy(false);
   };
@@ -232,12 +245,15 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
         <View style={styles.flex}>
           <Text style={styles.userName} numberOfLines={1}>
             {user.username}
-            {isMe ? ' (toi)' : ''}
+            {isMe ? tr(' (toi)', ' (you)') : ''}
           </Text>
           <Text style={styles.userMeta}>
-            {ROLE_LABELS[user.role]} · {user.has_password ? '🔒 compte protégé' : '👤 anonyme'} · ✦ {user.fragments_count} · {user.total_score.toLocaleString('fr-FR')} pts
+            {l(ROLE_LABELS[user.role])} · {user.has_password ? tr('🔒 compte protégé', '🔒 protected account') : tr('👤 anonyme', '👤 anonymous')} · ✦ {user.fragments_count} ·{' '}
+            {user.total_score.toLocaleString(locale)} pts
           </Text>
-          <Text style={styles.userDate}>Inscrit le {new Date(user.created_at).toLocaleDateString('fr-FR')}</Text>
+          <Text style={styles.userDate}>
+            {tr('Inscrit le', 'Joined on')} {new Date(user.created_at).toLocaleDateString(locale)}
+          </Text>
         </View>
         <Text style={styles.chevron}>{open ? '▴' : '▾'}</Text>
       </Pressable>
@@ -245,10 +261,15 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
       {open && (
         <View style={styles.userActions}>
           {isMe ? (
-            <Text style={styles.note}>C’est ton compte : tu ne peux pas changer ton propre rôle ni te supprimer ici (voir Profil).</Text>
+            <Text style={styles.note}>
+              {tr(
+                'C’est ton compte : tu ne peux pas changer ton propre rôle ni te supprimer ici (voir Profil).',
+                'This is your account: you can’t change your own role or delete yourself here (see Profile).'
+              )}
+            </Text>
           ) : (
             <>
-              <Text style={styles.label}>Rôle</Text>
+              <Text style={styles.label}>{tr('Rôle', 'Role')}</Text>
               <View style={styles.row}>
                 {(['player', 'tester', 'admin'] as Role[]).map((r) => (
                   <Pressable
@@ -257,14 +278,16 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
                     onPress={() => run(() => adminSetRole(user.user_id, r))}
                     style={[styles.chip, user.role === r && styles.chipOn]}
                   >
-                    <Text style={[styles.chipText, user.role === r && styles.chipTextOn]}>{ROLE_LABELS[r]}</Text>
+                    <Text style={[styles.chipText, user.role === r && styles.chipTextOn]}>{l(ROLE_LABELS[r])}</Text>
                   </Pressable>
                 ))}
               </View>
 
               {user.role === 'tester' && (
                 <>
-                  <Text style={styles.label}>Jours ouverts en test ({days.length}/24)</Text>
+                  <Text style={styles.label}>
+                    {tr('Jours ouverts en test', 'Days open for testing')} ({days.length}/24)
+                  </Text>
                   <View style={styles.daysGrid}>
                     {ALL_DAYS.map((day) => (
                       <Pressable key={day} onPress={() => toggleDay(day)} style={[styles.dayChip, days.includes(day) && styles.dayChipOn]}>
@@ -274,17 +297,17 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
                   </View>
                   <View style={styles.row}>
                     <Pressable style={styles.smallButton} onPress={() => setDays(ALL_DAYS)}>
-                      <Text style={styles.smallButtonText}>Tous</Text>
+                      <Text style={styles.smallButtonText}>{tr('Tous', 'All')}</Text>
                     </Pressable>
                     <Pressable style={styles.smallButton} onPress={() => setDays([])}>
-                      <Text style={styles.smallButtonText}>Aucun</Text>
+                      <Text style={styles.smallButtonText}>{tr('Aucun', 'None')}</Text>
                     </Pressable>
                     <Pressable
                       style={[styles.primaryButton, styles.flex, (!daysChanged || busy) && styles.disabled]}
                       disabled={!daysChanged || busy}
                       onPress={() => run(() => adminSetTesterDays(user.user_id, days))}
                     >
-                      <Text style={styles.primaryButtonText}>Enregistrer les jours</Text>
+                      <Text style={styles.primaryButtonText}>{tr('Enregistrer les jours', 'Save days')}</Text>
                     </Pressable>
                   </View>
                 </>
@@ -292,21 +315,26 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
 
               {!confirmReset ? (
                 <Pressable style={styles.secondaryOutline} onPress={() => setConfirmReset(true)} disabled={busy}>
-                  <Text style={styles.secondaryOutlineText}>↺ Réinitialiser la progression</Text>
+                  <Text style={styles.secondaryOutlineText}>{tr('↺ Réinitialiser la progression', '↺ Reset progress')}</Text>
                 </Pressable>
               ) : (
                 <View style={styles.confirmBox}>
-                  <Text style={styles.note}>Effacer tous les scores et fragments de « {user.username} » (le compte est gardé) ?</Text>
+                  <Text style={styles.note}>
+                    {tr(
+                      `Effacer tous les scores et fragments de « ${user.username} » (le compte est gardé) ?`,
+                      `Erase all scores and shards of “${user.username}” (the account is kept)?`
+                    )}
+                  </Text>
                   <View style={styles.row}>
                     <Pressable style={[styles.secondaryButton, styles.flex]} onPress={() => setConfirmReset(false)} disabled={busy}>
-                      <Text style={styles.secondaryButtonText}>Annuler</Text>
+                      <Text style={styles.secondaryButtonText}>{tr('Annuler', 'Cancel')}</Text>
                     </Pressable>
                     <Pressable
                       style={[styles.primaryButton, styles.flex]}
                       onPress={() => run(async () => { await adminResetProgress(user.user_id); setConfirmReset(false); })}
                       disabled={busy}
                     >
-                      <Text style={styles.primaryButtonText}>Oui, réinitialiser</Text>
+                      <Text style={styles.primaryButtonText}>{tr('Oui, réinitialiser', 'Yes, reset')}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -314,17 +342,22 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
 
               {!confirmDelete ? (
                 <Pressable style={styles.dangerOutline} onPress={() => setConfirmDelete(true)} disabled={busy}>
-                  <Text style={styles.dangerOutlineText}>🗑️ Supprimer ce compte</Text>
+                  <Text style={styles.dangerOutlineText}>{tr('🗑️ Supprimer ce compte', '🗑️ Delete this account')}</Text>
                 </Pressable>
               ) : (
                 <View style={styles.confirmBox}>
-                  <Text style={styles.note}>Supprimer définitivement « {user.username} » et toute sa progression ?</Text>
+                  <Text style={styles.note}>
+                    {tr(
+                      `Supprimer définitivement « ${user.username} » et toute sa progression ?`,
+                      `Permanently delete “${user.username}” and all their progress?`
+                    )}
+                  </Text>
                   <View style={styles.row}>
                     <Pressable style={[styles.secondaryButton, styles.flex]} onPress={() => setConfirmDelete(false)} disabled={busy}>
-                      <Text style={styles.secondaryButtonText}>Annuler</Text>
+                      <Text style={styles.secondaryButtonText}>{tr('Annuler', 'Cancel')}</Text>
                     </Pressable>
                     <Pressable style={[styles.dangerButton, styles.flex]} onPress={() => run(() => adminDeleteUser(user.user_id))} disabled={busy}>
-                      {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Oui, supprimer</Text>}
+                      {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{tr('Oui, supprimer', 'Yes, delete')}</Text>}
                     </Pressable>
                   </View>
                 </View>
@@ -343,6 +376,7 @@ function UserRow({ user, isMe, open, onToggle, onChanged }: { user: AdminUser; i
 type FeedbackView = 'todo' | 'archive';
 
 function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; onChanged: () => void; pull: PullToRefresh }) {
+  const { tr, locale } = useI18n();
   const [busyId, setBusyId] = useState<number | null>(null);
   // À traiter / Archivés (retours déjà traités, gardés pour l'historique)
   const [view, setView] = useState<FeedbackView>('todo');
@@ -362,7 +396,7 @@ function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; o
     }
     setBusyId(null);
   };
-  const formatDate = (iso: string) => new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  const formatDate = (iso: string) => new Date(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
 
   return (
     <FlatList
@@ -375,7 +409,7 @@ function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; o
           {(['todo', 'archive'] as FeedbackView[]).map((value) => (
             <Pressable key={value} onPress={() => setView(value)} style={[styles.feedbackViewChip, view === value && styles.feedbackViewChipActive]}>
               <Text style={[styles.feedbackViewText, view === value && styles.feedbackViewTextActive]}>
-                {value === 'todo' ? `📥 À traiter (${todo.length})` : `🗄️ Archivés (${archive.length})`}
+                {value === 'todo' ? `${tr('📥 À traiter', '📥 To do')} (${todo.length})` : `${tr('🗄️ Archivés', '🗄️ Archived')} (${archive.length})`}
               </Text>
             </Pressable>
           ))}
@@ -384,10 +418,10 @@ function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; o
       ListEmptyComponent={
         <Text style={styles.empty}>
           {view === 'archive'
-            ? 'Aucun retour archivé. Marque un retour comme traité pour le retrouver ici.'
+            ? tr('Aucun retour archivé. Marque un retour comme traité pour le retrouver ici.', 'No archived feedback. Mark feedback as done to find it here.')
             : entries.length === 0
-            ? 'Aucun retour pour l’instant. Donne le rôle testeur à des joueurs pour en recevoir.'
-            : 'Tout est traité 🎉'}
+            ? tr('Aucun retour pour l’instant. Donne le rôle testeur à des joueurs pour en recevoir.', 'No feedback yet. Give players the tester role to receive some.')
+            : tr('Tout est traité 🎉', 'All done 🎉')}
         </Text>
       }
       renderItem={({ item }) => {
@@ -396,7 +430,7 @@ function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; o
           <View style={styles.feedbackCard}>
             <View style={styles.feedbackHeader}>
               <Text style={styles.feedbackDay}>
-                Jour {item.day} {config ? `· ${config.fragmentIcon} ${config.game}` : ''}
+                {tr('Jour', 'Day')} {item.day} {config ? `· ${config.fragmentIcon} ${config.game}` : ''}
               </Text>
               {item.rating !== null && <Text style={styles.feedbackStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</Text>}
             </View>
@@ -405,7 +439,7 @@ function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; o
             </Text>
             {item.liked !== '' && <Text style={styles.feedbackText}>👍 {item.liked}</Text>}
             {item.to_change !== '' && <Text style={styles.feedbackText}>🔧 {item.to_change}</Text>}
-            {item.resolved_at && <Text style={styles.feedbackResolved}>✅ Traité le {formatDate(item.resolved_at)}</Text>}
+            {item.resolved_at && <Text style={styles.feedbackResolved}>{tr('✅ Traité le', '✅ Done on')} {formatDate(item.resolved_at)}</Text>}
             <View style={styles.feedbackActions}>
               <Pressable
                 onPress={() => run(item.id, () => adminSetFeedbackResolved(item.id, !item.resolved_at))}
@@ -414,11 +448,11 @@ function FeedbackTab({ entries, onChanged, pull }: { entries: FeedbackEntry[]; o
                 style={[styles.feedbackResolveButton, item.resolved_at && styles.feedbackReopenButton]}
               >
                 <Text style={[styles.feedbackResolveText, item.resolved_at && styles.feedbackReopenText]}>
-                  {busyId === item.id ? '…' : item.resolved_at ? '↩ Remettre à traiter' : '✓ Marquer comme traité'}
+                  {busyId === item.id ? '…' : item.resolved_at ? tr('↩ Remettre à traiter', '↩ Move back to to-do') : tr('✓ Marquer comme traité', '✓ Mark as done')}
                 </Text>
               </Pressable>
               <Pressable onPress={() => run(item.id, () => adminDeleteFeedback(item.id))} disabled={busyId === item.id} hitSlop={6}>
-                <Text style={styles.feedbackDeleteText}>Supprimer</Text>
+                <Text style={styles.feedbackDeleteText}>{tr('Supprimer', 'Delete')}</Text>
               </Pressable>
             </View>
           </View>
@@ -438,6 +472,11 @@ function countChoices(lists: string[][]): [string, number][] {
 }
 
 function SurveyTab({ entries, pull }: { entries: SeasonSurveyEntry[]; pull: PullToRefresh }) {
+  const { tr, l, locale } = useI18n();
+  const wishLabel = (value: string) => {
+    const wish = SURVEY_WISHES.find((w) => w.value === value);
+    return wish ? l(wish.label) : value;
+  };
   const ratings = entries.map((e) => e.rating).filter((r): r is number => r !== null);
   const average = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
   const games = countChoices(entries.map((e) => e.favorite_games));
@@ -461,22 +500,24 @@ function SurveyTab({ entries, pull }: { entries: SeasonSurveyEntry[]; pull: Pull
       data={entries}
       keyExtractor={(e) => e.user_id}
       contentContainerStyle={styles.list}
-      ListEmptyComponent={<Text style={styles.empty}>Aucune réponse pour l’instant. Le sondage s’affiche à la fin du jour 24.</Text>}
+      ListEmptyComponent={<Text style={styles.empty}>
+          {tr('Aucune réponse pour l’instant. Le sondage s’affiche à la fin du jour 24.', 'No answers yet. The survey appears at the end of day 24.')}
+        </Text>}
       ListHeaderComponent={
         entries.length > 0 ? (
           <View style={styles.surveySummary}>
             <Text style={styles.surveySummaryTitle}>
-              {entries.length} réponse{entries.length > 1 ? 's' : ''}
-              {average !== null ? ` · note moyenne ${average.toFixed(1)} / 5 ★` : ''}
+              {tr(`${entries.length} réponse${entries.length > 1 ? 's' : ''}`, `${entries.length} answer${entries.length === 1 ? '' : 's'}`)}
+              {average !== null ? ` · ${tr('note moyenne', 'average rating')} ${average.toFixed(1)} / 5 ★` : ''}
             </Text>
-            <Text style={styles.surveySection}>Rejouera l’an prochain</Text>
+            <Text style={styles.surveySection}>{tr('Rejouera l’an prochain', 'Will play again next year')}</Text>
             <Text style={styles.feedbackText}>
-              {comeBack.map(([value, count]) => `${COME_BACK_LABELS[value]} ${count}`).join('   ')}
+              {comeBack.map(([value, count]) => `${l(COME_BACK_LABELS[value])} ${count}`).join('   ')}
             </Text>
-            {games.length > 0 && <Text style={styles.surveySection}>Jeux préférés</Text>}
-            {bars(games, gameLabel)}
-            {wishes.length > 0 && <Text style={styles.surveySection}>Envies pour l’an prochain</Text>}
-            {bars(wishes, (w) => w)}
+            {games.length > 0 && <Text style={styles.surveySection}>{tr('Jeux préférés', 'Favourite games')}</Text>}
+            {bars(games, (key) => l(gameLabel(key)))}
+            {wishes.length > 0 && <Text style={styles.surveySection}>{tr('Envies pour l’an prochain', 'Wishes for next year')}</Text>}
+            {bars(wishes, wishLabel)}
           </View>
         ) : null
       }
@@ -487,12 +528,12 @@ function SurveyTab({ entries, pull }: { entries: SeasonSurveyEntry[]; pull: Pull
             {item.rating !== null && <Text style={styles.feedbackStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</Text>}
           </View>
           <Text style={styles.feedbackMeta}>
-            {new Date(item.updated_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
-            {item.come_back ? ` · Rejouera : ${COME_BACK_LABELS[item.come_back]}` : ''}
+            {new Date(item.updated_at).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+            {item.come_back ? ` · ${tr('Rejouera :', 'Will play again:')} ${l(COME_BACK_LABELS[item.come_back])}` : ''}
           </Text>
-          {item.favorite_games.length > 0 && <Text style={styles.feedbackText}>🎮 {item.favorite_games.map(gameLabel).join(', ')}</Text>}
+          {item.favorite_games.length > 0 && <Text style={styles.feedbackText}>🎮 {item.favorite_games.map((key) => l(gameLabel(key))).join(', ')}</Text>}
           {item.liked !== '' && <Text style={styles.feedbackText}>👍 {item.liked}</Text>}
-          {item.wishes.length > 0 && <Text style={styles.feedbackText}>✨ {item.wishes.join(', ')}</Text>}
+          {item.wishes.length > 0 && <Text style={styles.feedbackText}>✨ {item.wishes.map(wishLabel).join(', ')}</Text>}
           {item.next_year !== '' && <Text style={styles.feedbackText}>💡 {item.next_year}</Text>}
         </View>
       )}

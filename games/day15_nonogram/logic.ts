@@ -4,6 +4,7 @@ export type Solution = boolean[][]; // true = doit être rempli
 
 export interface NonogramPuzzle {
   name: string;
+  nameEn: string;
   size: number;
   solution: Solution;
 }

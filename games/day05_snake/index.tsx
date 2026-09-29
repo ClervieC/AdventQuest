@@ -12,6 +12,7 @@ import {
     isOppositeDirection,
     SnakeState,
 } from './logic';
+import { useI18n } from '../../services/i18n';
 
 const GRID_SIZE = 10;
 const TICK_SLOW_MS = 240;
@@ -26,6 +27,7 @@ function getTickInterval(timeLeft: number): number {
 }
 
 export function SnakeGame({ onGameEnd }: GameComponentProps) {
+  const { tr } = useI18n();
   const [gameState, setGameState] = useState<SnakeState>(() => createInitialState(GRID_SIZE));
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
   const directionRef = useRef<Direction>('right');
@@ -129,7 +131,7 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
           ))}
         </View>
 
-        <Text style={styles.hint}>Glisse ton doigt pour diriger le serpent</Text>
+        <Text style={styles.hint}>{tr('Glisse ton doigt pour diriger le serpent', 'Swipe to steer the snake')}</Text>
       </View>
     </GestureDetector>
   );

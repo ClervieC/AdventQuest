@@ -1,7 +1,10 @@
 /// <reference types="jest" />
-import { pickQuizQuestions, QUESTIONS_PER_GAME, QUIZ_QUESTIONS } from './questions';
+import { pickQuizQuestions, QUESTIONS_PER_GAME, QUIZ_QUESTIONS, QUIZ_QUESTIONS_EN, quizQuestionsFor } from './questions';
 
-describe('Quiz - banque de questions', () => {
+describe.each([
+  ['français', QUIZ_QUESTIONS],
+  ['anglais', QUIZ_QUESTIONS_EN],
+])('Quiz - banque de questions en %s', (_, QUIZ_QUESTIONS) => {
   test('au moins 50 questions', () => {
     expect(QUIZ_QUESTIONS.length).toBeGreaterThanOrEqual(50);
   });
@@ -23,7 +26,7 @@ describe('Quiz - banque de questions', () => {
 
   test('pas de réponse ambiguë du type « toutes ces réponses »', () => {
     QUIZ_QUESTIONS.forEach((q) => {
-      q.options.forEach((o) => expect(o.toLowerCase()).not.toMatch(/toutes ces réponses|aucune de ces réponses/));
+      q.options.forEach((o) => expect(o.toLowerCase()).not.toMatch(/toutes ces réponses|aucune de ces réponses|all of the above|none of the above/));
     });
   });
 
@@ -51,5 +54,10 @@ describe('Quiz - tirage des questions', () => {
 
   test('ne plante pas si la banque est plus petite que demandé', () => {
     expect(pickQuizQuestions(10, QUIZ_QUESTIONS.slice(0, 3))).toHaveLength(3);
+  });
+
+  test('chaque langue a sa propre banque', () => {
+    expect(quizQuestionsFor('fr')).toBe(QUIZ_QUESTIONS);
+    expect(quizQuestionsFor('en')).toBe(QUIZ_QUESTIONS_EN);
   });
 });

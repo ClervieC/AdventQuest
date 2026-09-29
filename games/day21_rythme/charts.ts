@@ -4,12 +4,12 @@ import type { Chart, ChartNote, Lane } from './logic';
 // LEAD_IN laisse le temps à la première note de descendre avant d'atteindre la ligne.
 export const LEAD_IN_MS = 2500;
 
-function buildChart(name: string, bpm: number, approachMs: number, beats: [number, Lane][]): Chart {
+function buildChart(name: string, nameEn: string, bpm: number, approachMs: number, beats: [number, Lane][]): Chart {
   const msPerBeat = 60000 / bpm;
   const notes: ChartNote[] = beats
     .map(([beat, lane]) => ({ time: Math.round(LEAD_IN_MS + beat * msPerBeat), lane }))
     .sort((a, b) => a.time - b.time || a.lane - b.lane);
-  return { name, bpm, approachMs, notes };
+  return { name, nameEn, bpm, approachMs, notes };
 }
 
 // Répète un motif `times` fois, chaque répétition décalée de `lengthInBeats`
@@ -59,10 +59,10 @@ function strongBeatsOnly(beats: [number, Lane][]): [number, Lane][] {
 }
 
 /** Partition complète : sert à générer la musique (scripts/generate-rythme-audio.mts) */
-export const CHART_CARILLON: Chart = buildChart('Carillon de Noël', 100, 1800, CARILLON_BEATS);
+export const CHART_CARILLON: Chart = buildChart('Carillon de Noël', 'Christmas Chime', 100, 1800, CARILLON_BEATS);
 /** Notes à taper pour le Carillon (moitié moins, notes espacées d'au moins 1,2 s) */
-export const CHART_CARILLON_SIMPLE: Chart = buildChart('Carillon de Noël', 100, 1800, strongBeatsOnly(CARILLON_BEATS));
-export const CHART_VALSE: Chart = buildChart('Valse des flocons', 138, 1300, VALSE_BEATS);
+export const CHART_CARILLON_SIMPLE: Chart = buildChart('Carillon de Noël', 'Christmas Chime', 100, 1800, strongBeatsOnly(CARILLON_BEATS));
+export const CHART_VALSE: Chart = buildChart('Valse des flocons', 'Snowflake Waltz', 138, 1300, VALSE_BEATS);
 
 export function getChart(difficulty: 'easy' | 'medium' | 'hard' | 'very_hard' = 'easy'): Chart {
   return difficulty === 'hard' || difficulty === 'very_hard' ? CHART_VALSE : CHART_CARILLON_SIMPLE;

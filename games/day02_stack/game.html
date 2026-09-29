@@ -27,6 +27,10 @@
     function sfx(name) {
       if (window.GameSounds) window.GameSounds.play(name);
     }
+    // Texte dans la langue du joueur (injectée par l'app ; français si le HTML est ouvert seul)
+    function T(fr, en) {
+      return window.GAME_LANG === 'en' ? en : fr;
+    }
     function endGame(success, score) {
       sendToReactNative({ type: 'GAME_OVER', success, score });
     }
@@ -144,7 +148,10 @@
     function updateProgressText() {
       if (!progressText) return;
       const remaining = settings.targetFloors - floorsBuilt;
-      progressText.setText(`${remaining} bloc${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}`);
+      progressText.setText(T(
+        `${remaining} bloc${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''}`,
+        `${remaining} block${remaining === 1 ? '' : 's'} left`
+      ));
     }
 
     const EDGE_MARGIN = 10;

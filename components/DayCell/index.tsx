@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useI18n } from '../../services/i18n';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -24,6 +25,7 @@ interface DayCellProps {
 const OPEN_ANIMATION_MS = 480;
 
 export function DayCell({ day, icon, status, isGolden, bestScore, onOpenStart, onOpen }: DayCellProps) {
+  const { tr } = useI18n();
   const reduceMotion = useReducedMotion();
   const pulse = useSharedValue(1);
   const spin = useSharedValue(0);
@@ -98,7 +100,7 @@ export function DayCell({ day, icon, status, isGolden, bestScore, onOpenStart, o
       <Pressable
         onPress={handlePress}
         accessibilityRole="button"
-        accessibilityLabel={status === 'locked' ? `Jour ${day}, pas encore disponible` : `Ouvrir le jour ${day}`}
+        accessibilityLabel={status === 'locked' ? tr(`Jour ${day}, pas encore disponible`, `Day ${day}, not available yet`) : tr(`Ouvrir le jour ${day}`, `Open day ${day}`)}
         style={[
           styles.cell,
           status === 'done' && styles.done,

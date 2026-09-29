@@ -18,6 +18,7 @@ import {
   toggleNote,
 } from './logic';
 import { generateSudokuPuzzle, SudokuDifficulty } from './puzzles';
+import { useI18n } from '../../services/i18n';
 
 interface SudokuGameProps extends GameComponentProps {
   difficulty?: SudokuDifficulty;
@@ -67,6 +68,7 @@ function SudokuBoard({
   saved,
   onNewGame,
 }: SudokuGameProps & { saveId: string; saved: SudokuSave | null; onNewGame: () => void }) {
+  const { tr } = useI18n();
   const [puzzle] = useState<SudokuPuzzle>(() => saved?.puzzle ?? generateSudokuPuzzle(difficulty));
   const [grid, setGrid] = useState<Grid>(() => saved?.grid ?? puzzle.initialGrid.map((row) => [...row]));
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
@@ -252,11 +254,11 @@ function SudokuBoard({
         accessibilityState={{ checked: notesMode }}
       >
         <Text style={[styles.notesToggleText, notesMode && styles.notesToggleTextOn]}>
-          ✏️ Notes : {notesMode ? 'activées' : 'désactivées'}
+          {notesMode ? tr('✏️ Notes : activées', '✏️ Notes: on') : tr('✏️ Notes : désactivées', '✏️ Notes: off')}
         </Text>
       </Pressable>
       {notesMode && (
-        <Text style={styles.notesHelp}>Les chiffres s’écrivent en petit, comme solutions possibles de la case.</Text>
+        <Text style={styles.notesHelp}>{tr('Les chiffres s’écrivent en petit, comme solutions possibles de la case.', 'Numbers are written small, as possible answers for the square.')}</Text>
       )}
 
       <View style={[styles.numberPad, notesMode && styles.numberPadNotes]}>
@@ -268,7 +270,7 @@ function SudokuBoard({
               key={num}
               style={[styles.numberButton, done && styles.numberButtonDone]}
               onPress={() => handleNumberPress(num)}
-              accessibilityLabel={done ? `${num}, déjà posé 9 fois` : `Poser ${num}`}
+              accessibilityLabel={done ? tr(`${num}, déjà posé 9 fois`, `${num}, already placed 9 times`) : tr(`Poser ${num}`, `Place ${num}`)}
             >
               <Text style={[styles.numberButtonText, done && styles.numberButtonTextDone]}>{num}</Text>
             </Pressable>
@@ -284,10 +286,10 @@ function SudokuBoard({
         onPress={handleHint}
         disabled={hintsAvailable === 0}
       >
-        <Text style={styles.hintButtonText}>💡 Révéler une case</Text>
+        <Text style={styles.hintButtonText}>{tr('💡 Révéler une case', '💡 Reveal a square')}</Text>
       </Pressable>
 
-      <Text style={styles.savedNote}>Ta grille est sauvegardée : tu peux quitter et revenir plus tard.</Text>
+      <Text style={styles.savedNote}>{tr('Ta grille est sauvegardée : tu peux quitter et revenir plus tard.', 'Your grid is saved: you can leave and come back later.')}</Text>
       <NewGameButton onConfirm={handleNewGame} />
     </ScrollView>
   );

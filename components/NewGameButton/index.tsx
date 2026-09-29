@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { useI18n } from '../../services/i18n';
 
 const CONFIRM_WINDOW_MS = 3000;
 
@@ -8,6 +9,7 @@ const CONFIRM_WINDOW_MS = 3000;
  * un second appui dans les 3 secondes lance la nouvelle partie.
  */
 export function NewGameButton({ onConfirm }: { onConfirm: () => void }) {
+  const { tr } = useI18n();
   const [confirming, setConfirming] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -30,10 +32,10 @@ export function NewGameButton({ onConfirm }: { onConfirm: () => void }) {
     <Pressable
       style={[styles.button, confirming && styles.buttonConfirm]}
       onPress={handlePress}
-      accessibilityLabel={confirming ? 'Confirmer : abandonner cette partie et en commencer une nouvelle' : 'Nouvelle partie'}
+      accessibilityLabel={confirming ? tr('Confirmer : abandonner cette partie et en commencer une nouvelle', 'Confirm: give up this game and start a new one') : tr('Nouvelle partie', 'New game')}
     >
       <Text style={[styles.text, confirming && styles.textConfirm]}>
-        {confirming ? '⚠️ Touche encore pour abandonner cette partie' : '🔄 Nouvelle partie'}
+        {confirming ? tr('⚠️ Touche encore pour abandonner cette partie', '⚠️ Tap again to give up this game') : tr('🔄 Nouvelle partie', '🔄 New game')}
       </Text>
     </Pressable>
   );

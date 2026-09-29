@@ -15,6 +15,7 @@ import {
   Role,
   submitAttempt,
 } from '../services/api';
+import { getI18n } from '../services/i18n';
 import { loadPendingAttempts, PendingAttempt, savePendingAttempts } from '../services/pendingAttempts';
 
 export interface DayState {
@@ -169,7 +170,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       } catch (error) {
         set({
           status: 'error',
-          errorMessage: error instanceof Error ? error.message : 'Serveur injoignable',
+          errorMessage: error instanceof Error ? error.message : getI18n().tr('Serveur injoignable', 'Server unreachable'),
         });
       }
     },

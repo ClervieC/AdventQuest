@@ -1,15 +1,17 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { useI18n } from '../../services/i18n';
 import { useSettingsStore } from '../../store/settingsStore';
 
 /** Petit bouton 🔊 / 🔇 : coupe ou remet tous les sons de l'app (mémorisé sur l'appareil) */
 export function SoundToggle({ style }: { style?: object }) {
   const { muted, toggleMuted } = useSettingsStore();
+  const { tr } = useI18n();
   return (
     <Pressable
       onPress={toggleMuted}
       hitSlop={10}
       accessibilityRole="button"
-      accessibilityLabel={muted ? 'Activer le son' : 'Couper le son'}
+      accessibilityLabel={muted ? tr('Activer le son', 'Turn sound on') : tr('Couper le son', 'Mute sound')}
       style={[styles.button, style]}
     >
       <Text style={styles.icon}>{muted ? '🔇' : '🔊'}</Text>

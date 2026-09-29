@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useI18n } from '../../services/i18n';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -32,6 +33,7 @@ interface FragmentHeartProps {
 
 /** Le fragment gagné vole jusqu'à sa place autour du Cœur de Noël, qui s'illumine */
 export function FragmentHeart({ day, icon, name, wonDays }: FragmentHeartProps) {
+  const { tr } = useI18n();
   const reduceMotion = useReducedMotion();
   const flight = useSharedValue(reduceMotion ? 1 : 0);
   const landed = useSharedValue(reduceMotion ? 1 : 0);
@@ -93,7 +95,7 @@ export function FragmentHeart({ day, icon, name, wonDays }: FragmentHeartProps) 
       </View>
 
       <Text style={styles.name}>{icon} {name}</Text>
-      <Text style={styles.count}>Le Cœur de Noël : {wonDays.length} / 24 fragments</Text>
+      <Text style={styles.count}>{tr(`Le Cœur de Noël : ${wonDays.length} / 24 fragments`, `The Heart of Christmas: ${wonDays.length} / 24 shards`)}</Text>
     </View>
   );
 }

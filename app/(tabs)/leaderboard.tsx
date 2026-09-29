@@ -14,12 +14,14 @@ import {
   unfollowUser,
   UserSearchResult,
 } from '../../services/api';
+import { useI18n } from '../../services/i18n';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 type Scope = 'all' | 'friends';
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
+  const { tr, locale } = useI18n();
   const [scope, setScope] = useState<Scope>('all');
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
@@ -81,14 +83,14 @@ export default function LeaderboardScreen() {
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       {/* En-tête centré à la largeur du calendrier ; la liste défile sur toute la largeur de l'écran */}
       <View style={styles.column}>
-      <Text style={styles.title}>🏆 Classement</Text>
-      {entries?.some((e) => e.is_tester) && <Text style={styles.legend}>🧪 = testeur : une partie de ses points vient de jours testés en avance</Text>}
+      <Text style={styles.title}>{tr('🏆 Classement', '🏆 Leaderboard')}</Text>
+      {entries?.some((e) => e.is_tester) && <Text style={styles.legend}>{tr('🧪 = testeur : une partie de ses points vient de jours testés en avance', '🧪 = tester: some of their points come from days tested early')}</Text>}
 
       <View style={styles.segmented}>
         {(['all', 'friends'] as Scope[]).map((value) => (
           <Pressable key={value} onPress={() => setScope(value)} style={[styles.segment, scope === value && styles.segmentActive]}>
             <Text style={[styles.segmentText, scope === value && styles.segmentTextActive]}>
-              {value === 'all' ? '🌍 Tous' : `👥 Amis${following.size > 0 ? ` (${following.size})` : ''}`}
+              {value === 'all' ? tr('🌍 Tous', '🌍 Everyone') : `${tr('👥 Amis', '👥 Friends')}${following.size > 0 ? ` (${following.size})` : ''}`}
             </Text>
           </Pressable>
         ))}
@@ -100,9 +102,9 @@ export default function LeaderboardScreen() {
 
       {error && (
         <View style={styles.centered}>
-          <Text style={styles.empty}>Classement indisponible pour le moment.</Text>
+          <Text style={styles.empty}>{tr('Classement indisponible pour le moment.', 'Leaderboard unavailable right now.')}</Text>
           <Pressable style={styles.retry} onPress={load}>
-            <Text style={styles.retryText}>↻ Réessayer</Text>
+            <Text style={styles.retryText}>{tr('↻ Réessayer', '↻ Try again')}</Text>
           </Pressable>
         </View>
       )}
@@ -117,8 +119,8 @@ export default function LeaderboardScreen() {
           ListEmptyComponent={
             <Text style={styles.empty}>
               {scope === 'friends'
-                ? 'Tu ne suis encore personne. Cherche le pseudo d’un ami ci-dessus.'
-                : 'Personne n’a encore joué. Sois le premier !'}
+                ? tr('Tu ne suis encore personne. Cherche le pseudo d’un ami ci-dessus.', 'You’re not following anyone yet. Search for a friend’s username above.')
+                : tr('Personne n’a encore joué. Sois le premier !', 'Nobody has played yet. Be the first!')}
             </Text>
           }
           renderItem={({ item, index }) => {
@@ -129,16 +131,16 @@ export default function LeaderboardScreen() {
                 <View style={styles.player}>
                   <Text style={[styles.name, isMe && styles.nameMe]} numberOfLines={1}>
                     {item.username}
-                    {isMe ? ' (toi)' : ''}
+                    {isMe ? tr(' (toi)', ' (you)') : ''}
                     {item.is_tester ? ' 🧪' : ''}
                   </Text>
                   <Text style={styles.details}>
-                    ✦ {item.fragments_count} fragment{item.fragments_count > 1 ? 's' : ''}
-                    {item.streak >= 2 ? `  ·  🔥 ${item.streak} jours d'affilée` : ''}
+                    ✦ {item.fragments_count} {tr(item.fragments_count > 1 ? 'fragments' : 'fragment', item.fragments_count === 1 ? 'shard' : 'shards')}
+                    {item.streak >= 2 ? `  ·  🔥 ${tr(`${item.streak} jours d'affilée`, `${item.streak}-day streak`)}` : ''}
                   </Text>
                 </View>
                 <View style={styles.right}>
-                  <Text style={styles.score}>{item.total_score.toLocaleString('fr-FR')}</Text>
+                  <Text style={styles.score}>{item.total_score.toLocaleString(locale)}</Text>
                   {!isMe && (
                     <FollowButton followed={following.has(item.user_id)} onPress={() => toggleFollow(item.user_id)} small />
                   )}
@@ -153,15 +155,17 @@ export default function LeaderboardScreen() {
 }
 
 function FollowButton({ followed, onPress, small }: { followed: boolean; onPress: () => void; small?: boolean }) {
+  const { tr } = useI18n();
   return (
     <Pressable onPress={onPress} hitSlop={6} style={[styles.followButton, followed && styles.followButtonOn, small && styles.followButtonSmall]}>
-      <Text style={[styles.followText, followed && styles.followTextOn]}>{followed ? '✓ Suivi' : '+ Suivre'}</Text>
+      <Text style={[styles.followText, followed && styles.followTextOn]}>{followed ? tr('✓ Suivi', '✓ Following') : tr('+ Suivre', '+ Follow')}</Text>
     </Pressable>
   );
 }
 
 // Recherche d'un joueur par pseudo (dès 2 lettres), pour le suivre
 function UserSearch({ following, onToggleFollow }: { following: Set<string>; onToggleFollow: (userId: string) => void }) {
+  const { tr } = useI18n();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -188,7 +192,7 @@ function UserSearch({ following, onToggleFollow }: { following: Set<string>; onT
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="🔎 Rechercher un joueur par pseudo"
+        placeholder={tr('🔎 Rechercher un joueur par pseudo', '🔎 Search for a player by username')}
         placeholderTextColor="#8ea6c0"
         autoCapitalize="none"
         autoCorrect={false}
@@ -196,7 +200,7 @@ function UserSearch({ following, onToggleFollow }: { following: Set<string>; onT
       />
       {searching && <ActivityIndicator style={styles.searchLoader} color="#7c3aed" size="small" />}
       {!searching && query.trim().length >= 2 && results.length === 0 && (
-        <Text style={styles.searchEmpty}>Aucun joueur trouvé.</Text>
+        <Text style={styles.searchEmpty}>{tr('Aucun joueur trouvé.', 'No player found.')}</Text>
       )}
       {results.map((user) => (
         <View key={user.user_id} style={styles.searchRow}>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameTutorial as Tutorial } from '../../constants/tutorials';
+import { useI18n } from '../../services/i18n';
 
 // Les captures font 393×796 : on garde ce ratio pour les afficher comme de petits écrans de téléphone
 const SHOT_RATIO = 393 / 796;
@@ -8,6 +9,7 @@ const THUMB_HEIGHT = 170;
 
 /** Bouton « Comment jouer ? » de l'intro : déplie une carte avec capture(s) du jeu + règles en quelques étapes */
 export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
+  const { tr, l } = useI18n();
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState<number | null>(null);
   const single = tutorial.images.length === 1;
@@ -21,7 +23,7 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
           key={index}
           onPress={() => setZoomed(index)}
           accessibilityRole="imagebutton"
-          accessibilityLabel={`Agrandir la capture${image.caption ? ` : ${image.caption}` : ''}`}
+          accessibilityLabel={tr('Agrandir la capture', 'Enlarge the screenshot') + (image.caption ? ` : ${l(image.caption)}` : '')}
           style={styles.thumbItem}
         >
           <Image
@@ -29,7 +31,7 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
             style={[styles.thumb, { height: thumbHeight, width: thumbHeight * SHOT_RATIO }]}
             resizeMode="cover"
           />
-          {image.caption && <Text style={styles.caption}>{image.caption}</Text>}
+          {image.caption && <Text style={styles.caption}>{l(image.caption)}</Text>}
         </Pressable>
       ))}
     </View>
@@ -40,7 +42,7 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
       {tutorial.steps.map((step, index) => (
         <View key={index} style={styles.step}>
           <Text style={styles.stepIcon}>{step.icon}</Text>
-          <Text style={styles.stepText}>{step.text}</Text>
+          <Text style={styles.stepText}>{l(step.text)}</Text>
         </View>
       ))}
     </View>
@@ -49,7 +51,7 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
   if (!open) {
     return (
       <Pressable style={styles.toggle} onPress={() => setOpen(true)} accessibilityRole="button" accessibilityState={{ expanded: false }}>
-        <Text style={styles.toggleText}>📖 Comment jouer ?</Text>
+        <Text style={styles.toggleText}>{tr('📖 Comment jouer ?', '📖 How to play?')}</Text>
       </Pressable>
     );
   }
@@ -57,8 +59,8 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
   return (
     <View style={styles.card}>
       <Pressable style={styles.header} onPress={() => setOpen(false)} accessibilityRole="button" accessibilityState={{ expanded: true }}>
-        <Text style={styles.title}>📖 Comment jouer</Text>
-        <Text style={styles.close}>Masquer ✕</Text>
+        <Text style={styles.title}>{tr('📖 Comment jouer', '📖 How to play')}</Text>
+        <Text style={styles.close}>{tr('Masquer ✕', 'Hide ✕')}</Text>
       </Pressable>
       {single ? (
         <View style={styles.row}>
@@ -75,19 +77,19 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
       {Platform.OS === 'web' && tutorial.keyboard && (
         <View style={styles.keyboard}>
           <Text style={styles.keyboardText}>
-            <Text style={styles.keyboardLabel}>💻 Sur ordi : </Text>
-            {tutorial.keyboard}
+            <Text style={styles.keyboardLabel}>{tr('💻 Sur ordi : ', '💻 On a computer: ')}</Text>
+            {l(tutorial.keyboard)}
           </Text>
         </View>
       )}
-      <Text style={styles.zoomHint}>Touche une image pour l’agrandir</Text>
+      <Text style={styles.zoomHint}>{tr('Touche une image pour l’agrandir', 'Tap an image to enlarge it')}</Text>
 
       <Modal visible={zoomed !== null} transparent animationType="fade" onRequestClose={() => setZoomed(null)}>
-        <Pressable style={styles.overlay} onPress={() => setZoomed(null)} accessibilityLabel="Fermer l’image">
+        <Pressable style={styles.overlay} onPress={() => setZoomed(null)} accessibilityLabel={tr('Fermer l’image', 'Close the image')}>
           {zoomed !== null && (
             <Image source={tutorial.images[zoomed].source} style={styles.zoomImage} resizeMode="contain" />
           )}
-          <Text style={styles.overlayClose}>Touche pour fermer</Text>
+          <Text style={styles.overlayClose}>{tr('Touche pour fermer', 'Tap to close')}</Text>
         </Pressable>
       </Modal>
     </View>
