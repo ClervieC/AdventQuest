@@ -24,7 +24,7 @@ export default function CalendarScreen() {
         <LanguageButton />
         <SoundToggle />
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={[{ paddingTop: insets.top + 12 }, contentColumn]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[{ paddingTop: insets.top + TOP_BUTTONS_SPACE }, contentColumn]}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{tr('Avent magique · Décembre 2026', 'Magical Advent · December 2026')}</Text>
         <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
@@ -57,6 +57,9 @@ export default function CalendarScreen() {
     </View>
   );
 }
+
+// Place réservée en haut pour les boutons langue / son : le titre commence juste en dessous
+const TOP_BUTTONS_SPACE = 40;
 
 const styles = StyleSheet.create({
   container: {
