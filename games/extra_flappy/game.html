@@ -82,9 +82,11 @@
     const FLAP_VELOCITY = -430;
     const PLAYER_RADIUS = 15;
     const PILLAR_WIDTH = 58;
+    // Temps additionnel : 25 par colonne et 10 par étoile (bonus ≈ 1 000 au plus, pour ne pas écraser la partie normale)
     const POINTS_PER_PILLAR = 100;
-    const BONUS_POINTS_PER_PILLAR = 150;
+    const BONUS_POINTS_PER_PILLAR = 25;
     const STAR_POINTS = 50;
+    const BONUS_STAR_POINTS = 10;
     const BONUS_MAX_MS = 60000;
 
     let scene;
@@ -349,7 +351,8 @@
         if (!p.passed && p.x + PILLAR_WIDTH / 2 < playerX - PLAYER_RADIUS) {
           p.passed = true;
           passedCount += 1;
-          score += bonusMode ? BONUS_POINTS_PER_PILLAR : POINTS_PER_PILLAR;
+          // Onglet Jeux (sans objectif, donc « en bonus » dès le départ) : points pleins
+          score += bonusMode && !arcadeMode ? BONUS_POINTS_PER_PILLAR : POINTS_PER_PILLAR;
           sfx('coin');
           if (!bonusMode && passedCount >= settings.goal) startBonus();
         }
@@ -357,9 +360,10 @@
 
       stars = stars.filter((s) => {
         if (Phaser.Math.Distance.Between(s.x, s.y, playerX, player.y) < PLAYER_RADIUS + 14) {
-          score += STAR_POINTS;
+          const starPoints = bonusMode && !arcadeMode ? BONUS_STAR_POINTS : STAR_POINTS;
+          score += starPoints;
           sfx('powerup');
-          flashFeedback(s.x, s.y - 20, '+' + STAR_POINTS, '#fbbf24');
+          flashFeedback(s.x, s.y - 20, '+' + starPoints, '#fbbf24');
           s.sprite.destroy();
           return false;
         }

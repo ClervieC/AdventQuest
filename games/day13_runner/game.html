@@ -88,8 +88,11 @@
     const INVULNERABLE_MS = 1100;
     const HINT_SLOW_MS = 5000;
     const HINT_SLOW_FACTOR = 0.5;
-    const FRAGMENT_POINTS = 100;
-    const PX_PER_METER = 10;
+    // Score : 1 point tous les 25 px parcourus + 50 par étoile (≈ 2 000 en 60 s pour une très bonne course).
+    // En temps additionnel, tout rapporte 40 % (bonus ≈ 1 000 au plus, pour ne pas écraser la partie normale).
+    const FRAGMENT_POINTS = 50;
+    const PX_PER_POINT = 25;
+    const BONUS_RATE = 0.4;
 
     const PLAYER_W = 30;
     const PLAYER_H = 48;
@@ -107,6 +110,8 @@
     let running = false;
     let gameEnded = false;
     let score = 0;
+    let normalPoints = 0; // points de la partie normale (plafonnée à 2 000 par l'appli)
+    let bonusPoints = 0;  // points du temps additionnel
     let distance = 0;
     let fragmentsCollected = 0;
     let lives = MAX_LIVES;
@@ -116,7 +121,6 @@
     let slowUntil = 0;
     let hintsLeft = 0;
     let bonusMode = false;
-    let scoreAtBonus = 0; // score au début du temps additionnel : ce qui vient après est du bonus
     let stopButton = null;
 
     let scoreText, timeText, livesText, hintButton, hintText, messageText;
@@ -219,6 +223,8 @@
 
       player = { y: groundY, vy: 0, onGround: true, canDoubleJump: true, slideUntil: 0 };
       score = 0;
+      normalPoints = 0;
+      bonusPoints = 0;
       distance = 0;
       fragmentsCollected = 0;
       lives = MAX_LIVES;
@@ -389,6 +395,16 @@
 
     // ---------- Boucle ----------
 
+    // Ajoute des points à la partie normale, ou au bonus (40 %) pendant le temps additionnel. Renvoie le gain.
+    function addPoints(points) {
+      if (bonusMode) {
+        bonusPoints += points * BONUS_RATE;
+        return points * BONUS_RATE;
+      }
+      normalPoints += points;
+      return points;
+    }
+
     function update(time, delta) {
       if (!running) return;
 
@@ -401,6 +417,7 @@
       const speed = currentSpeed();
       const dx = speed * dt;
       distance += dx;
+      addPoints(dx / PX_PER_POINT);
 
       updatePlayer(time, dt);
       scrollWorld(dx);
@@ -414,7 +431,7 @@
 
       checkCollisions(time);
 
-      score = Math.floor(distance / PX_PER_METER) + fragmentsCollected * FRAGMENT_POINTS;
+      score = Math.floor(normalPoints + bonusPoints);
       scoreText.setText('Score: ' + score);
       if (arcadeMode) {
         timeText.setText('⏱ ' + Math.floor(elapsedMs / 1000) + 's');
@@ -431,7 +448,6 @@
 
     // 60 s tenues : fragment gagné, on continue pour des points en plus
     function startBonus() {
-      scoreAtBonus = Math.floor(score);
       bonusMode = true;
       sfx('powerup');
       timeText.setColor('#fbbf24');
@@ -506,7 +522,8 @@
         if ((f.x - cx) ** 2 + (f.y - cy) ** 2 <= f.r * f.r) {
           fragmentsCollected += 1;
           sfx('coin');
-          flashFeedback(f.x, f.y, '+' + FRAGMENT_POINTS, '#fbbf24');
+          const gained = addPoints(FRAGMENT_POINTS);
+          flashFeedback(f.x, f.y, '+' + Math.round(gained), bonusMode ? '#fbbf24' : '#fde68a');
           f.sprite.destroy();
           return false;
         }
@@ -554,7 +571,7 @@
       gameEnded = true;
       running = false;
       scene.time.delayedCall(400, () => {
-        endGame(survived, score, bonusMode ? score - scoreAtBonus : 0);
+        endGame(survived, score, Math.floor(bonusPoints));
       });
     }
 

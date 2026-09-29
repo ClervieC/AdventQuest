@@ -81,8 +81,11 @@
     const PLAYER_RADIUS = 15;          // hitbox volontairement plus petite que l'emoji
     const PLAYER_MAX_SPEED = 900;      // px/s, le personnage rattrape le doigt sans téléporter
     const MULTIPLIER_STEP_MS = 15000;  // le multiplicateur augmente toutes les 15 s
-    const POINTS_PER_SECOND = 10;
-    const GIFT_POINTS = 100;
+    // ≈ 2 000 pour une partie parfaite (survie + cadeaux) ; en temps additionnel tout rapporte 25 %
+    // (bonus ≈ 1 000 au plus, pour ne pas écraser la partie normale)
+    const POINTS_PER_SECOND = 8;
+    const GIFT_POINTS = 60;
+    const BONUS_RATE = 0.25;
     const GIFT_CHANCE = 0.08;
 
     // Projectiles de Grimnoir
@@ -331,7 +334,7 @@
       updateProjectiles(dt);
       if (!running) return;
 
-      score += POINTS_PER_SECOND * currentMultiplier() * dt;
+      score += POINTS_PER_SECOND * currentMultiplier() * dt * (bonusMode && !arcadeMode ? BONUS_RATE : 1);
       scoreText.setText('Score: ' + Math.floor(score));
       multText.setText('×' + currentMultiplier());
       if (arcadeMode) {
@@ -391,9 +394,10 @@
         if (!p.done && dist < p.type.radius + PLAYER_RADIUS) {
           p.done = true;
           if (p.type.bonus) {
-            score += GIFT_POINTS;
+            const giftPoints = Math.round(GIFT_POINTS * (bonusMode && !arcadeMode ? BONUS_RATE : 1));
+            score += giftPoints;
             sfx('coin');
-            flashFeedback(p.x, p.y - 20, '+' + GIFT_POINTS, '#fbbf24');
+            flashFeedback(p.x, p.y - 20, '+' + giftPoints, '#fbbf24');
           } else if (shieldActive) {
             shieldActive = false;
             sfx('bounce');

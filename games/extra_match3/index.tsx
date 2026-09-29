@@ -39,6 +39,8 @@ export function Match3Game({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
   const scoreRef = useRef(0);
   // Score au moment où l'objectif est atteint : les échanges suivants rapportent du bonus (non plafonné)
   const scoreAtTargetRef = useRef<number | null>(null);
+  // Après l'objectif, les points comptent pour moitié (le bonus ne doit pas écraser la partie normale)
+  const BONUS_RATE = 0.5;
   const movesRef = useRef(moves);
   const selectedRef = useRef<Cell | null>(null);
   selectedRef.current = selected;
@@ -67,7 +69,8 @@ export function Match3Game({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
     playSfx(result.chains > 1 ? 'victory' : 'correct');
     setTimeout(() => {
       const before = scoreRef.current;
-      scoreRef.current += result.gained;
+      const gained = scoreAtTargetRef.current === null ? result.gained : Math.round(result.gained * BONUS_RATE);
+      scoreRef.current += gained;
       movesRef.current -= 1;
       boardRef.current = result.board;
       setBoard(result.board);
@@ -76,7 +79,7 @@ export function Match3Game({ onGameEnd, hintsAvailable, onUseHint, difficulty = 
       setMovesLeft(movesRef.current);
       setMessage(
         result.chains > 1
-          ? tr(`Réaction en chaîne ×${result.chains} ! +${result.gained}`, `Chain reaction ×${result.chains}! +${result.gained}`)
+          ? tr(`Réaction en chaîne ×${result.chains} ! +${gained}`, `Chain reaction ×${result.chains}! +${gained}`)
           : result.reshuffled
           ? tr('Plus de coup possible : on remélange !', 'No moves left: reshuffling!')
           : null

@@ -1,6 +1,7 @@
 import {
     advanceSnake,
     calculateFinalScore,
+    snakeBonusPoints,
     createInitialState,
     generateApplePosition,
     getNextHeadPosition,
@@ -274,5 +275,14 @@ describe('Snake - file des virages', () => {
   test('ignore la direction déjà suivie et limite la file à 2 virages', () => {
     expect(queueTurn([], 'right', 'right')).toEqual([]);
     expect(queueTurn(['up', 'left'], 'right', 'down')).toEqual(['up', 'left']);
+  });
+});
+
+describe('Snake - bonus au-delà du minimum', () => {
+  test('100 par pomme jusqu’au minimum, puis 40 par pomme en bonus', () => {
+    expect(calculateFinalScore(MIN_APPLES)).toBe(MIN_APPLES * 100);
+    expect(calculateFinalScore(MIN_APPLES + 5)).toBe(MIN_APPLES * 100 + 200);
+    expect(snakeBonusPoints(MIN_APPLES + 5)).toBe(200);
+    expect(snakeBonusPoints(3)).toBe(0);
   });
 });

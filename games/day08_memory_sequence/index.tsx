@@ -87,8 +87,8 @@ export function MemorySequenceGame({ onGameEnd, hintsAvailable, onUseHint, diffi
     onGameEnd({
       success: lengthReached >= config.maxLength,
       score: calculateSequenceScore(lengthReached, hintsUsedThisGame, config.maxLength),
-      // Couleurs au-delà de l'objectif = bonus (150 + 100 points chacune, non plafonnées)
-      bonus: Math.max(0, lengthReached - config.maxLength) * (150 + BONUS_POINTS_PER_COLOR),
+      // Couleurs au-delà de l'objectif = bonus (non plafonné)
+      bonus: Math.max(0, lengthReached - config.maxLength) * BONUS_POINTS_PER_COLOR,
     });
   };
 

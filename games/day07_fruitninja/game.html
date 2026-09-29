@@ -289,11 +289,13 @@
       splitTreat(obj, angle);
       splashJuice(obj.x, obj.y, JUICE_COLORS[obj.emoji] || 0xffffff);
 
-      score += 30;
+      // 30 par friandise, 10 en temps additionnel (bonus ≈ 1 000 au plus, pour ne pas écraser la partie normale)
+      const points = bonusMode ? 10 : 30;
+      score += points;
       scoreText.setText('Score: ' + score);
 
       // petit effet de feedback visuel (en or pendant le bonus)
-      const feedback = scene.add.text(obj.x, obj.y, bonusMode ? '+30 bonus' : '+30', { fontSize: '18px', color: bonusMode ? '#fbbf24' : '#34d399', fontStyle: 'bold' }).setOrigin(0.5);
+      const feedback = scene.add.text(obj.x, obj.y, bonusMode ? '+' + points + ' bonus' : '+' + points, { fontSize: '18px', color: bonusMode ? '#fbbf24' : '#34d399', fontStyle: 'bold' }).setOrigin(0.5);
       scene.tweens.add({ targets: feedback, y: obj.y - 40, alpha: 0, duration: 500, onComplete: () => feedback.destroy() });
     }
 

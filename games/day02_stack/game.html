@@ -71,7 +71,9 @@
     // de plus et le bloc suivant va 8 % plus vite (jusqu'à 3,5× la vitesse de départ).
     const BONUS_MAX_FLOORS = 25;
     const POINTS_PER_FLOOR = 100;
-    const BONUS_POINTS_PER_FLOOR = 50;
+    const BONUS_POINTS_PER_FLOOR = 50; // onglet Jeux (sans objectif) : 150 par bloc
+    // Calendrier : un bloc au-delà de l'objectif rapporte 40 (25 blocs bonus = 1 000 au plus, sans écraser la partie normale)
+    const BONUS_FLOOR_POINTS = 40;
     const BONUS_SPEEDUP_PER_FLOOR = 0.08;
     const MAX_SPEED_FACTOR = 3.5;
     // Précision : en fin de partie, jusqu'à 500 points selon la largeur qu'il reste au dernier bloc posé
@@ -196,7 +198,8 @@
     }
 
     function currentScore() {
-      return floorsBuilt * POINTS_PER_FLOOR + bonusFloors() * BONUS_POINTS_PER_FLOOR + widthBonus();
+      if (arcadeMode) return floorsBuilt * POINTS_PER_FLOOR + bonusFloors() * BONUS_POINTS_PER_FLOOR + widthBonus();
+      return Math.min(floorsBuilt, targetFloors()) * POINTS_PER_FLOOR + bonusFloors() * BONUS_FLOOR_POINTS + widthBonus();
     }
 
     function updateProgressText() {
@@ -345,7 +348,7 @@
       // petite pause visuelle avant de transmettre le résultat
       scene.time.delayedCall(400, () => {
         // Blocs au-delà de l'objectif = bonus (hors plafond) ; l'onglet Jeux n'est pas plafonné
-        endGame(success && floorsBuilt > 0, score, arcadeMode ? 0 : bonusFloors() * (POINTS_PER_FLOOR + BONUS_POINTS_PER_FLOOR));
+        endGame(success && floorsBuilt > 0, score, arcadeMode ? 0 : bonusFloors() * BONUS_FLOOR_POINTS);
       });
     }
 

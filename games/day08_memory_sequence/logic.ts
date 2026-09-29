@@ -14,7 +14,8 @@ export const DIFFICULTY_CONFIGS: Record<string, SequenceConfig> = {
   very_hard: { startLength: 6, maxLength: 12, capLength: 20, displayDelayMs: 380 },
 };
 
-export const BONUS_POINTS_PER_COLOR = 100;
+// Une couleur au-delà de l'objectif rapporte 125 (au lieu de 150) : bonus ≈ 1 000 au plus
+export const BONUS_POINTS_PER_COLOR = 125;
 
 /** Génère une séquence aléatoire de la longueur demandée */
 export function generateSequence(length: number): SymbolIndex[] {
@@ -51,10 +52,10 @@ export function checkPlayerInput(
 
 /**
  * Calcule le score selon la longueur de séquence atteinte et les hints utilisés.
- * Chaque couleur au-delà de l'objectif (`goalLength`) rapporte des points bonus en plus.
+ * Chaque couleur au-delà de l'objectif (`goalLength`) rapporte BONUS_POINTS_PER_COLOR (bonus, non plafonné).
  */
 export function calculateSequenceScore(sequenceLengthReached: number, hintsUsed: number, goalLength: number = Infinity): number {
-  const baseScore = sequenceLengthReached * 150;
+  const baseScore = Math.min(sequenceLengthReached, goalLength) * 150;
   const bonus = Math.max(0, sequenceLengthReached - goalLength) * BONUS_POINTS_PER_COLOR;
   const hintPenalty = hintsUsed * 80;
   return Math.max(baseScore + bonus - hintPenalty, 50);

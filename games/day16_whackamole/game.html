@@ -76,6 +76,9 @@
     // fragments se multiplient, jusqu'à la dernière vie perdue ou la fin du bonus
     const GAME_DURATION_MS = 45000;
     const BONUS_MAX_MS = 45000;
+    // 30 points par gobelin (≈ 2 000 en 45 s pour un sans-faute), 10 en temps additionnel (bonus ≈ 1 000 au plus)
+    const GOBLIN_POINTS = 30;
+    const BONUS_GOBLIN_POINTS = 10;
     const HOLE_RADIUS = 45;
     const MAX_LIVES = 3;
 
@@ -257,13 +260,15 @@
         const distance = Phaser.Math.Distance.Between(pointer.x, pointer.y, hole.x, hole.y);
         if (distance <= HOLE_RADIUS) {
           if (hole.isFake) {
-            score = Math.max(0, score - 50);
+            const penalty = bonusMode ? BONUS_GOBLIN_POINTS : GOBLIN_POINTS;
+            score = Math.max(0, score - penalty);
             sfx('hurt');
-            flashFeedback(hole.x, hole.y, '-50', 0xef4444);
+            flashFeedback(hole.x, hole.y, '-' + penalty, 0xef4444);
           } else {
-            score += 100;
+            const points = bonusMode ? BONUS_GOBLIN_POINTS : GOBLIN_POINTS;
+            score += points;
             sfx('whack');
-            flashFeedback(hole.x, hole.y, '+100', 0x34d399);
+            flashFeedback(hole.x, hole.y, '+' + points, bonusMode ? 0xfbbf24 : 0x34d399);
           }
           if (hole.hideTimer) hole.hideTimer.remove();
           hideMole(hole);

@@ -10,6 +10,8 @@ import { addRandomTile, bestMove, Board, Direction, isStuck, maxTile, move, newG
 // Tuile à atteindre pour gagner, selon la difficulté (le boss joue en « hard »)
 const GOAL_TILE: Record<string, number> = { easy: 64, medium: 128, hard: 128, very_hard: 256 };
 const HINT_MS = 2500;
+// Calendrier : après la tuile objectif, les fusions comptent pour un quart (bonus raisonnable)
+const BONUS_RATE = 0.25;
 
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 const ARROW_ICONS: Record<Direction, string> = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' };
@@ -20,7 +22,7 @@ const TILE_COLORS: Record<number, string> = {
   128: '#1f6b4a', 256: '#8a4b12', 512: '#9a6b0c', 1024: '#a0223a', 2048: '#c0266d',
 };
 
-export function Game2048({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy' }: GameComponentProps) {
+export function Game2048({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'easy', arcade }: GameComponentProps) {
   const { tr } = useI18n();
   const goal = GOAL_TILE[difficulty] ?? 128;
   const [board, setBoard] = useState<Board>(() => newGame());
@@ -55,7 +57,8 @@ export function Game2048({ onGameEnd, hintsAvailable, onUseHint, difficulty = 'e
     const before = maxTile(boardRef.current);
     const next = addRandomTile(result.board);
     boardRef.current = next;
-    scoreRef.current += result.gained;
+    const inBonus = !arcade && scoreAtGoalRef.current !== null;
+    scoreRef.current += inBonus ? Math.round(result.gained * BONUS_RATE) : result.gained;
     setBoard(next);
     setScore(scoreRef.current);
     setHint(null);

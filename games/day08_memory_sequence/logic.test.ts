@@ -112,9 +112,9 @@ describe('sequenceDelayMs', () => {
 });
 
 describe('bonus au-delà de l’objectif', () => {
-  test('chaque couleur au-delà de l’objectif rapporte 100 points de plus', () => {
+  test('chaque couleur au-delà de l’objectif rapporte 125 points (bonus)', () => {
     expect(calculateSequenceScore(7, 0, 7)).toBe(1050);
-    expect(calculateSequenceScore(9, 0, 7)).toBe(9 * 150 + 200);
+    expect(calculateSequenceScore(9, 0, 7)).toBe(7 * 150 + 2 * 125);
   });
 
   test('les couleurs défilent plus vite à chaque manche bonus, avec un plancher', () => {

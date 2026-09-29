@@ -126,9 +126,18 @@ export function createInitialState(gridSize: number): SnakeState {
   };
 }
 
-/** Calcule le score final transmis au GameWrapper (pommes mangées = score direct) */
+// 100 points par pomme jusqu'au minimum, puis 40 par pomme en bonus (≈ 1 000 de bonus pour une très longue partie)
+export const APPLE_POINTS = 100;
+export const BONUS_APPLE_POINTS = 40;
+
+/** Score final transmis au GameWrapper */
 export function calculateFinalScore(applesEaten: number): number {
-  return applesEaten * 100;
+  return Math.min(applesEaten, MIN_APPLES) * APPLE_POINTS + snakeBonusPoints(applesEaten);
+}
+
+/** Part du score gagnée après le minimum de pommes (bonus, non plafonné) */
+export function snakeBonusPoints(applesEaten: number): number {
+  return Math.max(0, applesEaten - MIN_APPLES) * BONUS_APPLE_POINTS;
 }
 /**
  * File des virages demandés entre deux pas du serpent (au plus 2, pour enchaîner un virage rapide en « U »).

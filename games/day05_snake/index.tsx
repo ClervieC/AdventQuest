@@ -14,6 +14,7 @@ import {
     MIN_APPLES,
     queueTurn,
     SnakeState,
+    snakeBonusPoints,
 } from './logic';
 import { useI18n } from '../../services/i18n';
 
@@ -57,7 +58,7 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
       onGameEnd({
         success: isSnakeSuccess(gameState.score),
         score: calculateFinalScore(gameState.score),
-        bonus: calculateFinalScore(Math.max(0, gameState.score - MIN_APPLES)),
+        bonus: snakeBonusPoints(gameState.score),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
