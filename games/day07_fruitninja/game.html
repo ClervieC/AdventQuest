@@ -216,7 +216,13 @@
       const gravity = GRAVITY * k * k;
       const rise = (y - height) + height * (RISE_MIN + Math.random() * (RISE_MAX - RISE_MIN));
       const vy = -Math.sqrt(2 * gravity * rise);
-      const vx = (Math.random() - 0.5) * 200 * k;
+      // Point de chute choisi DANS l'écran : la friandise va en ligne droite (horizontalement) de son départ
+      // à ce point pendant tout son vol, elle ne sort donc jamais sur le côté, même sur un petit écran.
+      // Durée du vol ≈ montée + redescente jusqu'au bas de l'écran = 2 × |vy| / gravité.
+      const flightTime = (2 * -vy) / gravity;
+      const margin = OBJECT_RADIUS + 12;
+      const landingX = Phaser.Math.Clamp(x + (Math.random() - 0.5) * width * 0.7, margin, width - margin);
+      const vx = (landingX - x) / flightTime;
 
       // Friandises de Noël à couper ; les bombes ont un halo rouge pour ne jamais les confondre
       let sprite;

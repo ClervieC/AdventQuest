@@ -187,7 +187,7 @@
       player.setPosition(player.x || width / 2, playerY);
       waveText.setX(width - 16);
       hintButton.setX(width - 16);
-      hintText.setX(width - 82);
+      fitHintButton();
       messageText.setPosition(width / 2, height * 0.42);
     }
 
@@ -298,6 +298,13 @@
       scene.tweens.add({ targets: messageText, alpha: 0, delay: 1100, duration: 500 });
     }
 
+
+    // Le bouton violet s'ajuste à son texte (qui change avec la langue et l'état : « Ralentir (3) », « Slowed »...)
+    function fitHintButton() {
+      const w = Math.ceil(hintText.width) + 24;
+      hintButton.setSize(w, hintButton.height).setOrigin(1, 0);
+      hintText.setX(hintButton.x - w / 2);
+    }
     function updateHud() {
       scoreText.setText('Score: ' + score);
       livesText.setText('❤️'.repeat(lives) + '🖤'.repeat(Math.max(0, MAX_LIVES - lives)));
@@ -305,6 +312,7 @@
       const tripleActive = scene.time.now < tripleUntil;
       hintText.setText(tripleActive ? T('🔱 Tir triple !', '🔱 Triple shot!') : T('💡 Tir triple (', '💡 Triple shot (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || tripleActive ? 1 : 0.4);
+      fitHintButton();
     }
 
     function useHint() {

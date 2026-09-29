@@ -173,7 +173,8 @@
 
       timeText.setX(width - 20);
       hintButton.setPosition(width - 20, groundY + 40);
-      hintText.setPosition(width - 75, groundY + 60);
+      hintText.setY(groundY + 60);
+      fitHintButton();
       messageText.setPosition(width / 2, groundY + 110);
 
       // Les obstacles en cours dépendent de l'ancien sol : on les retire
@@ -247,10 +248,18 @@
       return '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
     }
 
+
+    // Le bouton violet s'ajuste à son texte (qui change avec la langue et l'état : « Ralentir (3) », « Slowed »...)
+    function fitHintButton() {
+      const w = Math.ceil(hintText.width) + 24;
+      hintButton.setSize(w, hintButton.height).setOrigin(1, 0);
+      hintText.setX(hintButton.x - w / 2);
+    }
     function updateHintButton() {
       const slowActive = scene.time.now < slowUntil;
       hintText.setText(slowActive ? T('🐢 Ralenti', '🐢 Slowed') : T('💡 Ralentir (', '💡 Slow down (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || slowActive ? 1 : 0.4);
+      fitHintButton();
     }
 
     // Onglet Jeux : pas d'objectif ; la course accélère jusqu'à +60 % au-delà de la vitesse max en 2 min 30,

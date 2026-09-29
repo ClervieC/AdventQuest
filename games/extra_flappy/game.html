@@ -148,7 +148,7 @@
       playerX = Math.round(width * 0.28);
       drawBackground();
       hintButton.setX(width - 16);
-      hintText.setX(width - 78);
+      fitHintButton();
       messageText.setPosition(width / 2, height * 0.3);
       playerSprite.setPosition(playerX, player.y || height * 0.45);
     }
@@ -206,9 +206,17 @@
       }
     }
 
+
+    // Le bouton violet s'ajuste à son texte (qui change avec la langue et l'état : « Ralentir (3) », « Slowed »...)
+    function fitHintButton() {
+      const w = Math.ceil(hintText.width) + 24;
+      hintButton.setSize(w, hintButton.height).setOrigin(1, 0);
+      hintText.setX(hintButton.x - w / 2);
+    }
     function updateHintButton() {
       hintText.setText(shieldActive ? T('🛡️ Bouclier actif', '🛡️ Shield active') : T('💡 Bouclier (', '💡 Shield (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || shieldActive ? 1 : 0.4);
+      fitHintButton();
     }
 
     // En bonus : jusqu'à +50 % de vitesse et des passages 25 % plus étroits à la fin

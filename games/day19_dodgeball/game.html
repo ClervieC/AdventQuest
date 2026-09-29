@@ -161,7 +161,7 @@
 
       timeText.setX(width - 20);
       hintButton.setX(width - 20);
-      hintText.setX(width - 80);
+      fitHintButton();
       messageText.setPosition(width / 2, height / 2);
 
       playerX = Phaser.Math.Clamp(playerX || width / 2, PLAYER_RADIUS, width - PLAYER_RADIUS);
@@ -234,9 +234,17 @@
       return 1 + Math.floor(elapsedMs / MULTIPLIER_STEP_MS);
     }
 
+
+    // Le bouton violet s'ajuste à son texte (qui change avec la langue et l'état : « Ralentir (3) », « Slowed »...)
+    function fitHintButton() {
+      const w = Math.ceil(hintText.width) + 24;
+      hintButton.setSize(w, hintButton.height).setOrigin(1, 0);
+      hintText.setX(hintButton.x - w / 2);
+    }
     function updateHintButton() {
       hintText.setText(shieldActive ? T('🛡️ Bouclier actif', '🛡️ Shield active') : T('💡 Bouclier (', '💡 Shield (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || shieldActive ? 1 : 0.4);
+      fitHintButton();
     }
 
     // ---------- Entrées ----------

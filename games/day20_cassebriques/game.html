@@ -177,7 +177,7 @@
 
       timeText.setX(width - 20);
       hintButton.setX(width - 20);
-      hintText.setX(width - 80);
+      fitHintButton();
       effectText.setPosition(width / 2, paddleY + 42);
       messageText.setPosition(width / 2, height * 0.58);
       netSprite.setPosition(0, paddleY + 30).setSize(width, 4);
@@ -358,9 +358,17 @@
       paddleSprite.setFillStyle(scene.time.now < invertUntil ? 0xf87171 : 0xa78bfa);
     }
 
+
+    // Le bouton violet s'ajuste à son texte (qui change avec la langue et l'état : « Ralentir (3) », « Slowed »...)
+    function fitHintButton() {
+      const w = Math.ceil(hintText.width) + 24;
+      hintButton.setSize(w, hintButton.height).setOrigin(1, 0);
+      hintText.setX(hintButton.x - w / 2);
+    }
     function updateHintButton() {
       hintText.setText(netActive ? T('🕸️ Filet actif', '🕸️ Net active') : T('💡 Filet (', '💡 Net (') + hintsLeft + ')');
       hintButton.setAlpha(hintsLeft > 0 || netActive ? 1 : 0.4);
+      fitHintButton();
     }
 
     function updateEffectText() {
