@@ -191,8 +191,8 @@ export const DAYS_CONFIG: DayConfig[] = [
     fragmentName: { fr: 'Clé des douves', en: "Moat Key" },
     fragmentIcon: '🗝️',
     storyIntro: {
-      fr: "Dans les douves gelées de la citadelle, les gobelins de Grimnoir surgissent de partout. Tape-les vite, mais ne touche pas aux faux fragments qui scintillent !",
-      en: "In the citadel’s frozen moat, Grimnoir’s goblins pop up everywhere. Hit them fast, but don’t touch the fake shards that sparkle!",
+      fr: "Dans les douves gelées de la citadelle, les gobelins de Grimnoir surgissent de partout. Tape-les vite avant qu’ils ne s’échappent !",
+      en: "In the citadel’s frozen moat, Grimnoir’s goblins pop up everywhere. Hit them fast before they get away!",
     },
   },
   {

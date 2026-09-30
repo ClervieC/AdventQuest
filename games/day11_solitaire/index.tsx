@@ -137,6 +137,7 @@ interface SolitaireSave {
   previous: GameState | null;
   hintsUsed: number;
   elapsedSeconds: number;
+  drawsSinceMove?: number;
 }
 
 export function SolitaireGame(props: GameComponentProps) {
@@ -182,6 +183,8 @@ function SolitaireBoard({
   // Le chrono reprend là où il s'était arrêté (le temps passé hors du jeu ne compte pas)
   const startTimeRef = useRef(Date.now() - (saved?.elapsedSeconds ?? 0) * 1000);
   const hintsUsedRef = useRef(saved?.hintsUsed ?? 0);
+  // Pioches faites depuis le dernier vrai coup : au-delà de la taille de la pioche, on en a fait tout le tour
+  const [drawsSinceMove, setDrawsSinceMove] = useState(saved?.drawsSinceMove ?? 0);
   const finishedRef = useRef(false);
   const saver = useGameSaveWriter<SolitaireSave>(saveId);
 
@@ -189,9 +192,9 @@ function SolitaireBoard({
   useEffect(() => {
     if (finishedRef.current) return;
     const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
-    saver.write({ state, previous, hintsUsed: hintsUsedRef.current, elapsedSeconds });
+    saver.write({ state, previous, hintsUsed: hintsUsedRef.current, elapsedSeconds, drawsSinceMove });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, previous]);
+  }, [state, previous, drawsSinceMove]);
 
   const handleNewGame = () => {
     saver.clear();
@@ -200,9 +203,14 @@ function SolitaireBoard({
 
   // Plus aucun coup utile, même en faisant tourner toute la pioche : on arrête et on propose une nouvelle donne
   const stuck = useMemo(() => isStuck(state), [state]);
+  // Tout le tour de la pioche sans jouer une seule carte : on arrête aussi (il peut rester un coup sur le plateau,
+  // on laisse alors le choix de continuer à chercher)
+  const reserveSize = state.stock.length + state.waste.length;
+  const fullPassWithoutMove = reserveSize > 0 && drawsSinceMove > reserveSize;
+  const showEnd = stuck || fullPassWithoutMove;
   useEffect(() => {
-    if (stuck) playSfx('bump');
-  }, [stuck]);
+    if (showEnd) playSfx('bump');
+  }, [showEnd]);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Le geste lit l'état via des refs (callbacks exécutés hors du rendu React)
@@ -222,7 +230,8 @@ function SolitaireBoard({
     setLayout(computeLayout(width, height));
   };
 
-  const commit = (next: GameState) => {
+  const commit = (next: GameState, draw = false) => {
+    setDrawsSinceMove((n) => (draw ? n + 1 : 0));
     setPrevious(stateRef.current);
     setState(next);
     setSelection(null);
@@ -242,6 +251,7 @@ function SolitaireBoard({
     playSfx('tap');
     setState(previous);
     setPrevious(null); // un seul retour en arrière : il faut rejouer un coup pour pouvoir annuler à nouveau
+    setDrawsSinceMove((n) => Math.max(0, n - 1));
     setSelection(null);
     setHint(null);
   };
@@ -266,7 +276,7 @@ function SolitaireBoard({
     }
     if (hit.kind === 'stock') {
       playSfx('draw');
-      commit(drawFromStock(stateRef.current));
+      commit(drawFromStock(stateRef.current), true);
       return;
     }
     if (selection) {
@@ -321,11 +331,28 @@ function SolitaireBoard({
       const drag = dragRef.current;
       const current = layoutRef.current;
       if (!drag || !current) return;
-      // On vise avec le centre de la carte tenue plutôt qu'avec le doigt : plus naturel
-      const centerX = event.x - current.offsetX - drag.grabX + current.cardW / 2;
-      const centerY = event.y - drag.grabY + current.cardH / 2;
-      const target = hitToTarget(hitTest(stateRef.current, current, centerX, centerY));
-      if (!target || !tryMove(drag.source, target)) playSfx('bump'); // coup refusé : la carte revient
+      // Dépôt tolérant : on essaie là où est le centre de la carte tenue, puis sous le doigt, puis les piles que la
+      // carte chevauche (gauche / droite, haut / bas) : pas besoin de viser pile au bon endroit
+      const left = event.x - current.offsetX - drag.grabX;
+      const top = event.y - drag.grabY;
+      const points: [number, number][] = [
+        [left + current.cardW / 2, top + current.cardH / 2],
+        [event.x - current.offsetX, event.y],
+        [left + 4, top + current.cardH / 2],
+        [left + current.cardW - 4, top + current.cardH / 2],
+        [left + current.cardW / 2, top + 4],
+        [left + current.cardW / 2, top + current.cardH - 4],
+      ];
+      const tried = new Set<string>();
+      for (const [x, y] of points) {
+        const target = hitToTarget(hitTest(stateRef.current, current, x, y));
+        if (!target) continue;
+        const key = target.type === 'foundation' ? `f${target.index}` : `c${target.index}`;
+        if (tried.has(key)) continue;
+        tried.add(key);
+        if (tryMove(drag.source, target)) return;
+      }
+      playSfx('bump'); // coup refusé : la carte revient
     })
     .onFinalize(() => {
       dragRef.current = null;
@@ -399,8 +426,8 @@ function SolitaireBoard({
         </View>
 
         {/* Défausse */}
-        <View style={pile(WASTE_SLOT, 0)}>
-          {topWaste && !isDragged({ type: 'waste' }) &&
+        <View style={[pile(WASTE_SLOT, 0), isDragged({ type: 'waste' }) && styles.draggedAway]}>
+          {topWaste &&
             renderFace(topWaste, l, [
               selection?.type === 'waste' && styles.cardSelected,
               isHintSource({ type: 'waste' }) && styles.hinted,
@@ -433,12 +460,13 @@ function SolitaireBoard({
               {column.length === 0 && <View style={[styles.emptyPile, pile(columnIndex, l.columnsTop), isTarget && styles.hintTarget]} />}
               {column.map((card, cardIndex) => {
                 const source: MoveSource = { type: 'column', columnIndex, cardIndex };
-                if (isDragged(source)) return null;
                 const isLast = cardIndex === column.length - 1;
                 const selected =
                   selection?.type === 'column' && selection.columnIndex === columnIndex && cardIndex >= selection.cardIndex;
                 return (
-                  <View key={card.id} style={pile(columnIndex, l.columnsTop + cardIndex * peek)}>
+                  // La carte tenue reste en place (invisible) : c'est elle qui a reçu le doigt, la retirer de la page
+                  // fait perdre le geste sur Safari iOS
+                  <View key={card.id} style={[pile(columnIndex, l.columnsTop + cardIndex * peek), isDragged(source) && styles.draggedAway]}>
                     {card.faceUp ? (
                       renderFace(card, l, [
                         selected && styles.cardSelected,
@@ -477,20 +505,32 @@ function SolitaireBoard({
         </View>
       </GestureDetector>
 
-      {stuck && (
+      {showEnd && (
         <View style={styles.stuckOverlay}>
           <View style={styles.stuckCard}>
-            <Text style={styles.stuckTitle}>{tr('😕 Plus aucun coup possible', '😕 No moves left')}</Text>
+            <Text style={styles.stuckTitle}>
+              {stuck ? tr('😕 Plus aucun coup possible', '😕 No moves left') : tr('🔁 Tout le tour de la pioche sans jouer', '🔁 Whole deck cycled without a move')}
+            </Text>
             <Text style={styles.stuckText}>
-              {tr(
-                'Même en faisant tourner toute la pioche, plus aucune carte ne peut avancer. Relance une nouvelle donne !',
-                'Even cycling through the whole deck, no card can move forward. Deal a new game!'
-              )}
+              {stuck
+                ? tr(
+                    'Même en faisant tourner toute la pioche, plus aucune carte ne peut avancer. Relance une nouvelle donne !',
+                    'Even cycling through the whole deck, no card can move forward. Deal a new game!'
+                  )
+                : tr(
+                    'Tu as retourné toute la pioche sans poser de carte. Il reste encore au moins un coup quelque part sur le plateau : cherche-le (l’indice peut aider) ou relance une nouvelle donne.',
+                    'You went through the whole deck without playing a card. There is still at least one move somewhere on the board: look for it (a hint can help) or deal a new game.'
+                  )}
             </Text>
             <Pressable style={styles.stuckButton} onPress={handleNewGame} accessibilityRole="button">
               <Text style={styles.stuckButtonText}>{tr('🔄 Nouvelle partie', '🔄 New game')}</Text>
             </Pressable>
-            {previous && (
+            {!stuck && (
+              <Pressable onPress={() => setDrawsSinceMove(0)} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.stuckUndo}>{tr('🔍 Continuer à chercher', '🔍 Keep looking')}</Text>
+              </Pressable>
+            )}
+            {stuck && previous && (
               <Pressable onPress={handleUndo} hitSlop={8} accessibilityRole="button">
                 <Text style={styles.stuckUndo}>{tr('↶ Annuler le dernier coup', '↶ Undo the last move')}</Text>
               </Pressable>
@@ -525,6 +565,9 @@ function SolitaireBoard({
 }
 
 const styles = StyleSheet.create({
+  draggedAway: {
+    opacity: 0,
+  },
   loading: {
     flex: 1,
     justifyContent: 'center',

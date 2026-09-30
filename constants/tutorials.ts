@@ -132,7 +132,7 @@ const STEPS = {
   ],
   whackamole: [
     { icon: '👆', text: { fr: 'Tape les gobelins dès qu’ils sortent de leur trou.', en: 'Hit the goblins as soon as they pop out of their holes.' } },
-    { icon: '⚠️', text: { fr: 'Ne touche pas les faux fragments qui scintillent.', en: 'Don’t touch the sparkling fake shards.' } },
+    { icon: '❤️', text: { fr: 'Chaque gobelin qui s’échappe te coûte une vie : tu en as 3.', en: 'Every goblin that gets away costs you a life: you have 3.' } },
     { icon: '⏱️', text: { fr: 'Marque un maximum de points en 45 secondes.', en: 'Score as many points as you can in 45 seconds.' } },
   ],
   dodgeball: [

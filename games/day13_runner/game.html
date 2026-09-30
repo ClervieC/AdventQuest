@@ -377,10 +377,11 @@
         // Parfois un fragment à ras du sol pour récompenser la glissade
         if (Math.random() < 0.4) spawnFragment(x, groundY - 14);
       } else {
-        // Racine au sol : on saute par-dessus
+        // Racine au sol : on saute par-dessus. Boîte de collision calée sur le dessin visible de l'emoji
+        // (plus petit que la taille de police), pour qu'un saut qui a l'air réussi le soit vraiment
         const tall = Math.random() < 0.35;
-        const h = tall ? 46 : 30;
-        const w = tall ? 30 : 42;
+        const h = tall ? 38 : 22;
+        const w = tall ? 26 : 36;
         const sprite = scene.add.text(x, groundY + 4, tall ? '⛄' : '🪵', { fontSize: tall ? '40px' : '34px' }).setOrigin(0.5, 1).setDepth(4);
         obstacles.push({ kind: 'root', x, w, top: groundY - h, bottom: groundY, sprite });
         if (Math.random() < 0.45) spawnFragment(x, groundY - h - 90);
@@ -532,9 +533,9 @@
 
       if (time < invulnerableUntil) return;
 
-      // Hitbox légèrement réduite pour pardonner les frôlements
-      const margin = 4;
+      // Hitbox réduite pour pardonner les frôlements, encore plus pour les sauts au-dessus des obstacles au sol
       for (const o of obstacles) {
+        const margin = o.kind === 'root' ? 8 : 4;
         const overlapX = box.right - margin > o.x - o.w / 2 && box.left + margin < o.x + o.w / 2;
         const overlapY = box.bottom - margin > o.top && box.top + margin < o.bottom;
         if (overlapX && overlapY) {

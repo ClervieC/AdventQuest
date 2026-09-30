@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { ControlChoice, DirectionPad } from '../../components/DirectionPad';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
@@ -21,11 +22,18 @@ import { useI18n } from '../../services/i18n';
 const GRID_SIZE = 10;
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 const CELL_PIXEL_SIZE = 28;
-const PAD_BUTTON = 58;
+
+// Avant de lancer : avec la croix directionnelle ou en glissant (glisser depuis le bord peut ramener à la page
+// précédente du navigateur sur certains téléphones)
+export function SnakeGame(props: GameComponentProps) {
+  const [directionPad, setDirectionPad] = useState<boolean | null>(null);
+  if (directionPad === null) return <ControlChoice onChoose={setDirectionPad} />;
+  return <SnakeBoard {...props} directionPad={directionPad} />;
+}
 
 // Pas de chrono : la partie dure tant que la guirlande ne se mord pas la queue.
 // Au moins MIN_APPLES pommes pour gagner le fragment ; chaque pomme accélère (voir logic.ts).
-export function SnakeGame({ onGameEnd }: GameComponentProps) {
+function SnakeBoard({ onGameEnd, directionPad }: GameComponentProps & { directionPad: boolean }) {
   const { tr } = useI18n();
   const [gameState, setGameState] = useState<SnakeState>(() => createInitialState(GRID_SIZE));
   // Virages demandés en attente : un par pas du serpent (voir queueTurn)
@@ -88,69 +96,41 @@ export function SnakeGame({ onGameEnd }: GameComponentProps) {
     }
   });
 
-  return (
-    <GestureDetector gesture={panGesture}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.score}>
-            🍎 {gameState.score}
-            {gameState.score < MIN_APPLES ? ` / ${MIN_APPLES}` : ''}
-          </Text>
-          {gameState.score >= MIN_APPLES && <Text style={styles.bonus}>{tr('🎉 Objectif atteint · bonus !', '🎉 Goal reached · bonus!')}</Text>}
-        </View>
-
-        <View style={[styles.grid, { width: GRID_SIZE * CELL_PIXEL_SIZE, height: GRID_SIZE * CELL_PIXEL_SIZE }]}>
-          {/* Pomme */}
-          <View style={[styles.cell, { left: gameState.apple.col * CELL_PIXEL_SIZE, top: gameState.apple.row * CELL_PIXEL_SIZE }]}>
-            <Text style={styles.appleEmoji}>🍎</Text>
-          </View>
-          <SnakeBody snake={gameState.snake} direction={gameState.direction} />
-        </View>
-
-        {/* Croix directionnelle : sur Android, glisser vers la droite depuis le bord ramène à la page précédente
-            du navigateur. Les boutons réagissent dès qu'on pose le doigt (onPressIn), sans attendre qu'on le lève. */}
-        <View style={styles.pad}>
-          <DirectionButton direction="up" onPress={changeDirection} />
-          <View style={styles.padRow}>
-            <DirectionButton direction="left" onPress={changeDirection} />
-            <View style={styles.padCenter} />
-            <DirectionButton direction="right" onPress={changeDirection} />
-          </View>
-          <DirectionButton direction="down" onPress={changeDirection} />
-        </View>
-
-        <Text style={styles.hint}>
-          {tr(
-            `Flèches ou glisser pour diriger. Au moins ${MIN_APPLES} pommes, puis continue tant que tu ne te mords pas la queue : ça accélère !`,
-            `Arrows or swipe to steer. At least ${MIN_APPLES} apples, then keep going until you bite your tail: it speeds up!`
-          )}
+  const content = (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.score}>
+          🍎 {gameState.score}
+          {gameState.score < MIN_APPLES ? ` / ${MIN_APPLES}` : ''}
         </Text>
+        {gameState.score >= MIN_APPLES && <Text style={styles.bonus}>{tr('🎉 Objectif atteint · bonus !', '🎉 Goal reached · bonus!')}</Text>}
       </View>
-    </GestureDetector>
-  );
-}
 
-const ARROWS: Record<Direction, string> = { up: '▲', down: '▼', left: '◀', right: '▶' };
-const ARROW_LABELS: Record<Direction, { fr: string; en: string }> = {
-  up: { fr: 'Haut', en: 'Up' },
-  down: { fr: 'Bas', en: 'Down' },
-  left: { fr: 'Gauche', en: 'Left' },
-  right: { fr: 'Droite', en: 'Right' },
-};
+      <View style={[styles.grid, { width: GRID_SIZE * CELL_PIXEL_SIZE, height: GRID_SIZE * CELL_PIXEL_SIZE }]}>
+        {/* Pomme */}
+        <View style={[styles.cell, { left: gameState.apple.col * CELL_PIXEL_SIZE, top: gameState.apple.row * CELL_PIXEL_SIZE }]}>
+          <Text style={styles.appleEmoji}>🍎</Text>
+        </View>
+        <SnakeBody snake={gameState.snake} direction={gameState.direction} />
+      </View>
 
-function DirectionButton({ direction, onPress, style }: { direction: Direction; onPress: (d: Direction) => void; style?: object }) {
-  const { l } = useI18n();
-  return (
-    <Pressable
-      onPressIn={() => onPress(direction)}
-      accessibilityRole="button"
-      accessibilityLabel={l(ARROW_LABELS[direction])}
-      hitSlop={6}
-      style={({ pressed }) => [styles.padButton, pressed && styles.padButtonPressed, style]}
-    >
-      <Text style={styles.padArrow}>{ARROWS[direction]}</Text>
-    </Pressable>
+      {directionPad && <DirectionPad onPress={changeDirection} />}
+
+      <Text style={styles.hint}>
+        {directionPad
+          ? tr(
+              `Flèches pour diriger. Au moins ${MIN_APPLES} pommes, puis continue tant que tu ne te mords pas la queue : ça accélère !`,
+              `Arrows to steer. At least ${MIN_APPLES} apples, then keep going until you bite your tail: it speeds up!`
+            )
+          : tr(
+              `Glisse pour diriger. Au moins ${MIN_APPLES} pommes, puis continue tant que tu ne te mords pas la queue : ça accélère !`,
+              `Swipe to steer. At least ${MIN_APPLES} apples, then keep going until you bite your tail: it speeds up!`
+            )}
+      </Text>
+    </View>
   );
+  // Avec la croix, pas de glisser du tout : aucun risque de revenir à la page précédente
+  return directionPad ? content : <GestureDetector gesture={panGesture}>{content}</GestureDetector>;
 }
 
 // Serpent dessiné : anneaux verts reliés entre eux, qui s'affinent vers la queue, et une tête avec des yeux
@@ -316,37 +296,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: '#ef4444',
     borderRadius: 1.5,
-  },
-  pad: {
-    marginTop: 14,
-    alignItems: 'center',
-    gap: 6,
-  },
-  padRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  padCenter: {
-    width: PAD_BUTTON,
-    height: PAD_BUTTON,
-  },
-  padButton: {
-    width: PAD_BUTTON,
-    height: PAD_BUTTON,
-    borderRadius: 16,
-    backgroundColor: '#16233a',
-    borderWidth: 1,
-    borderColor: '#3a5a82',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  padButtonPressed: {
-    backgroundColor: '#2e1a5c',
-    borderColor: '#a78bfa',
-  },
-  padArrow: {
-    fontSize: 22,
-    color: '#c4b5fd',
   },
   hint: {
     fontSize: 11,

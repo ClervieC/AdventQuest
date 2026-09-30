@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { ControlChoice, DirectionPad } from '../../components/DirectionPad';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useGameKeys } from '../../hooks/use-game-keys';
 import { playSfx } from '../../services/sfx';
@@ -30,6 +31,7 @@ const LOW_LIGHT_RADIUS = 1.5;
 const TIME_BONUS_PER_SECOND = 5;
 const MAX_CELL_SIZE = 30;
 const WALL_THICKNESS = 2;
+const PAD_RESERVED_HEIGHT = 440; // en-tête du jeu, jauge de la torche, croix directionnelle et texte d'aide
 
 const ARROW_DIRECTIONS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 
@@ -48,9 +50,20 @@ function litAround(center: Position, radius: number): string[] {
   return keys;
 }
 
-export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
+// Avant de lancer (la torche ne se consume pas pendant le choix) : avec la croix directionnelle ou en glissant.
+// Sur téléphone, glisser peut ramener à la page précédente du navigateur.
+export function LabyrintheGame(props: GameComponentProps) {
+  const [directionPad, setDirectionPad] = useState<boolean | null>(null);
+  if (directionPad === null) return <ControlChoice onChoose={setDirectionPad} />;
+  return <LabyrintheBoard {...props} directionPad={directionPad} />;
+}
+
+function LabyrintheBoard({ onGameEnd, directionPad }: GameComponentProps & { directionPad: boolean }) {
   const { tr } = useI18n();
-  const cellSize = Math.min(MAX_CELL_SIZE, Math.floor((useWindowDimensions().width - 40) / MAZE_SIZE));
+  const screenSize = useWindowDimensions();
+  // Avec la croix, le labyrinthe rétrécit sur les petits écrans pour que tout tienne (en-tête, torche, croix)
+  const maxHeight = directionPad ? (screenSize.height - PAD_RESERVED_HEIGHT) / MAZE_SIZE : Infinity;
+  const cellSize = Math.max(18, Math.min(MAX_CELL_SIZE, Math.floor((screenSize.width - 40) / MAZE_SIZE), Math.floor(maxHeight)));
   const [maze] = useState<Maze>(() => generateMaze(MAZE_SIZE));
   const [optimalMoves] = useState(() => shortestPathLength(maze));
   const [torches, setTorches] = useState<Position[]>(() => placeTorches(maze, TORCH_PICKUPS, TORCH_MIN_DISTANCE));
@@ -149,115 +162,122 @@ export function LabyrintheGame({ onGameEnd }: GameComponentProps) {
   const seconds = Math.ceil(timeLeft / 1000);
   const boardSize = MAZE_SIZE * cellSize;
 
-  return (
-    <GestureDetector gesture={panGesture}>
-      <View style={styles.container}>
-        <View style={[styles.torchRow, { width: boardSize }]}>
-          <Text style={[styles.torchText, lowLight && styles.torchTextLow]}>
-            🔥 {seconds} s{lowLight ? tr(' · la torche faiblit !', ' · the torch is fading!') : ''}
-          </Text>
-          <Text style={styles.torchPickups}>{tr(`Torches à trouver : ${torches.length}`, `Torches to find: ${torches.length}`)}</Text>
-        </View>
-        <View style={[styles.torchTrack, { width: boardSize }]}>
-          <View style={[styles.torchFill, lowLight && styles.torchFillLow, { width: `${Math.min(1, timeLeft / TORCH_START_MS) * 100}%` }]} />
-        </View>
+  const content = (
+    <View style={styles.container}>
+      <View style={[styles.torchRow, { width: boardSize }]}>
+        <Text style={[styles.torchText, lowLight && styles.torchTextLow]}>
+          🔥 {seconds} s{lowLight ? tr(' · la torche faiblit !', ' · the torch is fading!') : ''}
+        </Text>
+        <Text style={styles.torchPickups}>{tr(`Torches à trouver : ${torches.length}`, `Torches to find: ${torches.length}`)}</Text>
+      </View>
+      <View style={[styles.torchTrack, { width: boardSize }]}>
+        <View style={[styles.torchFill, lowLight && styles.torchFillLow, { width: `${Math.min(1, timeLeft / TORCH_START_MS) * 100}%` }]} />
+      </View>
 
-        <View style={[styles.mazeContainer, { width: boardSize, height: boardSize }]}>
-          {maze.map((row, rowIndex) =>
-            row.map((cell, colIndex) => (
+      <View style={[styles.mazeContainer, { width: boardSize, height: boardSize }]}>
+        {maze.map((row, rowIndex) =>
+          row.map((cell, colIndex) => (
+            <View
+              key={`${rowIndex}-${colIndex}`}
+              style={[
+                styles.cell,
+                {
+                  width: cellSize,
+                  height: cellSize,
+                  left: colIndex * cellSize,
+                  top: rowIndex * cellSize,
+                  borderTopWidth: cell.walls.top ? WALL_THICKNESS : 0,
+                  borderRightWidth: cell.walls.right ? WALL_THICKNESS : 0,
+                  borderBottomWidth: cell.walls.bottom ? WALL_THICKNESS : 0,
+                  borderLeftWidth: cell.walls.left ? WALL_THICKNESS : 0,
+                },
+              ]}
+            />
+          ))
+        )}
+
+        {/* Torches à ramasser : visibles seulement dans une zone déjà éclairée */}
+        {torches
+          .filter((torch) => explored.has(keyOf(torch)) || lit.has(keyOf(torch)))
+          .map((torch) => (
+            <View key={keyOf(torch)} style={[styles.item, { width: cellSize, height: cellSize, left: torch.col * cellSize, top: torch.row * cellSize }]}>
+              <Text style={{ fontSize: cellSize * 0.55 }}>🔥</Text>
+            </View>
+          ))}
+
+        {/* Brouillard : noir complet sur l'inconnu, pénombre sur ce qui a déjà été vu */}
+        {maze.map((row, rowIndex) =>
+          row.map((_, colIndex) => {
+            const key = `${rowIndex},${colIndex}`;
+            if (lit.has(key)) return null;
+            return (
               <View
-                key={`${rowIndex}-${colIndex}`}
+                key={`fog-${key}`}
+                pointerEvents="none"
                 style={[
-                  styles.cell,
+                  styles.fog,
                   {
-                    width: cellSize,
-                    height: cellSize,
+                    width: cellSize + 1,
+                    height: cellSize + 1,
                     left: colIndex * cellSize,
                     top: rowIndex * cellSize,
-                    borderTopWidth: cell.walls.top ? WALL_THICKNESS : 0,
-                    borderRightWidth: cell.walls.right ? WALL_THICKNESS : 0,
-                    borderBottomWidth: cell.walls.bottom ? WALL_THICKNESS : 0,
-                    borderLeftWidth: cell.walls.left ? WALL_THICKNESS : 0,
+                    opacity: explored.has(key) ? 0.62 : 1,
                   },
                 ]}
               />
-            ))
-          )}
+            );
+          })
+        )}
 
-          {/* Torches à ramasser : visibles seulement dans une zone déjà éclairée */}
-          {torches
-            .filter((torch) => explored.has(keyOf(torch)) || lit.has(keyOf(torch)))
-            .map((torch) => (
-              <View key={keyOf(torch)} style={[styles.item, { width: cellSize, height: cellSize, left: torch.col * cellSize, top: torch.row * cellSize }]}>
-                <Text style={{ fontSize: cellSize * 0.55 }}>🔥</Text>
-              </View>
-            ))}
-
-          {/* Brouillard : noir complet sur l'inconnu, pénombre sur ce qui a déjà été vu */}
-          {maze.map((row, rowIndex) =>
-            row.map((_, colIndex) => {
-              const key = `${rowIndex},${colIndex}`;
-              if (lit.has(key)) return null;
-              return (
-                <View
-                  key={`fog-${key}`}
-                  pointerEvents="none"
-                  style={[
-                    styles.fog,
-                    {
-                      width: cellSize + 1,
-                      height: cellSize + 1,
-                      left: colIndex * cellSize,
-                      top: rowIndex * cellSize,
-                      opacity: explored.has(key) ? 0.62 : 1,
-                    },
-                  ]}
-                />
-              );
-            })
-          )}
-
-          {/* Sortie : toujours visible, pour savoir où aller */}
-          <View style={[styles.item, { width: cellSize, height: cellSize, left: (MAZE_SIZE - 1) * cellSize, top: (MAZE_SIZE - 1) * cellSize }]}>
-            <Text style={{ fontSize: cellSize * 0.6 }}>🎁</Text>
-          </View>
-
-          {/* Joueur, avec le halo de sa torche */}
-          <View
-            pointerEvents="none"
-            style={[
-              styles.glow,
-              {
-                width: cellSize * radius * 2,
-                height: cellSize * radius * 2,
-                borderRadius: cellSize * radius,
-                left: (playerPosition.col + 0.5 - radius) * cellSize,
-                top: (playerPosition.row + 0.5 - radius) * cellSize,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.player,
-              {
-                width: cellSize - 10,
-                height: cellSize - 10,
-                left: playerPosition.col * cellSize,
-                top: playerPosition.row * cellSize,
-              },
-            ]}
-          />
+        {/* Sortie : toujours visible, pour savoir où aller */}
+        <View style={[styles.item, { width: cellSize, height: cellSize, left: (MAZE_SIZE - 1) * cellSize, top: (MAZE_SIZE - 1) * cellSize }]}>
+          <Text style={{ fontSize: cellSize * 0.6 }}>🎁</Text>
         </View>
 
-        <Text style={styles.hint}>
-          {tr(
-            'Glisse pour avancer jusqu’au prochain croisement. Trouve le 🎁 avant que la torche s’éteigne, ramasse les 🔥 pour +10 s.',
-            'Swipe to move to the next junction. Reach the 🎁 before the torch goes out, grab the 🔥 for +10 s.'
-          )}
-        </Text>
+        {/* Joueur, avec le halo de sa torche */}
+        <View
+          pointerEvents="none"
+          style={[
+            styles.glow,
+            {
+              width: cellSize * radius * 2,
+              height: cellSize * radius * 2,
+              borderRadius: cellSize * radius,
+              left: (playerPosition.col + 0.5 - radius) * cellSize,
+              top: (playerPosition.row + 0.5 - radius) * cellSize,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.player,
+            {
+              width: cellSize - 10,
+              height: cellSize - 10,
+              left: playerPosition.col * cellSize,
+              top: playerPosition.row * cellSize,
+            },
+          ]}
+        />
       </View>
-    </GestureDetector>
+
+      {directionPad && <DirectionPad onPress={handleMove} />}
+
+      <Text style={styles.hint}>
+        {directionPad
+          ? tr(
+              'Chaque flèche avance jusqu’au prochain croisement. Trouve le 🎁 avant que la torche s’éteigne, ramasse les 🔥 pour +10 s.',
+              'Each arrow moves you to the next junction. Reach the 🎁 before the torch goes out, grab the 🔥 for +10 s.'
+            )
+          : tr(
+              'Glisse pour avancer jusqu’au prochain croisement. Trouve le 🎁 avant que la torche s’éteigne, ramasse les 🔥 pour +10 s.',
+              'Swipe to move to the next junction. Reach the 🎁 before the torch goes out, grab the 🔥 for +10 s.'
+            )}
+      </Text>
+    </View>
   );
+  // Avec la croix, pas de glisser du tout : aucun risque de revenir à la page précédente
+  return directionPad ? content : <GestureDetector gesture={panGesture}>{content}</GestureDetector>;
 }
 
 const styles = StyleSheet.create({

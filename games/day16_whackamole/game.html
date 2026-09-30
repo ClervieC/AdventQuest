@@ -57,10 +57,10 @@
     // ============================================
 
     const DIFFICULTY_SETTINGS = {
-      easy:      { spawnIntervalMs: 1100, moleVisibleMs: 1400, fakeFragmentChance: 0.0 },
-      medium:    { spawnIntervalMs: 900,  moleVisibleMs: 1100, fakeFragmentChance: 0.15 },
-      hard:      { spawnIntervalMs: 700,  moleVisibleMs: 850,  fakeFragmentChance: 0.25 },
-      very_hard: { spawnIntervalMs: 550,  moleVisibleMs: 650,  fakeFragmentChance: 0.35 },
+      easy:      { spawnIntervalMs: 1150, moleVisibleMs: 1500 },
+      medium:    { spawnIntervalMs: 950,  moleVisibleMs: 1250 },
+      hard:      { spawnIntervalMs: 750,  moleVisibleMs: 950 },
+      very_hard: { spawnIntervalMs: 600,  moleVisibleMs: 750 },
     };
 
     let settings = DIFFICULTY_SETTINGS.easy;
@@ -72,12 +72,13 @@
 
     const GRID_COLS = 3;
     const GRID_ROWS = 3;
-    // 45 s de partie, puis un bonus de 45 s au plus : les gobelins sortent encore plus vite et les faux
-    // fragments se multiplient, jusqu'à la dernière vie perdue ou la fin du bonus
+    // 45 s de partie, puis un bonus de 45 s au plus : les gobelins sortent encore plus vite, jusqu'à la dernière
+    // vie perdue ou la fin du bonus
     const GAME_DURATION_MS = 45000;
     const BONUS_MAX_MS = 45000;
-    // 30 points par gobelin (≈ 2 000 en 45 s pour un sans-faute), 10 en temps additionnel (bonus ≈ 1 000 au plus)
-    const GOBLIN_POINTS = 30;
+    // ≈ 68 gobelins en 45 s (moyen) : 35 points chacun, 2 000 atteints vers le 58e ; 10 en temps additionnel
+    // (bonus ≈ 1 000 au plus)
+    const GOBLIN_POINTS = 35;
     const BONUS_GOBLIN_POINTS = 10;
     const HOLE_RADIUS = 45;
     const MAX_LIVES = 3;
@@ -119,7 +120,7 @@
           const holeGraphic = this.add.circle(x, y, HOLE_RADIUS, 0x0a1420);
           holeGraphic.setStrokeStyle(2, 0x1a3050);
 
-          holes.push({ x, y, occupied: false, isFake: false, sprite: null, hideTimer: null });
+          holes.push({ x, y, occupied: false, sprite: null, hideTimer: null });
         }
       }
 
@@ -181,17 +182,17 @@
       return Phaser.Math.Clamp((elapsedMs - GAME_DURATION_MS) / BONUS_MAX_MS, 0, 1);
     }
 
-    // Durées multipliées par ce ratio : 1 au début, 0.30 à la fin des 45 s, puis 0.18 à la fin du bonus
-    // Onglet Jeux : pas de chrono ; ça accélère jusqu'à 0.18 en 2 min et la partie dure jusqu'à la dernière vie
+    // Durées multipliées par ce ratio : 1 au début, 0.45 à la fin des 45 s, puis 0.30 à la fin du bonus
+    // Onglet Jeux : pas de chrono ; ça accélère jusqu'à 0.25 en 2 min et la partie dure jusqu'à la dernière vie
     const ARCADE_RAMP_MS = 120000;
     function arcadeProgress() {
       return Math.min(1, elapsedMs / ARCADE_RAMP_MS);
     }
 
     function getSpeedRatio() {
-      if (arcadeMode) return 1 - 0.82 * arcadeProgress();
-      if (bonusMode) return 0.30 - 0.12 * bonusProgress();
-      return 1 - 0.70 * Math.min(1, elapsedMs / GAME_DURATION_MS);
+      if (arcadeMode) return 1 - 0.75 * arcadeProgress();
+      if (bonusMode) return 0.45 - 0.15 * bonusProgress();
+      return 1 - 0.55 * Math.min(1, elapsedMs / GAME_DURATION_MS);
     }
 
     function scheduleNextSpawn() {
@@ -210,21 +211,16 @@
       if (freeHoles.length === 0) return;
 
       const hole = freeHoles[Math.floor(Math.random() * freeHoles.length)];
-      const isFake = Math.random() < (arcadeMode ? settings.fakeFragmentChance + 0.3 * arcadeProgress() : bonusMode ? Math.max(0.15, settings.fakeFragmentChance) * (1 + bonusProgress()) : settings.fakeFragmentChance);
-
       hole.occupied = true;
-      hole.isFake = isFake;
 
-      const emoji = isFake ? '✨' : '👺';
-
-      const sprite = scene.add.text(hole.x, hole.y, emoji, { fontSize: '36px' }).setOrigin(0.5);
+      const sprite = scene.add.text(hole.x, hole.y, '👺', { fontSize: '36px' }).setOrigin(0.5);
       sprite.setScale(0);
       scene.tweens.add({ targets: sprite, scale: 1, duration: 150, ease: 'Back.easeOut' });
 
       hole.sprite = sprite;
 
       hole.hideTimer = scene.time.delayedCall(Math.round(settings.moleVisibleMs * getSpeedRatio()), () => {
-        if (!hole.isFake) loseLife();
+        loseLife();
         hideMole(hole);
       });
     }
@@ -235,7 +231,6 @@
         hole.sprite = null;
       }
       hole.occupied = false;
-      hole.isFake = false;
     }
 
     function loseLife() {
@@ -259,17 +254,10 @@
         if (!hole.occupied) continue;
         const distance = Phaser.Math.Distance.Between(pointer.x, pointer.y, hole.x, hole.y);
         if (distance <= HOLE_RADIUS) {
-          if (hole.isFake) {
-            const penalty = bonusMode ? BONUS_GOBLIN_POINTS : GOBLIN_POINTS;
-            score = Math.max(0, score - penalty);
-            sfx('hurt');
-            flashFeedback(hole.x, hole.y, '-' + penalty, 0xef4444);
-          } else {
-            const points = bonusMode ? BONUS_GOBLIN_POINTS : GOBLIN_POINTS;
-            score += points;
-            sfx('whack');
-            flashFeedback(hole.x, hole.y, '+' + points, bonusMode ? 0xfbbf24 : 0x34d399);
-          }
+          const points = bonusMode ? BONUS_GOBLIN_POINTS : GOBLIN_POINTS;
+          score += points;
+          sfx('whack');
+          flashFeedback(hole.x, hole.y, '+' + points, bonusMode ? 0xfbbf24 : 0x34d399);
           if (hole.hideTimer) hole.hideTimer.remove();
           hideMole(hole);
           scoreText.setText('Score: ' + score);
