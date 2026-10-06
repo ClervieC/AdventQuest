@@ -76,7 +76,8 @@ describe('findNearestPoint', () => {
 
 describe('calculateDrawingScore', () => {
   test('score parfait : rapide, sans erreur', () => {
-    expect(calculateDrawingScore(5, 0)).toBe(775); // 800 - 25
+    expect(calculateDrawingScore(5, 0)).toBe(800); // 15 premières secondes gratuites
+    expect(calculateDrawingScore(25, 0)).toBe(750); // 800 - (25 - 15) × 5
   });
 
   test('pénalité de temps plafonnée à 300', () => {
@@ -84,7 +85,7 @@ describe('calculateDrawingScore', () => {
   });
 
   test('chaque erreur coûte 30 points', () => {
-    expect(calculateDrawingScore(5, 3)).toBe(685); // 800 - 25 - 90
+    expect(calculateDrawingScore(5, 3)).toBe(710); // 800 - 90
   });
 
   test('le score ne descend jamais sous 100', () => {

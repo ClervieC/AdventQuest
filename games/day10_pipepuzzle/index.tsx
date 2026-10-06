@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { playSfx } from '../../services/sfx';
-import { calculatePipeScore, connectedFrom, isPathConnected, PipeTile, rotateTile } from './logic';
+import { calculatePipeScore, connectedFrom, isPathConnected, minimumRotations, PIPE_FREE_ROTATIONS_MARGIN, PipeTile, rotateTile } from './logic';
 import { generatePipePuzzle, PIPE_SIZE_BY_DIFFICULTY } from './puzzles';
 import { useI18n } from '../../services/i18n';
 
@@ -19,6 +19,8 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficult
   // Nouvelle grille à chaque partie, plus grande selon la difficulté
   const [puzzle] = useState(() => generatePipePuzzle(PIPE_SIZE_BY_DIFFICULTY[difficulty]));
   const [grid, setGrid] = useState<PipeTile[][]>(() => puzzle.grid.map((row) => row.map((t) => ({ ...t }))));
+  // Rotations sans pénalité : le minimum pour résoudre cette grille + une petite marge
+  const [freeRotations] = useState(() => minimumRotations(puzzle.grid, puzzle.solution, puzzle.path) + PIPE_FREE_ROTATIONS_MARGIN);
   const { width } = useWindowDimensions();
   const cellSize = Math.min(64, Math.floor((Math.min(width, 520) - 48) / puzzle.gridSize));
   const flowing = connectedFrom(grid, puzzle.start);
@@ -35,7 +37,7 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficult
     rotationsCountRef.current += 1;
 
     if (isPathConnected(newGrid, puzzle.start, puzzle.end)) {
-      const score = calculatePipeScore(rotationsCountRef.current, hintsUsedRef.current);
+      const score = calculatePipeScore(rotationsCountRef.current, hintsUsedRef.current, freeRotations);
       onGameEnd({ success: true, score });
     }
   };
@@ -53,7 +55,7 @@ export function PipePuzzleGame({ onGameEnd, hintsAvailable, onUseHint, difficult
     newGrid[row][col] = { ...puzzle.solution[row][col] };
     setGrid(newGrid);
     if (isPathConnected(newGrid, puzzle.start, puzzle.end)) {
-      onGameEnd({ success: true, score: calculatePipeScore(rotationsCountRef.current, hintsUsedRef.current) });
+      onGameEnd({ success: true, score: calculatePipeScore(rotationsCountRef.current, hintsUsedRef.current, freeRotations) });
     }
   };
 

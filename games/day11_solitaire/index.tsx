@@ -19,6 +19,8 @@ import {
   getSourceCards,
   HintMove,
   isGameWon,
+  autoFinishStep,
+  canAutoFinish,
   isStuck,
   MoveSource,
   MoveTarget,
@@ -207,7 +209,12 @@ function SolitaireBoard({
   // on laisse alors le choix de continuer à chercher)
   const reserveSize = state.stock.length + state.waste.length;
   const fullPassWithoutMove = reserveSize > 0 && drawsSinceMove > reserveSize;
-  const showEnd = stuck || fullPassWithoutMove;
+  // Fin automatique : toutes les cartes des colonnes sont visibles, il ne reste qu'à tout ranger sur les As
+  const [autoFinishing, setAutoFinishing] = useState(false);
+  const autoFinishingRef = useRef(false);
+  autoFinishingRef.current = autoFinishing;
+  const autoFinishAvailable = !autoFinishing && canAutoFinish(state);
+  const showEnd = !autoFinishing && !canAutoFinish(state) && (stuck || fullPassWithoutMove);
   useEffect(() => {
     if (showEnd) playSfx('bump');
   }, [showEnd]);
@@ -246,8 +253,49 @@ function SolitaireBoard({
     }
   };
 
+  // Fin automatique : une carte vers les As (ou une carte piochée) toutes les AUTO_FINISH_STEP_MS
+  useEffect(() => {
+    if (!autoFinishing) return;
+    const id = setInterval(() => {
+      const current = stateRef.current;
+      const next = autoFinishStep(current);
+      if (!next) {
+        setAutoFinishing(false);
+        return;
+      }
+      const placedOnAce = next.foundations.some((foundation, i) => foundation.length > current.foundations[i].length);
+      playSfx(placedOnAce ? 'card' : 'draw');
+      if (isGameWon(next)) {
+        setAutoFinishing(false);
+        commit(next);
+        return;
+      }
+      stateRef.current = next;
+      setState(next);
+    }, AUTO_FINISH_STEP_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFinishing]);
+
+  // Pioche vide et toutes les cartes visibles : la partie se termine toute seule (le bouton reste là avant)
+  useEffect(() => {
+    if (!autoFinishing && !finishedRef.current && state.stock.length === 0 && state.waste.length === 0 && canAutoFinish(state)) {
+      setSelection(null);
+      setHint(null);
+      setAutoFinishing(true);
+    }
+  }, [state, autoFinishing]);
+
+  const startAutoFinish = () => {
+    if (!canAutoFinish(stateRef.current)) return;
+    setSelection(null);
+    setHint(null);
+    setPrevious(null); // plus d'annulation pendant la fin automatique
+    setAutoFinishing(true);
+  };
+
   const handleUndo = () => {
-    if (!previous) return;
+    if (!previous || autoFinishingRef.current) return;
     playSfx('tap');
     setState(previous);
     setPrevious(null); // un seul retour en arrière : il faut rejouer un coup pour pouvoir annuler à nouveau
@@ -268,7 +316,7 @@ function SolitaireBoard({
   // ----- Toucher (sélectionner puis toucher la destination) -----
   const handleTap = (x: number, y: number) => {
     const current = layoutRef.current;
-    if (!current) return;
+    if (!current || autoFinishingRef.current) return;
     const hit = hitTest(stateRef.current, current, x - current.offsetX, y);
     if (!hit) {
       setSelection(null);
@@ -298,7 +346,7 @@ function SolitaireBoard({
     .onBegin((event) => {
       const current = layoutRef.current;
       dragRef.current = null;
-      if (!current) return;
+      if (!current || autoFinishingRef.current) return;
       const x = event.x - current.offsetX;
       const source = hitToSource(hitTest(stateRef.current, current, x, event.y));
       const cards = source ? getSourceCards(stateRef.current, source) : null;
@@ -539,6 +587,19 @@ function SolitaireBoard({
         </View>
       )}
 
+      {/* Toutes les cartes visibles : un bouton pour tout ranger d'un coup */}
+      {(autoFinishAvailable || autoFinishing) && (
+        <Pressable
+          style={[styles.finishButton, autoFinishing && styles.finishButtonRunning]}
+          onPress={startAutoFinish}
+          disabled={autoFinishing}
+          accessibilityRole="button"
+        >
+          <Text style={styles.finishButtonText}>
+            {autoFinishing ? tr('✨ Rangement des cartes…', '✨ Putting the cards away…') : tr('✨ Terminer la partie', '✨ Finish the game')}
+          </Text>
+        </Pressable>
+      )}
       <Text style={styles.help}>{tr('Glisse une carte, ou touche-la puis touche sa destination.', 'Drag a card, or tap it then tap where it should go.')}</Text>
       <View style={styles.buttonsRow}>
         <Pressable
@@ -564,7 +625,24 @@ function SolitaireBoard({
   );
 }
 
+const AUTO_FINISH_STEP_MS = 110;
+
 const styles = StyleSheet.create({
+  finishButton: {
+    backgroundColor: '#16a34a',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    marginBottom: 8,
+  },
+  finishButtonRunning: {
+    opacity: 0.7,
+  },
+  finishButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   draggedAway: {
     opacity: 0,
   },

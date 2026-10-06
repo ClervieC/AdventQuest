@@ -121,7 +121,7 @@ function SudokuBoard({
       finishedRef.current = true;
       saver.clear();
       const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
-      const score = calculateSudokuScore(timeSpent, hintsUsed);
+      const score = calculateSudokuScore(timeSpent, hintsUsed, difficulty);
       onGameEnd({ success: true, score });
     }
   };
@@ -217,6 +217,7 @@ function SudokuBoard({
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Sudoku 9×9</Text>
+      <ElapsedTime startTimeRef={startTimeRef} />
 
       <View style={styles.grid}>
         {grid.map((row, rowIndex) => (
@@ -323,7 +324,34 @@ function SudokuBoard({
 
 const CELL_SIZE = 36; // plus petit qu'en 4x4 pour que 9 colonnes tiennent à l'écran
 
+/**
+ * Temps passé sur la grille (pas un compte à rebours) : une simple information, sans stress.
+ * Reprend là où il en était quand on revient sur une grille sauvegardée.
+ */
+function ElapsedTime({ startTimeRef }: { startTimeRef: React.RefObject<number> }) {
+  const { tr } = useI18n();
+  const [seconds, setSeconds] = useState(() => Math.floor((Date.now() - startTimeRef.current) / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [startTimeRef]);
+  const minutes = Math.floor(seconds / 60);
+  const rest = String(seconds % 60).padStart(2, '0');
+  return (
+    <Text style={styles.elapsed} accessibilityLabel={tr(`Temps passé : ${minutes} minutes ${rest} secondes`, `Time spent: ${minutes} minutes ${rest} seconds`)}>
+      ⏱ {minutes}:{rest}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
+  elapsed: {
+    fontSize: 13,
+    color: '#8ea6c0',
+    marginTop: -10,
+    marginBottom: 12,
+    fontVariant: ['tabular-nums'],
+  },
   loading: {
     flex: 1,
     justifyContent: 'center',

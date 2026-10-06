@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Image, ImageSourcePropType, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GameTutorial as Tutorial, TutorialStep } from '../../constants/tutorials';
 import { useI18n } from '../../services/i18n';
@@ -8,7 +8,7 @@ const SHOT_RATIO = 393 / 796;
 const THUMB_HEIGHT = 170;
 
 /** Bouton « Comment jouer ? » de l'intro : déplie une carte avec capture(s) du jeu + règles en quelques étapes */
-export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
+export function GameTutorial({ tutorial, extra }: { tutorial: Tutorial; extra?: ReactNode }) {
   const { tr, l, lang } = useI18n();
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState<ImageSourcePropType | null>(null);
@@ -100,6 +100,8 @@ export function GameTutorial({ tutorial }: { tutorial: Tutorial }) {
         </>
       )}
       {/* Sur ordi (navigateur) : les commandes au clavier / à la souris */}
+      {/* Calendrier : comment les points sont calculés */}
+      {extra}
       {Platform.OS === 'web' && tutorial.keyboard && (
         <View style={styles.keyboard}>
           <Text style={styles.keyboardText}>

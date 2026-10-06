@@ -1,6 +1,7 @@
 import {
     areConnected,
     calculatePipeScore,
+    minimumRotations,
     getConnectors,
     isPathConnected,
     PipeTile,
@@ -146,5 +147,18 @@ describe('calculatePipeScore', () => {
 
   test('le score ne descend jamais sous 150', () => {
     expect(calculatePipeScore(999, 99)).toBe(150);
+  });
+});
+describe('minimumRotations / rotations gratuites', () => {
+  it('compte le minimum de quarts de tour sur le chemin (tuyau droit symétrique)', () => {
+    const grid = [[{ type: 'corner' as const, rotation: 0 as const }, { type: 'straight' as const, rotation: 0 as const }]];
+    const solution = [[{ type: 'corner' as const, rotation: 3 as const }, { type: 'straight' as const, rotation: 2 as const }]];
+    // coin : 3 quarts de tour ; droit : 0 (positions 0 et 2 équivalentes)
+    expect(minimumRotations(grid, solution, [{ row: 0, col: 0 }, { row: 0, col: 1 }])).toBe(3);
+  });
+
+  it('une grille résolue au minimum vaut le maximum', () => {
+    expect(calculatePipeScore(20, 0, 24)).toBe(1000);
+    expect(calculatePipeScore(26, 0, 24)).toBe(960);
   });
 });

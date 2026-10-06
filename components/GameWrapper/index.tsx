@@ -15,7 +15,8 @@ import { SoundToggle } from '../SoundToggle';
 import { BOSS_DAY, FRAGMENT_THRESHOLD, useGameStore } from '../../store/gameStore';
 import { dayRecordKey, useRecordsStore } from '../../store/recordsStore';
 import { CONTENT_WIDTH, pageColumn } from '../../constants/layout';
-import { BASE_SCORE_CAP, capScore, CappedScore, DAY_SCORE_INFO } from '../../constants/scoring';
+import { BONUS_MAX_POINTS, DAY_SCORE_INFO, dayPoints, DayPoints, WIN_MAX_POINTS, WIN_MIN_POINTS } from '../../constants/scoring';
+import { ScoreRules } from '../ScoreRules';
 import { GameResult } from './types';
 
 interface GameWrapperProps {
@@ -33,7 +34,7 @@ interface GameWrapperProps {
 
 export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutorial, arcade = false, recordKey, recordFloor = 0, introExtra, children }: GameWrapperProps) {
   const insets = useSafeAreaInsets();
-  const { tr, l, locale } = useI18n();
+  const { tr, l } = useI18n();
   // Haut de la zone de jeu (sous l'en-tête) : le jeu préchargé pendant l'intro est placé exactement là,
   // sinon Phaser calcule sa mise en page sur une autre taille (éléments coupés à droite, grille décalée)
   const [gameTop, setGameTop] = useState(0);
@@ -51,7 +52,7 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   // Record personnel : celui d'avant la partie, et si la partie vient de le battre
   const [recordInfo, setRecordInfo] = useState<{ previous: number; isNew: boolean } | null>(null);
   // Détail du score : partie normale (plafonnée à 2 000) + temps additionnel
-  const [scoreDetail, setScoreDetail] = useState<CappedScore | null>(null);
+  const [scoreDetail, setScoreDetail] = useState<DayPoints | null>(null);
 
   // Hints de test déjà utilisés sur ce jour (partie reprise après être sorti) : on ne repart pas à 3
   useEffect(() => {
@@ -75,8 +76,9 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
   const canGiveFeedback = role === 'tester' || role === 'admin';
 
   const handleGameEnd = (rawResult: GameResult) => {
-    // Calendrier (et entraînement) : partie normale plafonnée à 2 000, bonus par-dessus. Onglet Jeux : pas de plafond.
-    const detail = arcade ? null : capScore(rawResult.score, rawResult.bonus ?? 0);
+    // Calendrier (et entraînement) : barème commun à tous les jours (500 à 1 000 si gagné + bonus jusqu'à 500,
+    // 50 à 200 si perdu), voir constants/scoring.ts. Onglet Jeux : score brut du jeu.
+    const detail = arcade ? null : dayPoints(day, rawResult.score, rawResult.bonus ?? 0, rawResult.success);
     const gameResult: GameResult = detail ? { ...rawResult, score: detail.total } : rawResult;
     setScoreDetail(detail);
     // Ce fragment est le 24e : grande fête, juste après l'arrivée du fragment autour du cœur
@@ -267,23 +269,24 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
           <Text style={styles.title}>{fragmentIcon} {fragmentName}</Text>
           <Text style={styles.story}>{storyIntro}</Text>
 
-          {/* Points à gagner : partie normale (plafonnée à 2 000) et temps additionnel (sans plafond) */}
+          {/* Points à gagner, en résumé (le détail du calcul est dans « Comment jouer ») */}
           {!arcade && DAY_SCORE_INFO[day] && (
             <View style={styles.scoreInfo}>
               <Text style={styles.scoreInfoLine}>
-                {tr('🎯 Partie : jusqu’à ', '🎯 Game: up to ')}
-                {DAY_SCORE_INFO[day].approx ? '≈ ' : ''}
-                {DAY_SCORE_INFO[day].baseMax.toLocaleString(locale)} pts
+                {tr(
+                  `🎯 Gagné : ${WIN_MIN_POINTS} à ${WIN_MAX_POINTS} pts selon ta performance`,
+                  `🎯 Won: ${WIN_MIN_POINTS} to ${WIN_MAX_POINTS} pts depending on your performance`
+                )}
               </Text>
               <Text style={styles.scoreInfoBonus}>
                 {DAY_SCORE_INFO[day].bonus
-                  ? `⏱️ ${tr('En plus du plafond', 'On top of the cap')} : ${l(DAY_SCORE_INFO[day].bonus!)}`
-                  : tr('Pas de temps additionnel sur ce jeu.', 'No extra time in this game.')}
+                  ? tr(`⏱️ Bonus : jusqu’à +${BONUS_MAX_POINTS} pts · détail dans « Comment jouer »`, `⏱️ Bonus: up to +${BONUS_MAX_POINTS} pts · details in “How to play”`)
+                  : tr('Détail du calcul dans « Comment jouer »', 'How it is calculated: see “How to play”')}
               </Text>
             </View>
           )}
 
-          {tutorial && <GameTutorial tutorial={tutorial} />}
+          {tutorial && <GameTutorial tutorial={tutorial} extra={!arcade ? <ScoreRules day={day} /> : undefined} />}
           {introExtra}
 
           {isTestMode && (
@@ -381,12 +384,12 @@ export function GameWrapper({ day, fragmentName, fragmentIcon, storyIntro, tutor
               : tr('Fragment obtenu !', 'Shard won!')}
           </Text>
           <Text style={styles.resultScore}>{tr('Score : ', 'Score: ')}{result.score}</Text>
-          {scoreDetail && (scoreDetail.bonus > 0 || scoreDetail.capped) && (
+          {scoreDetail && (
             <Text style={styles.scoreDetail}>
-              {tr('Partie : ', 'Game: ')}
-              {scoreDetail.base}
-              {scoreDetail.capped ? tr(` (plafond ${BASE_SCORE_CAP})`, ` (cap ${BASE_SCORE_CAP})`) : ''}
-              {scoreDetail.bonus > 0 ? tr(` + bonus ${scoreDetail.bonus}`, ` + bonus ${scoreDetail.bonus}`) : ''}
+              {result.success
+                ? tr(`Performance ${Math.round(scoreDetail.performance * 100)} % → ${scoreDetail.base} pts`, `Performance ${Math.round(scoreDetail.performance * 100)}% → ${scoreDetail.base} pts`)
+                : tr('Raté : aucun point perdu, aucun gagné. Réessaie !', 'Failed: no points lost, none earned. Try again!')}
+              {scoreDetail.bonus > 0 ? ` + bonus ${scoreDetail.bonus}` : ''}
             </Text>
           )}
           {recordInfo && (

@@ -307,9 +307,54 @@ export function isStuck(state: GameState): boolean {
 }
 
 /** Calcule le score selon le nombre de cartes en fondation et le temps pris */
+// Temps « gratuit » : une patience bien jouée prend quelques minutes, ce n'est pas pénalisé
+export const SOLITAIRE_FREE_SECONDS = 180;
+
 export function calculateSolitaireScore(cardsInFoundations: number, timeSpentSeconds: number, hintsUsed: number): number {
   const baseScore = cardsInFoundations * 25; // jusqu'à 52*25=1300 si toutes les cartes y sont
-  const timePenalty = Math.min(Math.floor(timeSpentSeconds / 5), 200);
+  const timePenalty = Math.min(Math.floor(Math.max(0, timeSpentSeconds - SOLITAIRE_FREE_SECONDS) / 5), 200);
   const hintPenalty = hintsUsed * 50;
   return Math.max(baseScore - timePenalty - hintPenalty, 50);
+}
+// ---------- Fin automatique ----------
+
+/**
+ * La partie peut se terminer toute seule quand toutes les cartes des colonnes sont visibles :
+ * il suffit alors de tout ranger sur les As (en piochant si besoin).
+ */
+export function canAutoFinish(state: GameState): boolean {
+  return !isGameWon(state) && state.columns.every((column) => column.every((card) => card.faceUp));
+}
+
+/**
+ * Prochain coup de la fin automatique : une carte (colonne ou défausse) vers les As, sinon piocher.
+ * null si plus rien ne peut avancer (ne devrait pas arriver quand canAutoFinish est vrai).
+ */
+export function autoFinishStep(state: GameState): GameState | null {
+  const sources: MoveSource[] = [];
+  if (state.waste.length > 0) sources.push({ type: 'waste' });
+  state.columns.forEach((column, columnIndex) => {
+    if (column.length > 0) sources.push({ type: 'column', columnIndex, cardIndex: column.length - 1 });
+  });
+  for (const source of sources) {
+    const cards = getSourceCards(state, source);
+    if (!cards) continue;
+    const foundation = findFoundationFor(state, cards[0]);
+    if (foundation !== -1) return applyMove(state, source, { type: 'foundation', index: foundation });
+  }
+  if (state.stock.length + state.waste.length === 0) return null;
+  return drawFromStock(state);
+}
+
+/** Toute la fin automatique d'un coup (pour vérifier qu'elle aboutit) : état final et nombre d'étapes */
+export function runAutoFinish(state: GameState, maxSteps = 2000): { state: GameState; steps: number } {
+  let current = state;
+  let steps = 0;
+  while (!isGameWon(current) && steps < maxSteps) {
+    const next = autoFinishStep(current);
+    if (!next) break;
+    current = next;
+    steps++;
+  }
+  return { state: current, steps };
 }

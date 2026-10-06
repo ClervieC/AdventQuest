@@ -149,3 +149,16 @@ export function queueTurn(queue: Direction[], currentDirection: Direction, turn:
   if (turn === last || isOppositeDirection(last, turn) || queue.length >= maxQueued) return queue;
   return [...queue, turn];
 }
+
+// ---------- Mouvement fluide (affichage) ----------
+
+/** Position affichée, éventuellement entre deux cases pendant le glissement */
+export interface VisualPosition {
+  row: number;
+  col: number;
+}
+
+/** Le passage de `from` à `to` traverse-t-il un bord de la grille ? (on saute alors directement, sans glisser à travers l'écran) */
+export function crossesEdge(from: VisualPosition, to: VisualPosition): boolean {
+  return Math.abs(to.row - from.row) > 1.5 || Math.abs(to.col - from.col) > 1.5;
+}

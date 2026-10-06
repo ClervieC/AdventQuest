@@ -234,6 +234,7 @@ export const DAYS_CONFIG: DayConfig[] = [
     day: 20,
     game: 'cassebriques',
     difficulty: 'hard',
+    gameDifficulty: 'medium', // 35 briques (5 × 7) en 110 s : faisable par tout le monde
     fragmentName: { fr: 'Éclat du rempart', en: "Rampart Shard" },
     fragmentIcon: '🧊',
     storyIntro: {
@@ -257,6 +258,7 @@ export const DAYS_CONFIG: DayConfig[] = [
     day: 22,
     game: 'marathon_22',
     difficulty: 'very_hard',
+    gameDifficulty: 'medium', // marathon : enchaîner les épreuves sans erreur suffit comme défi
     fragmentName: { fr: 'Corde du pont', en: "Bridge Rope" },
     fragmentIcon: '🪢',
     storyIntro: {
@@ -268,6 +270,7 @@ export const DAYS_CONFIG: DayConfig[] = [
     day: 23,
     game: 'marathon_23',
     difficulty: 'very_hard',
+    gameDifficulty: 'medium', // marathon : enchaîner les épreuves sans erreur suffit comme défi
     fragmentName: { fr: 'Dernière planche', en: "Last Plank" },
     fragmentIcon: '💠',
     storyIntro: {

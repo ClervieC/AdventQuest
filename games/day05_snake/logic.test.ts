@@ -1,4 +1,5 @@
 import {
+    crossesEdge,
     advanceSnake,
     calculateFinalScore,
     snakeBonusPoints,
@@ -284,5 +285,12 @@ describe('Snake - bonus au-delà du minimum', () => {
     expect(calculateFinalScore(MIN_APPLES + 5)).toBe(MIN_APPLES * 100 + 200);
     expect(snakeBonusPoints(MIN_APPLES + 5)).toBe(200);
     expect(snakeBonusPoints(3)).toBe(0);
+  });
+});
+
+describe('Snake - mouvement fluide', () => {
+  it('repère le passage par un bord (pas de glissement à travers la grille)', () => {
+    expect(crossesEdge({ row: 0, col: 9 }, { row: 0, col: 0 })).toBe(true);
+    expect(crossesEdge({ row: 0, col: 3 }, { row: 0, col: 4 })).toBe(false);
   });
 });

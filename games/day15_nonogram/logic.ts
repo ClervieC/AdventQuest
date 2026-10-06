@@ -67,9 +67,12 @@ export function isPuzzleSolved(grid: Grid, solution: Solution): boolean {
   return true;
 }
 
+// Temps « gratuit » avant que le chrono ne coûte des points (le temps de lire les chiffres et de remplir la grille)
+export const NONOGRAM_FREE_SECONDS = 45;
+
 export function calculateNonogramScore(timeSpentSeconds: number, wrongCellsToggled: number, hintsUsed: number): number {
   const baseScore = 900;
-  const timePenalty = Math.min(timeSpentSeconds * 3, 300);
+  const timePenalty = Math.min(Math.max(0, timeSpentSeconds - NONOGRAM_FREE_SECONDS) * 3, 300);
   const errorPenalty = wrongCellsToggled * 15;
   const hintPenalty = hintsUsed * 80;
   return Math.max(baseScore - timePenalty - errorPenalty - hintPenalty, 100);

@@ -83,7 +83,12 @@ describe('Sudoku 9x9 - isSolved', () => {
 
 describe('Sudoku 9x9 - calculateSudokuScore', () => {
   test('score parfait : rapide, sans hint, difficulté medium', () => {
-    expect(calculateSudokuScore(10, 0, 'medium')).toBe(1490); // 1500 - 10 - 0
+    expect(calculateSudokuScore(10, 0, 'medium')).toBe(1500); // 5 premières minutes gratuites
+    expect(calculateSudokuScore(310, 0, 'medium')).toBe(1490); // 1500 - (310 - 300)
+    // Grilles difficiles : 10 min (jour 12) et 20 min (jour 17) sans pénalité
+    expect(calculateSudokuScore(590, 0, 'hard')).toBe(1500);
+    expect(calculateSudokuScore(1190, 0, 'very_hard')).toBe(1500);
+    expect(calculateSudokuScore(1260, 0, 'very_hard')).toBe(1440);
   });
 
   test('pénalité de temps plafonnée selon la difficulté (easy)', () => {
@@ -95,7 +100,7 @@ describe('Sudoku 9x9 - calculateSudokuScore', () => {
   });
 
   test('chaque hint coûte 100 points', () => {
-    expect(calculateSudokuScore(10, 3, 'medium')).toBe(1190); // 1500 - 10 - 300
+    expect(calculateSudokuScore(10, 3, 'medium')).toBe(1200); // 1500 - 300
   });
 
   test('le score ne descend jamais sous 100', () => {

@@ -50,9 +50,12 @@ export function findNearestPoint(touchX: number, touchY: number, points: Point[]
 }
 
 /** Calcule le score selon le temps pris et les erreurs commises (tentatives sur le mauvais point) */
+// Temps « gratuit » : relier tous les points prend forcément quelques secondes, ce n'est pas pénalisé
+export const DRAWING_FREE_SECONDS = 15;
+
 export function calculateDrawingScore(timeSpentSeconds: number, wrongAttempts: number): number {
   const baseScore = 800;
-  const timePenalty = Math.min(timeSpentSeconds * 5, 300);
+  const timePenalty = Math.min(Math.max(0, timeSpentSeconds - DRAWING_FREE_SECONDS) * 5, 300);
   const errorPenalty = wrongAttempts * 30;
   return Math.max(baseScore - timePenalty - errorPenalty, 100);
 }

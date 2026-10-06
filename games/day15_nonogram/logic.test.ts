@@ -104,7 +104,8 @@ describe('isPuzzleSolved', () => {
 
 describe('calculateNonogramScore', () => {
   test('score parfait sans erreur ni hint', () => {
-    expect(calculateNonogramScore(10, 0, 0)).toBe(870); // 900 - 30
+    expect(calculateNonogramScore(10, 0, 0)).toBe(900); // 45 premières secondes gratuites
+    expect(calculateNonogramScore(55, 0, 0)).toBe(870); // 900 - (55 - 45) × 3
   });
 
   test('pénalité de temps plafonnée à 300', () => {
@@ -112,7 +113,7 @@ describe('calculateNonogramScore', () => {
   });
 
   test('chaque erreur coûte 15 points', () => {
-    expect(calculateNonogramScore(10, 4, 0)).toBe(810); // 900 - 30 - 60
+    expect(calculateNonogramScore(10, 4, 0)).toBe(840); // 900 - 60
   });
 
   test('le score ne descend jamais sous 100', () => {

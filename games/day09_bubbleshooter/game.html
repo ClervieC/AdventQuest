@@ -85,6 +85,13 @@
     let cannonSprite, currentBubbleSprite, nextBubbleSprite;
     let flyingBubble = null;  // bulle en mouvement après tir
     let score = 0;
+    // Calendrier : le score compte les bulles tirées (le moins possible = le mieux), voir calendarScore
+    let shotsFired = 0;
+    let initialBubbles = 0;
+    const CLEAR_SCORE = 2000;
+    const PENALTY_PER_EXTRA_SHOT = 40;
+    const CLEAR_SCORE_FLOOR = 500;
+    const TIME_UP_MAX_SCORE = 800;
     let gameEnded = false;
     let scoreText, timerText;
     let timeRemaining = GAME_DURATION_MS;
@@ -200,6 +207,7 @@
     function startGame() {
       // Remise à zéro (la taille finale de la WebView n'est connue qu'ici, pas dans create) : voir buildBoard
       score = 0;
+      shotsFired = 0;
       gameEnded = false;
       timeRemaining = GAME_DURATION_MS;
       if (arcadeMode) {
@@ -263,6 +271,9 @@
           placeBubble(row, col, randomColor());
         }
       }
+      // Calendrier : objectif de tirs calculé sur la grille de départ
+      initialBubbles = Object.keys(grid).length;
+      if (!arcadeMode) updateShotsText();
 
       currentBubbleColor = randomColor();
       nextBubbleColor = randomColor();
@@ -291,6 +302,8 @@
 
     function shootBubble() {
       if (gameEnded || flyingBubble) return;
+      shotsFired += 1;
+      if (!arcadeMode) updateShotsText();
 
       const speed = 700;
       sfx('shoot');
@@ -433,7 +446,7 @@
           }
         });
         score += connected.length * 20;
-        scoreText.setText('Score: ' + score);
+        if (arcadeMode) scoreText.setText('Score: ' + score);
         removeFloatingBubbles();
       }
 
@@ -485,7 +498,7 @@
 
       if (floatingScore > 0) {
         score += floatingScore;
-        scoreText.setText('Score: ' + score);
+        if (arcadeMode) scoreText.setText('Score: ' + score);
       }
     }
 
@@ -518,11 +531,37 @@
       }
     }
 
+    /** Tirs « gratuits » : environ un tir pour 3 bulles de la grille de départ (le minimum réaliste) */
+    function freeShots() {
+      return Math.ceil(initialBubbles / 3);
+    }
+
+    /**
+     * Score du calendrier : le moins de bulles tirées, le mieux.
+     * Grille vidée : 2 000, −40 par tir au-delà du minimum (500 au moins).
+     * Temps écoulé : jusqu'à 800 selon la part de la grille vidée.
+     */
+    function calendarScore(cleared) {
+      if (cleared) {
+        return Math.max(CLEAR_SCORE_FLOOR, CLEAR_SCORE - Math.max(0, shotsFired - freeShots()) * PENALTY_PER_EXTRA_SHOT);
+      }
+      const remaining = Object.keys(grid).length;
+      const clearedPart = initialBubbles > 0 ? Math.max(0, 1 - remaining / initialBubbles) : 0;
+      return Math.round(TIME_UP_MAX_SCORE * clearedPart);
+    }
+
+    function updateShotsText() {
+      // Court, pour ne pas chevaucher le chrono à droite : « Tirs : 4 / ≈10 »
+      scoreText.setText(T('Tirs : ', 'Shots: ') + shotsFired + ' / ≈' + freeShots());
+    }
+
     function finishGame(success) {
       if (gameEnded) return;
       gameEnded = true;
+      const cleared = Object.keys(grid).length === 0;
+      const finalScore = arcadeMode ? score : calendarScore(cleared);
       scene.time.delayedCall(300, () => {
-        endGame(success, score);
+        endGame(success, finalScore);
       });
     }
 

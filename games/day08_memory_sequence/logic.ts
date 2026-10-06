@@ -9,8 +9,8 @@ export interface SequenceConfig {
 
 export const DIFFICULTY_CONFIGS: Record<string, SequenceConfig> = {
   easy: { startLength: 3, maxLength: 5, capLength: 10, displayDelayMs: 800 },
-  medium: { startLength: 4, maxLength: 7, capLength: 14, displayDelayMs: 650 },
-  hard: { startLength: 5, maxLength: 10, capLength: 18, displayDelayMs: 450 },
+  medium: { startLength: 4, maxLength: 6, capLength: 13, displayDelayMs: 650 }, // jour 8 : objectif 6 couleurs
+  hard: { startLength: 5, maxLength: 8, capLength: 16, displayDelayMs: 550 }, // jour 18 : objectif 8 couleurs, un peu plus lent
   very_hard: { startLength: 6, maxLength: 12, capLength: 20, displayDelayMs: 380 },
 };
 

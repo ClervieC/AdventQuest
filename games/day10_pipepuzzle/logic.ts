@@ -130,9 +130,30 @@ export function isPathConnected(
   return false;
 }
 
-export function calculatePipeScore(rotationsCount: number, hintsUsed: number): number {
+/**
+ * `freeRotations` : rotations « gratuites », le minimum pour résoudre cette grille + une petite marge
+ * (voir minimumRotations) : une grille résolue sans tâtonner vaut le maximum.
+ */
+export function calculatePipeScore(rotationsCount: number, hintsUsed: number, freeRotations = 8): number {
   const baseScore = 1000;
-  const rotationPenalty = Math.max(0, rotationsCount - 8) * 20; // au-delà de 8 rotations, pénalité
+  const rotationPenalty = Math.max(0, rotationsCount - freeRotations) * 20;
   const hintPenalty = hintsUsed * 100;
   return Math.max(baseScore - rotationPenalty - hintPenalty, 150);
+}
+/** Marge de rotations au-delà du minimum avant pénalité */
+export const PIPE_FREE_ROTATIONS_MARGIN = 4;
+
+/**
+ * Nombre minimum de rotations pour mettre dans la bonne position les tuyaux du chemin `cells`
+ * (chaque tuyau tourne d'un quart de tour à la fois ; les tuyaux leurres n'ont pas besoin d'être tournés)
+ */
+export function minimumRotations(grid: PipeTile[][], solution: PipeTile[][], cells: Position[]): number {
+  return cells.reduce((total, { row, col }) => {
+    const tile = grid[row][col];
+    const target = solution[row][col];
+    if (tile.type === 'empty' || tile.type !== target.type) return total;
+    // Les tuyaux droits sont symétriques (2 positions sur 4 équivalentes), la croix l'est complètement
+    const period = tile.type === 'straight' ? 2 : tile.type === 'cross' ? 1 : 4;
+    return total + ((((target.rotation - tile.rotation) % 4) + 4) % 4) % period;
+  }, 0);
 }

@@ -7,8 +7,10 @@ import { FragmentProgress } from '../../components/FragmentProgress';
 import { Snowfall } from '../../components/Snowfall';
 import { LanguageButton } from '../../components/LanguageToggle';
 import { SoundToggle } from '../../components/SoundToggle';
+import { RecapInvite } from '../../components/RecapInvite';
 import { SurveyInvite } from '../../components/SurveyInvite';
 import { TesterWelcome } from '../../components/TesterWelcome';
+import { WelcomeIntro } from '../../components/WelcomeIntro';
 import { contentColumn } from '../../constants/layout';
 import { useI18n } from '../../services/i18n';
 import { useGameStore } from '../../store/gameStore';
@@ -21,6 +23,8 @@ export default function CalendarScreen() {
 
   // 24 fragments réunis (par exemple sur un autre appareil) et pas encore fêtés ici : on fait la fête
   const [celebrate, setCelebrate] = useState(false);
+  // Message d'accueil d'abord (première visite), puis celui des testeurs
+  const [welcomeDone, setWelcomeDone] = useState(false);
   useEffect(() => {
     if (fragments < 24) return;
     let cancelled = false;
@@ -76,6 +80,9 @@ export default function CalendarScreen() {
         </View>
       )}
 
+      {/* À partir du 25 décembre : le récap de la saison, en haut de l'accueil */}
+      <RecapInvite place="home" />
+
       <FragmentProgress fragments={fragments} />
 
       <Calendar />
@@ -86,7 +93,8 @@ export default function CalendarScreen() {
       </View>
       </ScrollView>
       <AllFragmentsCelebration visible={celebrate} onClose={() => setCelebrate(false)} />
-      <TesterWelcome />
+      <WelcomeIntro onDone={() => setWelcomeDone(true)} />
+      {welcomeDone && <TesterWelcome />}
     </View>
   );
 }

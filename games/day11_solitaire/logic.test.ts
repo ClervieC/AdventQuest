@@ -1,5 +1,7 @@
 import {
     calculateSolitaireScore,
+    canAutoFinish,
+    runAutoFinish,
     canPlaceOnColumn,
     canPlaceOnFoundation,
     Card,
@@ -179,7 +181,8 @@ describe('calculateSolitaireScore', () => {
   });
 
   test('pénalité de temps', () => {
-    expect(calculateSolitaireScore(20, 50, 0)).toBe(490); // 500 - 10
+    expect(calculateSolitaireScore(20, 50, 0)).toBe(500); // 3 premières minutes gratuites
+    expect(calculateSolitaireScore(20, 230, 0)).toBe(490); // 500 - (230 - 180) / 5
   });
 
   test('chaque hint coûte 50 points', () => {
@@ -239,5 +242,31 @@ describe('isStuck (plus aucun coup utile)', () => {
     const suits: Card['suit'][] = ['hearts', 'diamonds', 'clubs', 'spades'];
     const foundations = suits.map((suit) => Array.from({ length: 13 }, (_, i) => makeCard(suit, (i + 1) as Card['rank'])));
     expect(isStuck({ columns: [[], [], [], [], [], [], []], foundations, stock: [], waste: [] })).toBe(false);
+  });
+});
+
+describe('fin automatique', () => {
+  // Toutes les cartes visibles : chaque couleur répartie dans les colonnes, la pioche et la défausse
+  const suits = ['hearts', 'diamonds', 'clubs', 'spades'] as const;
+  const card = (suit: (typeof suits)[number], rank: number, faceUp = true) => ({ id: `${suit}-${rank}`, suit, rank, faceUp }) as Card;
+  const allVisible = (): GameState => ({
+    // Colonnes : de 13 à 7, descendantes, toutes visibles
+    columns: suits.map((suit) => Array.from({ length: 7 }, (_, i) => card(suit, 13 - i))).concat([[], [], []]),
+    foundations: [[], [], [], []],
+    // Les As à 6 dans la pioche (face cachée) et la défausse
+    stock: suits.flatMap((suit) => [1, 2, 3].map((rank) => card(suit, rank, false))),
+    waste: suits.flatMap((suit) => [4, 5, 6].map((rank) => card(suit, rank))),
+  });
+
+  it('se propose quand toutes les cartes des colonnes sont visibles', () => {
+    expect(canAutoFinish(allVisible())).toBe(true);
+    const hidden = allVisible();
+    hidden.columns[0][0] = { ...hidden.columns[0][0], faceUp: false };
+    expect(canAutoFinish(hidden)).toBe(false);
+  });
+
+  it('range toutes les cartes jusqu’à la victoire, en piochant si besoin', () => {
+    const { state } = runAutoFinish(allVisible());
+    expect(isGameWon(state)).toBe(true);
   });
 });

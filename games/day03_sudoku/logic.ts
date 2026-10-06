@@ -59,18 +59,26 @@ export function isSolved(grid: Grid, gridSize: number): boolean {
 }
 
 /** Calcule le score selon le temps pris, le nombre de hints et la difficulté */
-export function calculateSudokuScore(
-  timeSpentSeconds: number,
-  hintsUsed: number,
-  difficulty: 'easy' | 'medium' | 'hard' = 'medium'
-): number {
+type SudokuScoreDifficulty = 'easy' | 'medium' | 'hard' | 'very_hard';
+
+// Temps « gratuit » avant que le chrono ne coûte des points : une grille bien menée vaut le maximum.
+// Plus la grille est difficile, plus on laisse de temps (jour 3 : 5 min, jour 12 : 10 min, jour 17 : 20 min).
+export const SUDOKU_FREE_SECONDS: Record<SudokuScoreDifficulty, number> = {
+  easy: 300,
+  medium: 300,
+  hard: 600,
+  very_hard: 1200,
+};
+
+export function calculateSudokuScore(timeSpentSeconds: number, hintsUsed: number, difficulty: SudokuScoreDifficulty = 'medium'): number {
   const baseScore = 1500; // grille 9x9 = base plus haute que la version 4x4
-  const timePenaltyCap: Record<'easy' | 'medium' | 'hard', number> = {
+  const timePenaltyCap: Record<SudokuScoreDifficulty, number> = {
     easy: 600,
     medium: 800,
     hard: 1000,
+    very_hard: 1000,
   };
-  const timePenalty = Math.min(timeSpentSeconds, timePenaltyCap[difficulty]);
+  const timePenalty = Math.min(Math.max(0, timeSpentSeconds - SUDOKU_FREE_SECONDS[difficulty]), timePenaltyCap[difficulty]);
   const hintPenalty = hintsUsed * 100;
   return Math.max(baseScore - timePenalty - hintPenalty, 100); // jamais sous 100
 }

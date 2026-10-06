@@ -4,8 +4,10 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, Text
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguageToggle } from '../../components/LanguageToggle';
 import { LegalLinks } from '../../components/Legal';
+import { RecapInvite } from '../../components/RecapInvite';
 import { SurveyInvite } from '../../components/SurveyInvite';
 import { TesterInfoModal } from '../../components/TesterWelcome';
+import { WelcomeInfoModal } from '../../components/WelcomeIntro';
 import { ApiError } from '../../services/api';
 import { Localized, useI18n } from '../../services/i18n';
 import { pageColumn } from '../../constants/layout';
@@ -19,6 +21,7 @@ export default function ProfileScreen() {
   const { username, timezone, hints, days, totalFragments, role, testerDays } = useGameStore();
   const fragments = totalFragments();
   const [testerInfoOpen, setTesterInfoOpen] = useState(false);
+  const [welcomeInfoOpen, setWelcomeInfoOpen] = useState(false);
   const totalScore = Object.values(days).reduce((sum, day) => sum + day.bestScore, 0);
 
   return (
@@ -42,6 +45,11 @@ export default function ProfileScreen() {
         </Pressable>
       )}
       <TesterInfoModal visible={testerInfoOpen} onClose={() => setTesterInfoOpen(false)} />
+      {/* Relire le message d'accueil (comment marche le calendrier, les points, le classement...) */}
+      <Pressable onPress={() => setWelcomeInfoOpen(true)} hitSlop={8} accessibilityRole="button" style={styles.testerInfoLink}>
+        <Text style={[styles.testerInfoText, styles.welcomeInfoText]}>{tr('❓ Comment ça marche ?', '❓ How does it work?')}</Text>
+      </Pressable>
+      <WelcomeInfoModal visible={welcomeInfoOpen} onClose={() => setWelcomeInfoOpen(false)} />
       {role === 'admin' && (
         <Pressable style={styles.adminButton} onPress={() => router.push('/admin')}>
           <Text style={styles.adminButtonText}>{tr('🛠️ Administration : utilisateurs et retours', '🛠️ Admin: users and feedback')}</Text>
@@ -69,6 +77,7 @@ export default function ProfileScreen() {
       )}
 
       <View style={styles.survey}>
+        <RecapInvite place="profile" />
         <SurveyInvite place="profile" />
       </View>
 
@@ -272,6 +281,9 @@ function DeleteAccountSection() {
 }
 
 const styles = StyleSheet.create({
+  welcomeInfoText: {
+    color: '#c4b5fd',
+  },
   testerInfoLink: {
     marginTop: 6,
     paddingVertical: 4,
@@ -301,6 +313,7 @@ const styles = StyleSheet.create({
   survey: {
     alignSelf: 'stretch',
     marginTop: 20,
+    gap: 10,
   },
   adminButton: {
     marginTop: 14,
