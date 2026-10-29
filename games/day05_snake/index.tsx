@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, SharedValue, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { ControlChoice, DirectionPad } from '../../components/DirectionPad';
 import { GameComponentProps } from '../../components/GameWrapper/types';
 import { useGameKeys } from '../../hooks/use-game-keys';
@@ -10,7 +10,6 @@ import {
     advanceSnake,
     calculateFinalScore,
     createInitialState,
-    crossesEdge,
     Direction,
     getTickInterval,
     isSnakeSuccess,
@@ -41,56 +40,69 @@ function SnakeBoard({ onGameEnd, directionPad }: GameComponentProps & { directio
   // État de la partie : la référence est mise à jour à l'instant même du pas (pas au rendu suivant), sinon un appui
   // arrivé juste après un pas était comparé à l'ancienne direction et pouvait être rejeté comme un demi-tour
   const stateRef = useRef<SnakeState>(createInitialState(GRID_SIZE));
+  // État du jeu affiché par React (score, pomme, nombre d'anneaux, direction des yeux)
   const [gameState, setGameState] = useState<SnakeState>(stateRef.current);
   // Virages demandés en attente : un par pas du serpent (voir queueTurn)
   const turnsRef = useRef<Direction[]>([]);
-  // Glissement fluide d'une case à l'autre : départ de chaque anneau + avancement du pas (0 → 1)
-  const fromRef = useRef<VisualPosition[]>(stateRef.current.snake);
-  const [fromPositions, setFromPositions] = useState<VisualPosition[]>(fromRef.current);
-  const progress = useSharedValue(1);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Glissement d'une case à l'autre : positions de départ et d'arrivée de chaque anneau ET avancement du pas, dans
+  // une seule valeur animée mise à jour d'un coup. Chaque anneau calcule sa place à partir de cette valeur : il ne
+  // peut plus être dessiné avec l'avancement d'un pas et les positions d'un autre (avant : petit « retour en
+  // arrière » d'une image à chaque pas, le temps que React affiche les nouvelles positions).
+  const motion = useSharedValue<SnakeMotion>({ from: stateRef.current.snake, to: stateRef.current.snake, progress: 1 });
+  const lastStepAtRef = useRef(0);
+  const intervalRef = useRef(getTickInterval(0));
   const onGameEndRef = useRef(onGameEnd);
   onGameEndRef.current = onGameEnd;
 
-  // Un pas du serpent. Appelé par le minuteur, ou tout de suite quand on tourne (voir changeDirection)
-  const step = useCallback(() => {
-    const previous = stateRef.current;
-    if (previous.isDead || previous.isFull) return;
-    const [next, ...rest] = turnsRef.current;
-    turnsRef.current = rest;
+  // Un pas du serpent (appelé par la boucle d'affichage ci-dessous)
+  const step = useCallback(
+    (now: number) => {
+      const previous = stateRef.current;
+      if (previous.isDead || previous.isFull) return;
+      const [next, ...rest] = turnsRef.current;
+      turnsRef.current = rest;
 
-    // Le glissement suivant part exactement des cases où le serpent vient d'arriver : toujours de case en case,
-    // jamais en diagonale
-    fromRef.current = previous.snake;
-    const nextState = advanceSnake({ ...previous, direction: next ?? previous.direction });
-    stateRef.current = nextState;
-    setGameState(nextState);
-    setFromPositions(fromRef.current);
+      const nextState = advanceSnake({ ...previous, direction: next ?? previous.direction });
+      stateRef.current = nextState;
+      intervalRef.current = getTickInterval(nextState.score);
+      // Le glissement part exactement des cases où le serpent vient d'arriver : toujours de case en case
+      motion.value = { from: previous.snake, to: nextState.snake, progress: Math.min(1, (now - lastStepAtRef.current) / intervalRef.current) };
+      setGameState(nextState);
 
-    const interval = getTickInterval(nextState.score);
-    progress.value = 0;
-    progress.value = withTiming(1, { duration: interval, easing: Easing.linear });
+      if (nextState.isDead || nextState.isFull) {
+        // Pommes au-delà du minimum = bonus (non plafonné)
+        onGameEndRef.current({
+          success: isSnakeSuccess(nextState.score),
+          score: calculateFinalScore(nextState.score),
+          bonus: snakeBonusPoints(nextState.score),
+        });
+      }
+    },
+    [motion]
+  );
 
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (nextState.isDead || nextState.isFull) {
-      // Pommes au-delà du minimum = bonus (non plafonné)
-      onGameEndRef.current({
-        success: isSnakeSuccess(nextState.score),
-        score: calculateFinalScore(nextState.score),
-        bonus: snakeBonusPoints(nextState.score),
-      });
-      return;
-    }
-    // Rythme régulier : le pas suivant est programmé à partir de celui-ci (plus de minuteur recréé à chaque pomme)
-    timerRef.current = setTimeout(step, interval);
-  }, [progress]);
-
+  // Boucle calée sur l'affichage (une fois par image) : les pas tombent à l'heure, sans minuteur en retard
+  // (avant : petits arrêts quand le minuteur partait trop tard)
   useEffect(() => {
-    timerRef.current = setTimeout(step, getTickInterval(0));
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+    let frame = 0;
+    lastStepAtRef.current = performance.now();
+    const loop = (now: number) => {
+      const state = stateRef.current;
+      if (state.isDead || state.isFull) return;
+      if (now - lastStepAtRef.current >= intervalRef.current) {
+        // Rythme régulier ; après un gros ralentissement de l'appareil, on repart de maintenant (pas de rafale de pas)
+        lastStepAtRef.current += intervalRef.current;
+        if (now - lastStepAtRef.current > intervalRef.current) lastStepAtRef.current = now;
+        step(now);
+      } else {
+        const progress = Math.min(1, (now - lastStepAtRef.current) / intervalRef.current);
+        motion.value = { ...motion.value, progress };
+      }
+      frame = requestAnimationFrame(loop);
     };
-  }, [step]);
+    frame = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame);
+  }, [step, motion]);
 
   // Bruitage quand le serpent mange une pomme (le score augmente), fanfare à l'objectif
   const lastScoreRef = useRef(gameState.score);
@@ -144,7 +156,7 @@ function SnakeBoard({ onGameEnd, directionPad }: GameComponentProps & { directio
         <View style={[styles.cell, { left: gameState.apple.col * CELL_PIXEL_SIZE, top: gameState.apple.row * CELL_PIXEL_SIZE }]}>
           <Text style={styles.appleEmoji}>🍎</Text>
         </View>
-        <SnakeBody snake={gameState.snake} from={fromPositions} direction={gameState.direction} progress={progress} />
+        <SnakeBody count={gameState.snake.length} direction={gameState.direction} motion={motion} />
       </View>
 
       {directionPad && <DirectionPad onPress={changeDirection} />}
@@ -177,97 +189,110 @@ const EYE_POSITIONS: Record<Direction, [number, number][]> = {
 };
 const PUPIL_SHIFT: Record<Direction, [number, number]> = { right: [1.5, 0], left: [-1.5, 0], up: [0, -1.5], down: [0, 1.5] };
 
-const midpoint = (a: VisualPosition, b: VisualPosition): VisualPosition => ({ row: (a.row + b.row) / 2, col: (a.col + b.col) / 2 });
-
-function SnakeBody({
-  snake,
-  from,
-  direction,
-  progress,
-}: {
-  snake: SnakeState['snake'];
+/** Positions de départ / d'arrivée de chaque anneau et avancement du pas (0 → 1) */
+interface SnakeMotion {
   from: VisualPosition[];
-  direction: Direction;
-  progress: SharedValue<number>;
-}) {
+  to: VisualPosition[];
+  progress: number;
+}
+
+/** Une coordonnée qui glisse de `from` à `to`, même à travers un bord : sort d'un côté et rentre de l'autre */
+function slide(from: number, to: number, progress: number): number {
+  'worklet';
+  let delta = to - from;
+  if (delta > 1.5) delta -= GRID_SIZE;
+  if (delta < -1.5) delta += GRID_SIZE;
+  let value = from + delta * progress;
+  // Passé à moitié de l'autre côté du bord : on le dessine sur le bord opposé (la grille coupe ce qui dépasse)
+  if (value > GRID_SIZE - 0.5) value -= GRID_SIZE;
+  if (value < -0.5) value += GRID_SIZE;
+  return value;
+}
+
+/** Place affichée de l'anneau `i` : glisse d'une case à la suivante, sans pause, y compris en passant par un bord */
+function positionAt(m: SnakeMotion, i: number): VisualPosition {
+  'worklet';
+  const to = m.to[Math.min(i, m.to.length - 1)];
+  const from = m.from[i] ?? to;
+  return { row: slide(from.row, to.row, m.progress), col: slide(from.col, to.col, m.progress) };
+}
+
+/** Deux cases voisines (pas à travers un bord) */
+function adjacent(a: VisualPosition | undefined, b: VisualPosition | undefined): boolean {
+  'worklet';
+  return !!a && !!b && Math.abs(a.row - b.row) + Math.abs(a.col - b.col) <= 1.01;
+}
+
+function SnakeBody({ count, direction, motion }: { count: number; direction: Direction; motion: SharedValue<SnakeMotion> }) {
   const cell = CELL_PIXEL_SIZE;
-  const count = snake.length;
   // Épaisseur de chaque anneau : pleine près de la tête, 60 % au bout de la queue
   const thickness = (index: number) => Math.round(cell * (0.86 - (count > 1 ? (0.3 * index) / (count - 1) : 0)));
-  // Départ de chaque anneau (s'il traverse un bord, il saute directement à sa case)
-  const startOf = (i: number) => {
-    const start = from[i] ?? snake[i];
-    return crossesEdge(start, snake[i]) ? snake[i] : start;
-  };
+  const indexes = Array.from({ length: count }, (_, i) => i);
 
   return (
     <>
-      {/* Joints entre deux anneaux voisins : un rond au milieu, qui glisse avec eux (pas quand le serpent traverse un bord) */}
-      {snake.slice(1).map((segment, i) => {
-        const previous = snake[i];
-        if (Math.abs(previous.row - segment.row) + Math.abs(previous.col - segment.col) !== 1) return null;
-        const fromA = startOf(i);
-        const fromB = startOf(i + 1);
-        const joinedBefore = Math.abs(fromA.row - fromB.row) + Math.abs(fromA.col - fromB.col) <= 1.01;
-        const target = midpoint(previous, segment);
-        return (
-          <MovingPiece
-            key={`joint-${i}`}
-            from={joinedBefore ? midpoint(fromA, fromB) : target}
-            to={target}
-            progress={progress}
-            size={thickness(i + 1)}
-            color={BODY_COLORS[(i + 1) % 2]}
-          />
-        );
-      })}
+      {/* Joints entre deux anneaux voisins : un rond au milieu, qui glisse avec eux (masqué quand le serpent traverse un bord) */}
+      {indexes.slice(0, -1).map((i) => (
+        <MovingPiece key={`joint-${i}`} index={i} joint motion={motion} size={thickness(i + 1)} color={BODY_COLORS[(i + 1) % 2]} />
+      ))}
       {/* Anneaux du corps, de la queue vers la tête (la tête passe par-dessus). Quand la guirlande vient de manger,
           le nouveau morceau apparaît au bout de la queue en grossissant */}
-      {snake
-        .map((segment, index) => ({ segment, index }))
+      {indexes
+        .slice(1)
         .reverse()
-        .map(({ segment, index }) =>
-          index === 0 ? null : (
-            <MovingPiece
-              key={`seg-${index}`}
-              from={startOf(index)}
-              to={segment}
-              progress={progress}
-              size={thickness(index)}
-              color={BODY_COLORS[index % 2]}
-              appearing={index >= from.length}
-            />
-          )
-        )}
-      <SnakeHead from={startOf(0)} to={snake[0]} direction={direction} progress={progress} />
+        .map((i) => (
+          <MovingPiece key={`seg-${i}`} index={i} motion={motion} size={thickness(i)} color={BODY_COLORS[i % 2]} />
+        ))}
+      <SnakeHead direction={direction} motion={motion} />
     </>
   );
 }
 
-/** Rond du corps qui glisse de `from` à `to` pendant le pas (animé sans re-rendu React) */
+/** Rond du corps (ou joint entre deux anneaux) qui glisse pendant le pas, animé sans re-rendu React */
 function MovingPiece({
-  from,
-  to,
-  progress,
+  index,
+  joint = false,
+  motion,
   size,
   color,
-  appearing = false,
 }: {
-  from: VisualPosition;
-  to: VisualPosition;
-  progress: SharedValue<number>;
+  index: number;
+  joint?: boolean;
+  motion: SharedValue<SnakeMotion>;
   size: number;
   color: string;
-  appearing?: boolean; // morceau tout juste ajouté au bout de la queue : il grossit pendant le pas
 }) {
   const offset = (CELL_PIXEL_SIZE - size) / 2;
-  const animated = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: (from.col + (to.col - from.col) * progress.value) * CELL_PIXEL_SIZE + offset },
-      { translateY: (from.row + (to.row - from.row) * progress.value) * CELL_PIXEL_SIZE + offset },
-      { scale: appearing ? 0.2 + 0.8 * progress.value : 1 },
-    ],
-  }));
+  const animated = useAnimatedStyle(() => {
+    const m = motion.value;
+    if (index >= m.to.length || (joint && index + 1 >= m.to.length)) return { opacity: 0 };
+    let row: number;
+    let col: number;
+    let opacity = 1;
+    if (joint) {
+      const a = positionAt(m, index);
+      const b = positionAt(m, index + 1);
+      row = (a.row + b.row) / 2;
+      col = (a.col + b.col) / 2;
+      // Joint masqué s'il relierait deux anneaux qui ne se touchent pas (passage par un bord)
+      const linkedBefore = !m.from[index + 1] || adjacent(m.from[index], m.from[index + 1]);
+      if (!adjacent(m.to[index], m.to[index + 1]) || !linkedBefore) opacity = 0;
+    } else {
+      const p = positionAt(m, index);
+      row = p.row;
+      col = p.col;
+    }
+    // Morceau tout juste ajouté au bout de la queue : il grossit pendant le pas
+    const appearing = !joint && index >= m.from.length;
+    return {
+      opacity,
+      transform: [
+        { translateX: col * CELL_PIXEL_SIZE + offset },
+        { translateY: row * CELL_PIXEL_SIZE + offset },
+        { scale: appearing ? 0.2 + 0.8 * m.progress : 1 },
+      ],
+    };
+  });
   return (
     <Animated.View
       style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, backgroundColor: color }, animated]}
@@ -275,26 +300,14 @@ function MovingPiece({
   );
 }
 
-function SnakeHead({
-  from,
-  to,
-  direction,
-  progress,
-}: {
-  from: VisualPosition;
-  to: VisualPosition;
-  direction: Direction;
-  progress: SharedValue<number>;
-}) {
+function SnakeHead({ direction, motion }: { direction: Direction; motion: SharedValue<SnakeMotion> }) {
   const cell = CELL_PIXEL_SIZE;
   const [dx, dy] = PUPIL_SHIFT[direction];
   const tongueHorizontal = direction === 'left' || direction === 'right';
-  const animated = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: (from.col + (to.col - from.col) * progress.value) * cell },
-      { translateY: (from.row + (to.row - from.row) * progress.value) * cell },
-    ],
-  }));
+  const animated = useAnimatedStyle(() => {
+    const p = positionAt(motion.value, 0);
+    return { transform: [{ translateX: p.col * cell }, { translateY: p.row * cell }] };
+  });
   return (
     <Animated.View style={[styles.cell, { left: 0, top: 0 }, animated]}>
       {/* Langue fourchue, qui dépasse devant la tête */}

@@ -154,20 +154,27 @@
       notifyReady();
     }
 
-    function update(time, delta) {
-      if (gameEnded || !currentBlock) return;
-
-      // Vitesse en px/s, indépendante du nombre d'images par seconde
-      currentBlock.pos += movingDirection * currentSpeed() * Math.min(delta, 50) / 1000;
-
+    // Position du bloc en mouvement à l'instant `now` : calculée à partir du temps réel écoulé depuis son apparition
+    // (aller-retour entre les deux bords). La vitesse reste parfaitement constante même si une image est dessinée en
+    // retard : avant, chaque image avançait de « vitesse × temps écoulé, plafonné », et un à-coup de l'appareil donnait
+    // l'impression que le bloc ralentissait puis accélérait d'un coup.
+    function blockPositionAt(block, now) {
       const minLeft = EDGE_MARGIN;
-      const maxLeft = scene.scale.width - EDGE_MARGIN - currentBlock.width;
-      // Demi-tour seulement si on va VERS le bord (sinon, après un redimensionnement,
-      // un bloc déjà hors limite changerait de sens à chaque image et resterait coincé)
-      if ((currentBlock.pos > maxLeft && movingDirection > 0) || (currentBlock.pos < minLeft && movingDirection < 0)) {
-        movingDirection *= -1;
-      }
+      const range = Math.max(0, scene.scale.width - EDGE_MARGIN - block.width - minLeft);
+      if (range === 0) return { pos: minLeft, direction: block.direction };
+      const traveled = (block.speed * Math.max(0, now - block.spawnAt)) / 1000;
+      // Phase sur un aller-retour complet (0 → range : vers la droite, range → 2 × range : vers la gauche)
+      const startOffset = Math.min(range, Math.max(0, block.startLeft - minLeft));
+      const phase0 = block.direction > 0 ? startOffset : 2 * range - startOffset;
+      const phase = (phase0 + traveled) % (2 * range);
+      return phase <= range ? { pos: minLeft + phase, direction: 1 } : { pos: minLeft + 2 * range - phase, direction: -1 };
+    }
 
+    function update() {
+      if (gameEnded || !currentBlock) return;
+      const { pos, direction } = blockPositionAt(currentBlock, performance.now());
+      currentBlock.pos = pos;
+      movingDirection = direction;
       // Affiché sur un pixel entier : pas de bords flous pendant le mouvement
       currentBlock.sprite.x = Math.round(currentBlock.pos);
     }
@@ -263,7 +270,17 @@
       const startLeft = movingDirection > 0 ? EDGE_MARGIN : scene.scale.width - EDGE_MARGIN - lastBlock.width;
       const sprite = drawBlock(Math.round(startLeft), newY, lastBlock.width, COLORS[colorIndex]);
 
-      currentBlock = { pos: startLeft, width: lastBlock.width, y: newY, sprite };
+      // Vitesse fixée à l'apparition du bloc (elle n'augmente qu'entre deux blocs, en bonus)
+      currentBlock = {
+        pos: startLeft,
+        startLeft,
+        direction: movingDirection,
+        speed: currentSpeed(),
+        spawnAt: performance.now(),
+        width: lastBlock.width,
+        y: newY,
+        sprite,
+      };
 
       // Décale la caméra vers le haut si on approche du sommet de l'écran visible
       if (newY < 150) {
@@ -277,6 +294,8 @@
 
       const lastBlock = blocks[blocks.length - 1];
       // Position lâchée arrondie au pixel : tout le calcul qui suit est en entiers
+      // Position exacte à l'instant de l'appui (pas celle de la dernière image dessinée)
+      currentBlock.pos = blockPositionAt(currentBlock, performance.now()).pos;
       const droppedLeft = Math.round(currentBlock.pos);
       const diff = droppedLeft - lastBlock.left;
 
